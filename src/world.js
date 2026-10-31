@@ -6,6 +6,8 @@ import {
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { pbrMaterial } from './assets.js';
 import { Scatter, partsOf } from './scatter.js';
+import { createWeather } from './weather.js';
+import { createNpcs } from './npcs.js';
 import { buildCity, cityFlat, CITY_SIGNALS, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
 
 export const WORLD = {
@@ -114,12 +116,14 @@ function dropTexture() {
 }
 
 // ---------- Shader tambahan: angin buat rumput dan daun ----------
+const windScale = { value: 1 };
 function addWind(material, { strength = 0.25, leaf = false } = {}) {
   material.userData.wind = { value: 0 };
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = material.userData.wind;
+    shader.uniforms.uWind = windScale;
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', `#include <common>\nuniform float uTime;`)
+      .replace('#include <common>', `#include <common>\nuniform float uTime, uWind;`)
       .replace('#include <begin_vertex>', `
         #include <begin_vertex>
         #ifdef USE_INSTANCING
@@ -130,8 +134,8 @@ function addWind(material, { strength = 0.25, leaf = false } = {}) {
         float ph = wp.x * 0.35 + wp.z * 0.27;
         float sway = sin(uTime * 1.6 + ph) * 0.6 + sin(uTime * 2.7 + ph * 1.7) * 0.4;
         float k = ${leaf ? 'clamp(uv.y, 0.0, 1.0) * 0.5 + 0.5' : 'uv.y * uv.y'};
-        transformed.x += sway * ${strength.toFixed(3)} * k;
-        transformed.z += cos(uTime * 1.3 + ph) * ${(strength * 0.5).toFixed(3)} * k;
+        transformed.x += sway * ${strength.toFixed(3)} * k * uWind;
+        transformed.z += cos(uTime * 1.3 + ph) * ${(strength * 0.5).toFixed(3)} * k * uWind;
       `);
   };
 }
@@ -219,16 +223,17 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   const bladeMat = new THREE.MeshStandardMaterial({ roughness: 0.8, side: THREE.DoubleSide });
   bladeMat.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = bladeMat.userData.wind;
+    shader.uniforms.uWind = windScale;
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform float uTime; varying float vH;')
+      .replace('#include <common>', '#include <common>\nuniform float uTime, uWind; varying float vH;')
       .replace('#include <beginnormal_vertex>', 'vec3 objectNormal = vec3(0.0, 1.0, 0.0);')
       .replace('#include <begin_vertex>', `
         #include <begin_vertex>
         vec4 wp = instanceMatrix * vec4(transformed, 1.0);
         float ph = wp.x * 0.5 + wp.z * 0.4;
         float k = uv.y * uv.y;
-        transformed.x += (sin(uTime * 1.8 + ph) * 0.5 + sin(uTime * 3.1 + ph * 2.3) * 0.25) * 0.2 * k;
-        transformed.z += cos(uTime * 1.4 + ph) * 0.1 * k;
+        transformed.x += (sin(uTime * 1.8 + ph) * 0.5 + sin(uTime * 3.1 + ph * 2.3) * 0.25) * 0.2 * k * uWind;
+        transformed.z += cos(uTime * 1.4 + ph) * 0.1 * k * uWind;
         vH = uv.y;
       `);
     // Normal selalu ke atas: rumput kena cahaya kayak tanahnya, sisi belakang nggak jadi item
@@ -425,6 +430,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   const treeModels = assets.trees || [];
   let leafMat = null;
   const treeSets = [];
+  const leafWind = { uTime: bladeMat.userData.wind, uWind: windScale };
   if (treeModels.length) {
     // Model asli: pohon deket detail tinggi, pohon jauh versi ringan
     const perModel = treeModels.map(() => []);
@@ -440,7 +446,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
         return { x, z, y: groundHeight(x, z) - box.min.y * norm * sc, s: norm * sc, ry: rnd() * Math.PI * 2 };
       });
       treeSets.push(new Scatter(group, [
-        { far: 32, parts: partsOf(model) },
+        { far: 32, parts: partsOf(model, { wind: leafWind }) },
         { far: 400, parts: partsOf(assets.treesFar?.[mi] || model) },
       ], items, Math.max(box.max.x - box.min.x, h), [Math.min(list.length, 14), list.length]));
     });
@@ -634,16 +640,24 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
 
   const waters = [lake, basinWater];
 
-  return {
-    group, waters, river, lake,
+  const weather = createWeather(scene, renderer, { hi, waters, wind: windScale });
+  const npcs = createNpcs(group, { hi });
+
+  const api = {
+    group, waters, river, lake, npcs,
+    setWeather(opts) { weather.set(opts); },
+    get weather() { return weather.state; },
     updateTrees(camera) { for (const t of treeSets) t.update(camera); },
     setSun(dir, color) {
+      weather.apply();
       for (const w of waters) {
         w.material.uniforms.sunDirection.value.copy(dir);
         w.material.uniforms.sunColor.value.copy(color);
       }
     },
     update(t, dt) {
+      weather.update(t, dt);
+      npcs.update(dt, t, cityLightCount);
       bladeMat.userData.wind.value = t;
       if (leafMat) leafMat.userData.wind.value = t;
       for (const w of waters) w.material.uniforms.time.value = t * 0.6;
@@ -696,9 +710,13 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
       motes.rotation.y = t * 0.01;
     },
   };
+  if (import.meta.env.DEV) window.__world = api;
+  return api;
 }
 
+let cityLightCount = 3;
 export function setCityLights(n) {
+  cityLightCount = n;
   WORLD.lamps.forEach((l, i) => { l.on = i < n; });
   setCityLit(n);
   WORLD.towerLights?.forEach((m, i) => { m.emissiveIntensity = i < n ? 2.5 : 0; });

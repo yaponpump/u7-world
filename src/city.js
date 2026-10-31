@@ -45,6 +45,7 @@ export function onSidewalk(x, z) {
 }
 // Mobil dan pembatas jalan, diisi pas kota dibangun
 const OBSTACLES = [];
+export const addObstacle = (x, z, hx, hz) => OBSTACLES.push({ x, z, hx, hz });
 export function blockedByBuilding(x, z) {
   const pad = 0.55;
   return BUILDINGS.some((b) => x > b.x - pad && x < b.x + b.w + pad && z > b.z - pad && z < b.z + b.d + pad)

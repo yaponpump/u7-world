@@ -42,7 +42,7 @@ export class Scatter {
 }
 
 // Ambil mesh GLB jadi bagian instanced, daun jadi cutout biar murah
-export function partsOf(model, { leafTint = true } = {}) {
+export function partsOf(model, { leafTint = true, wind = null } = {}) {
   model.updateMatrixWorld(true);
   const parts = [];
   model.traverse((o) => {
@@ -54,6 +54,16 @@ export function partsOf(model, { leafTint = true } = {}) {
     });
     // Tekstur daunnya gelap banget, di bawah langit terang jadi kebaca kayak ranting
     if (cut && leafTint) material.color.setRGB(3.2, 4.2, 2.1);
+    if (cut && wind) {
+      material.onBeforeCompile = (sh) => {
+        Object.assign(sh.uniforms, wind);
+        sh.vertexShader = 'uniform float uTime, uWind;\n' + sh.vertexShader.replace('#include <begin_vertex>', `
+          #include <begin_vertex>
+          vec3 iP = instanceMatrix[3].xyz + position * 3.0;
+          transformed.xz += vec2(sin(uTime * 1.3 + iP.x * 0.6 + iP.y), cos(uTime * 1.1 + iP.z * 0.7)) * 0.012 * uWind * position.y;
+        `);
+      };
+    }
     if (material.map) material.map.anisotropy = 8;
     parts.push({ geometry: o.geometry, material, local: o.matrixWorld.clone() });
   });
