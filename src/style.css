@@ -46,7 +46,7 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
 .skin.active { border-color: var(--lime); }
 .skin.locked { opacity: 0.4; cursor: not-allowed; }
 .skin.locked .sw::before { content: "🔒"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 14px; }
-@media (max-width: 720px) { .market { display: none; } .skin-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 980px) { .market { display: none; } .skin-grid { grid-template-columns: repeat(4, 1fr); } }
 .hint { font-size: 12px; max-width: 46ch; }
 .clock { position: absolute; top: calc(14px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); font-family: var(--display); font-size: 13px; padding: 6px 12px; }
 .bubble { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -100%); background: #fff; color: var(--ink); border-radius: 14px; padding: 8px 12px; font-size: 13px; max-width: 240px; text-align: center; }
