@@ -37,7 +37,9 @@ export function createWeather(scene, renderer, { hi, waters, wind }) {
   scene.traverse((o) => { if (o.isDirectionalLight) sun = o; if (o.isHemisphereLight) hemi = o; });
 
   const cur = { ...KINDS.clear }, target = { ...KINDS.clear };
-  let flash = 0, nextFlash = 4, kindNow = 'clear';
+  let flash = 0, nextFlash = 4, kindNow = 'clear', frame = 0;
+  // Bayangan nggak perlu dihitung ulang tiap frame
+  if (sun) sun.shadow.autoUpdate = false;
 
   // Kubah awan: nutup foto langit pas mendung. Kena depth test, jadi cuma keliatan di langit.
   const domeMat = new THREE.MeshBasicMaterial({ map: cloudTexture(), side: THREE.BackSide, transparent: true, opacity: 0, depthWrite: false, fog: false });
@@ -114,6 +116,7 @@ export function createWeather(scene, renderer, { hi, waters, wind }) {
     },
     // Dipanggil abis siklus siang/malam, jadi cuaca numpang di atas nilainya
     apply() {
+      if (sun && frame++ % 3 === 0) sun.shadow.needsUpdate = true;
       const { cover, rain: wet, gold } = cur;
       const c = scene.fog.color;
       const l = c.r * 0.3 + c.g * 0.55 + c.b * 0.15;

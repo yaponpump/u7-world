@@ -121,6 +121,14 @@ WORLD.routes = [
   { id: 'bridge2', points: [[-5, 22], [-5, 10], [-16.2, 9.9]] },
   { id: 'bridge3', points: [[3, -14], [3, -41], [-36.4, -45.4]] },
 ];
+// Tempat yang bisa ditekan E: { id, name, x, z, line }
+WORLD.interactables = [
+  { id: 'tower', name: 'Signal Tower', x: 26, z: 6, line: 'One ring for every city light. Find signals and they come back on.' },
+  { id: 'notice', name: 'Notice board', x: 24, z: -17, line: 'Five signals got lost in The Blackout. The board says bring them home.' },
+  { id: 'hill', name: 'Hill lookout', x: 39.5, z: -35.5, line: 'You can see the whole city from up here. Most of it is still dark.' },
+  { id: 'pier', name: 'Pier', x: -19, z: 22, line: 'End of the line. Press R and skip a rock.' },
+  { id: 'cityGate', name: 'City gate', x: 20, z: 44, line: 'Road closed since The Blackout. Barriers only stop cars.' },
+];
 WORLD.landmarks = [
   { id: 'park', name: 'Park', x: 20, z: 0, kind: 'park' },
   { id: 'fountain', name: 'Fountain', x: 20, z: 0, kind: 'fountain', minor: true },
@@ -130,7 +138,9 @@ WORLD.landmarks = [
   { id: 'bridge2', name: 'Bridge', x: -22, z: 7, kind: 'bridge' },
   { id: 'bridge3', name: 'Bridge', x: -40, z: -40, kind: 'bridge' },
   { id: 'stones', name: 'Stepping stones', x: -16, z: -2, kind: 'stone', minor: true },
-  { id: 'hill', name: 'Hill', x: 44, z: -40, kind: 'hill' },
+  { id: 'hill', name: 'Hill lookout', x: 44, z: -40, kind: 'hill' },
+  { id: 'tower', name: 'Signal Tower', x: 26, z: 6, kind: 'tower' },
+  { id: 'notice', name: 'Notice board', x: 24, z: -17, kind: 'board', minor: true },
   { id: 'cafe', name: 'Cafe', x: 44, z: 24, kind: 'cafe' },
   { id: 'city', name: 'City', x: 40, z: 72, kind: 'city' },
 ];
@@ -201,6 +211,23 @@ function buildPaths(group, mat, hi) {
 
 // AO bawaan tekstur bikin jalan keliatan gelap dari jauh
 function lightPath(mat) { mat.aoMap = null; mat.needsUpdate = true; return mat; }
+
+function noticeTexture() {
+  const c = document.createElement('canvas');
+  c.width = 780; c.height = 420;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#f5efe2';
+  ctx.fillRect(0, 0, 780, 420);
+  ctx.fillStyle = '#23262c';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 62px "Chakra Petch", sans-serif';
+  ctx.fillText('CITY NOTICE', 390, 92);
+  ctx.font = '38px "Figtree", sans-serif';
+  ['Five signals were lost in The Blackout.', 'Every signal found brings a light back.', 'Follow the green arrow.'].forEach((t, i) => ctx.fillText(t, 390, 180 + i * 66));
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
 
 function signLabel(text) {
   const c = document.createElement('canvas');
@@ -418,7 +445,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
 
   // ---------- Rumput (instanced blades) ----------
   // Tiap instance = serumpun helai, biar padat tanpa nambah instance terlalu banyak
-  const bladeCount = hi ? 260000 : 70000;
+  const bladeCount = hi ? 200000 : 60000;
   let gseed = 1234567;
   const grnd = () => { gseed = (gseed + 0x6D2B79F5) | 0; let t = Math.imul(gseed ^ (gseed >>> 15), 1 | gseed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   const tuft = [];
@@ -495,8 +522,8 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   const sunDir = new THREE.Vector3(0.3, 0.8, 0.5).normalize();
   function makeWater(geo, color) {
     const w = new Water(geo, {
-      textureWidth: hi ? 1024 : 512,
-      textureHeight: hi ? 1024 : 512,
+      textureWidth: hi ? 512 : 256,
+      textureHeight: hi ? 512 : 256,
       waterNormals: texWaterN,
       sunDirection: sunDir.clone(),
       sunColor: 0xffffff,
@@ -507,7 +534,12 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     w.material.uniforms.size.value = 3.5;
     // Pantulan air nggak perlu rumput: ini yang paling makan GPU
     const reflect = w.onBeforeRender;
-    w.onBeforeRender = (...args) => { blades.visible = false; reflect.apply(w, args); blades.visible = true; };
+    w.onBeforeRender = (renderer, scene, camera) => {
+      if (Math.hypot(camera.position.x - WORLD.lake.x, camera.position.z - WORLD.lake.z) > WORLD.lake.r + 55) return;
+      blades.visible = false;
+      reflect.call(w, renderer, scene, camera);
+      blades.visible = true;
+    };
     return w;
   }
   const lake = makeWater(new THREE.CircleGeometry(WORLD.lake.r, 64), 0x0f3b4a);
@@ -515,10 +547,9 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   lake.position.set(WORLD.lake.x, -0.2, WORLD.lake.z);
   group.add(lake);
   const riverGeo = ribbonGeometry(riverCurve, 6.4);
-  const river = new THREE.Mesh(riverGeo, new THREE.MeshPhysicalMaterial({
-    color: 0x1b4f5e, roughness: 0.08, metalness: 0.0, transmission: 0.35, thickness: 1.5,
-    transparent: true, opacity: 0.92, normalMap: texWaterN, normalScale: new THREE.Vector2(0.35, 0.35),
-    clearcoat: 1, clearcoatRoughness: 0.05,
+  const river = new THREE.Mesh(riverGeo, new THREE.MeshStandardMaterial({
+    color: 0x1f5a68, roughness: 0.12, metalness: 0.1,
+    transparent: true, opacity: 0.82, normalMap: texWaterN, normalScale: new THREE.Vector2(0.35, 0.35),
   }));
   river.position.y = -0.2;
   group.add(river);
@@ -540,10 +571,11 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   const basinRim = new THREE.Mesh(new THREE.TorusGeometry(3.3, 0.18, 12, 48), stoneMat);
   basinRim.rotation.x = Math.PI / 2;
   basinRim.position.set(WORLD.fountain.x, 0.75, WORLD.fountain.z);
-  const basinWater = makeWater(new THREE.CircleGeometry(3.1, 40), 0x1d5e73);
+  const basinWater = new THREE.Mesh(new THREE.CircleGeometry(3.1, 40), new THREE.MeshStandardMaterial({
+    color: 0x1d5e73, roughness: 0.1, metalness: 0.2, normalMap: texWaterN, normalScale: new THREE.Vector2(0.3, 0.3),
+  }));
   basinWater.rotation.x = -Math.PI / 2;
   basinWater.position.set(WORLD.fountain.x, 0.62, WORLD.fountain.z);
-  basinWater.material.uniforms.distortionScale.value = 1.2;
   const column = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.55, 2.4, 24), stoneMat);
   column.position.set(WORLD.fountain.x, 1.2, WORLD.fountain.z);
   basin.castShadow = column.castShadow = true;
@@ -776,7 +808,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   const board = new THREE.Group();
   const bb = new THREE.Mesh(new THREE.BoxGeometry(3, 1.8, 0.12), woodMat);
   bb.position.y = 1.9;
-  const paper = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.4), new THREE.MeshStandardMaterial({ color: 0xf5efe2, roughness: 1 }));
+  const paper = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.4), new THREE.MeshStandardMaterial({ map: noticeTexture(), roughness: 1 }));
   paper.position.set(0, 1.9, 0.07);
   for (const sx of [-1.2, 1.2]) {
     const leg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.2, 0.12), woodMat);
@@ -806,14 +838,15 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
 
   // ---------- Sinyal quest ----------
   const sigGeo = new THREE.OctahedronGeometry(0.35, 0);
+  const sigGlow = new THREE.SpriteMaterial({ map: dropTexture(), color: 0xb8ff3c, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending });
   for (const [x, z] of [[-22, 22], ...CITY_SIGNALS, [44, -38], [-50, -10]]) {
     const m = new THREE.MeshStandardMaterial({ color: 0xb8ff3c, emissive: 0xb8ff3c, emissiveIntensity: 2.5, roughness: 0.2 });
     const s = new THREE.Mesh(sigGeo, m);
     s.position.set(x, groundHeight(x, z) + 1.2, z);
-    const l = new THREE.PointLight(0xb8ff3c, 4, 6, 2);
-    l.position.set(x, groundHeight(x, z) + 1.2, z);
-    group.add(s, l);
-    WORLD.signals.push({ mesh: s, light: l, x, z, taken: false });
+    s.add(new THREE.Sprite(sigGlow));
+    s.children[0].scale.setScalar(3.4);
+    group.add(s);
+    WORLD.signals.push({ mesh: s, x, z, taken: false });
   }
 
   buildCity(group, { hi, A, props: assets.props, fallback: texStone });
@@ -881,10 +914,13 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   );
   group.add(motes);
 
-  const waters = [lake, basinWater];
+  const waters = [lake];
 
   const weather = createWeather(scene, renderer, { hi, waters, wind: windScale });
   const npcs = createNpcs(group, { hi });
+  for (const s of npcs.sisters) {
+    WORLD.interactables.push({ id: 'unit', name: 'Dormant unit', x: s.root.position.x, z: s.root.position.z, line: 'Another unit like me. Still asleep. Maybe all five lights will wake it.' });
+  }
 
   const api = {
     group, waters, river, lake, npcs,
@@ -944,7 +980,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
       }
       // sinyal
       for (const s of WORLD.signals) {
-        if (s.taken) { s.light.intensity = 0; continue; }
+        if (s.taken) continue;
         s.mesh.rotation.y = t * 1.5;
         s.mesh.position.y = groundHeight(s.x, s.z) + 1.2 + Math.sin(t * 2 + s.x) * 0.2;
       }
