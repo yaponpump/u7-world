@@ -1,7 +1,8 @@
 import * as THREE from 'three';
-import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight } from './world.js';
+import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight, distToRiver } from './world.js';
 import { blockedByBuilding } from './city.js';
 import { createRobot } from './robot.js';
+import { createAudio } from './audio.js';
 import { createControls } from './controls.js';
 import { loadAssets } from './assets.js';
 
@@ -90,6 +91,16 @@ let hdriRT = null;
 if (assets.hdri) { hdriRT = pmrem.fromEquirectangular(assets.hdri); }
 const robot = createRobot();
 scene.add(robot.root);
+// Suara: tiap ganti state robot, audio ikut (servo, gulp, nguap, dengung tidur, dst)
+const audio = createAudio();
+{
+  const setState = robot.setState;
+  robot.setState = (name) => {
+    const prev = robot.state.name;
+    if (prev !== name) audio.onState(name, prev);
+    setState(name);
+  };
+}
 robot.root.position.set(WORLD.park.x, 0, WORLD.park.z + 12);
 robot.root.rotation.y = Math.PI;
 
@@ -149,6 +160,16 @@ function refreshLamps() {
 }
 refreshLamps();
 
+function refreshMuteBtn() { $('mute-btn').textContent = audio.muted ? 'M · Suara off' : 'M · Suara on'; }
+function toggleMute() {
+  audio.unlock();
+  const m = audio.toggleMute();
+  refreshMuteBtn();
+  showToast(m ? 'Suara dimatiin' : 'Suara nyala', 1400);
+}
+$('mute-btn').addEventListener('click', toggleMute);
+refreshMuteBtn();
+
 let toastTimer;
 function showToast(msg, ms = 2600) {
   toast.textContent = msg;
@@ -172,6 +193,8 @@ $('wallet-btn').addEventListener('click', () => {
 $('start-btn').addEventListener('click', () => {
   $('intro').classList.add('hidden');
   started = true;
+  audio.unlock();
+  audio.play('boot');
   robot.setState('yawn');
   behavior.lock = 1.8;
   setTimeout(() => say('...oh. Ada sinyal baru. Lu beneran dateng?'), 1900);
@@ -210,6 +233,7 @@ function splash(x, z) {
   ring.position.set(x, -0.2, z);
   scene.add(ring);
   splashes.push({ ring, t: 0 });
+  audio.play('plunk');
 }
 
 // ---------- Siang / malam ikut jam asli ----------
@@ -326,6 +350,7 @@ function tick() {
       rock.visible = true;
     }
     if (controls.consume('q')) takePhoto();
+    if (controls.consume('m')) toggleMute();
 
     // --- gerak ---
     behavior.lock = Math.max(0, behavior.lock - rawDt);
@@ -390,10 +415,11 @@ function tick() {
         signalsFound++;
         $('quest-count').textContent = signalsFound;
         showToast(`Sinyal ketemu (${signalsFound}/5)`);
+        audio.play('chime');
         robot.setState('wave');
         behavior.lock = 1.2;
-        if (signalsFound === 3 && cityLights < 4) { cityLights = 4; refreshLamps(); say('Lampu keempat! Kotanya makin terang.'); }
-        if (signalsFound === 5) { cityLights = 5; refreshLamps(); say('Semua lampu nyala. Gua... inget rasanya kayak gini.', 5000); }
+        if (signalsFound === 3 && cityLights < 4) { cityLights = 4; refreshLamps(); setTimeout(() => audio.play('lamp'), 500); say('Lampu keempat! Kotanya makin terang.'); }
+        if (signalsFound === 5) { cityLights = 5; refreshLamps(); setTimeout(() => audio.play('lamp'), 500); say('Semua lampu nyala. Gua... inget rasanya kayak gini.', 5000); }
       }
     }
 
@@ -440,7 +466,19 @@ function tick() {
   if (frameNo++ % 12 === 0) { camera.updateMatrixWorld(); world.updateTrees(camera); }
   gradePass.uniforms.uTime.value = elapsed;
   robot.update(dt, 0, elapsed);
-  applyDaylight(window.__u7?.forceHour ?? timeOfDay());
+  const hourNow = window.__u7?.forceHour ?? timeOfDay();
+  applyDaylight(hourNow);
+  if (started) {
+    const onWood = Math.abs(pos.y - 0.62) < 0.08 || Math.abs(pos.y - 0.4) < 0.08;
+    const nearFountain = Math.hypot(pos.x - WORLD.fountain.x, pos.z - WORLD.fountain.z) < WORLD.fountain.r + 3;
+    const lakeDist = Math.max(0, Math.hypot(pos.x - WORLD.lake.x, pos.z - WORLD.lake.z) - WORLD.lake.r);
+    audio.update({
+      dt: rawDt, hour: hourNow, state: robot.state.name, time: elapsed,
+      moving: Math.hypot(inp.move.x, inp.move.y) > 0.05 && behavior.lock <= 0, run: inp.run,
+      waterDist: Math.min(lakeDist, distToRiver(pos.x, pos.z) - 3, nearFountain ? 2 : 99),
+      surface: onWood ? 'wood' : nearFountain ? 'stone' : 'grass',
+    });
+  }
 
   // kamera orbit ngikutin robot
   const dist = 6.5;
@@ -494,7 +532,7 @@ window.addEventListener('resize', () => {
   composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-window.__u7 = { robot, behavior, controls, scene, camera, renderer };
+window.__u7 = { robot, behavior, controls, audio, scene, camera, renderer };
 
 // kamera awal: dari depan robot
 controls.input.camYaw = Math.PI;

@@ -13,7 +13,7 @@ export function createControls(canvas) {
   window.addEventListener('keydown', (e) => {
     const k = e.key.toLowerCase();
     keys.add(k);
-    if (['e', 'f', 'r', 'q', ' '].includes(k)) input.pressed.add(k);
+    if (['e', 'f', 'r', 'q', 'm', ' '].includes(k)) input.pressed.add(k);
     if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
   });
   window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));

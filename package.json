@@ -1,7 +1,7 @@
 {
   "name": "u7-world",
   "version": "0.1.0",
-  "description": "U-7 World: open world prototype for SIGNAL",
+  "description": "U-7 World: open world prototype for VUZZ",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
