@@ -74,7 +74,14 @@ export function createMinimap({ canvas, labelsEl, objectiveEl = null }) {
     // dermaga, jembatan, kafe
     sc.fillStyle = COL.wood;
     const pr = WORLD.pier; sc.fillRect(W(pr.x - pr.w / 2), W(pr.z - pr.len / 2), pr.w * PPU, pr.len * PPU);
-    const br = WORLD.bridge; sc.fillRect(W(br.x - br.len / 2), W(br.z - br.w / 2), br.len * PPU, br.w * PPU);
+    for (const br of WORLD.bridges || [WORLD.bridge]) {
+      // sumbu panjang = (cos rotY, -sin rotY)
+      sc.save(); sc.translate(W(br.x), W(br.z)); sc.rotate(-(br.rotY || 0));
+      sc.fillRect(-br.len / 2 * PPU, -br.w / 2 * PPU, br.len * PPU, br.w * PPU); sc.restore();
+    }
+    sc.fillStyle = '#9a9a92';
+    for (const [x, z] of WORLD.steppingStones || []) { sc.beginPath(); sc.arc(W(x), W(z), 0.6 * PPU, 0, Math.PI * 2); sc.fill(); }
+    sc.fillStyle = COL.wood;
     sc.fillStyle = COL.cafe; sc.fillRect(W(WORLD.cafe.x - 3), W(WORLD.cafe.z - 2.5), 6 * PPU, 5 * PPU);
     // bangku
     sc.fillStyle = '#c9b48a';

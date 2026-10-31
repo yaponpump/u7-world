@@ -17,12 +17,20 @@ export const WORLD = {
   hill: { x: 44, z: -40, r: 26, h: 9 },
   cafe: { x: 44, z: 24 },
   pier: { x: -14, z: 22, w: 3, len: 10 },
-  bridge: { x: -4, z: -16, w: 4, len: 10 },
+  // rotY: sumbu panjang jembatan = (cos rotY, -sin rotY). deckY: tinggi lantainya.
+  bridges: [
+    { x: -12, z: -14, w: 4, len: 10, rotY: 0, deckY: 0.62 },
+    { x: -22, z: 7, w: 4, len: 10, rotY: -0.51, deckY: 0.62 },
+    { x: -40, z: -40, w: 4, len: 10, rotY: 0.98, deckY: 0.62 },
+  ],
+  steppingStones: [[-19.4, -2.1], [-18, -1.8], [-16.6, -2.2], [-15.2, -1.9], [-13.8, -2.2], [-12.5, -1.9]],
   benches: [],
   lamps: [],
   fountain: { x: 20, z: 0, r: 3.2 },
   signals: [],
 };
+
+WORLD.bridge = WORLD.bridges[0];
 
 export const riverCurve = new THREE.CatmullRomCurve3([
   new THREE.Vector3(-70, 0, -60),
@@ -50,6 +58,29 @@ function ribbonGeometry(curve, width, segments = 140) {
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   g.setIndex(idx);
   g.computeVertexNormals();
+  return g;
+}
+
+// Gradasi terang di pinggir sungai: nempel tepi, pudar ke tengah
+function shallowGeometry(curve, segments = 140) {
+  const pts = curve.getSpacedPoints(segments), up = new THREE.Vector3(0, 1, 0);
+  const pos = [], col = [], idx = [];
+  const offsets = [[-3.3, 0.6], [-1.7, 0], [1.7, 0], [3.3, 0.6]];
+  pts.forEach((p, i) => {
+    const n = new THREE.Vector3().crossVectors(up, curve.getTangentAt(i / segments)).normalize();
+    for (const [d, a] of offsets) {
+      pos.push(p.x + n.x * d, 0, p.z + n.z * d);
+      col.push(0.62, 0.8, 0.74, a);
+    }
+    if (i < segments) {
+      const b = i * 4;
+      for (const k of [0, 2]) idx.push(b + k, b + k + 4, b + k + 1, b + k + 1, b + k + 4, b + k + 5);
+    }
+  });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 4));
+  g.setIndex(idx);
   return g;
 }
 
@@ -81,14 +112,18 @@ WORLD.routes = [
   { id: 'hill', points: [[20, -6.8], [20, -30], [34, -30]] },
   { id: 'lake', points: [[20, 6.8], [20, 22], [-11, 22]] },
   { id: 'city', points: [[20, 22], [20, 46]] },
-  { id: 'bridge', points: [[13.2, 0], [3, 0], [3, -16]] },
+  { id: 'bridge', points: [[13.2, 0], [3, 0], [3, -14], [-6.2, -14]] },
+  { id: 'bridge2', points: [[-5, 22], [-5, 10], [-16.2, 9.9]] },
+  { id: 'bridge3', points: [[3, -14], [3, -41], [-36.4, -45.4]] },
 ];
 WORLD.landmarks = [
   { id: 'park', name: 'Park', x: 20, z: 0, kind: 'park' },
   { id: 'fountain', name: 'Fountain', x: 20, z: 0, kind: 'fountain', minor: true },
   { id: 'lake', name: 'Lake', x: -34, z: 30, kind: 'lake' },
   { id: 'pier', name: 'Pier', x: -14, z: 22, kind: 'pier' },
-  { id: 'bridge', name: 'Bridge', x: -4, z: -16, kind: 'bridge' },
+  { id: 'bridge', name: 'Bridge', x: -12, z: -14, kind: 'bridge' },
+  { id: 'bridge2', name: 'Bridge', x: -22, z: 7, kind: 'bridge' },
+  { id: 'bridge3', name: 'Bridge', x: -40, z: -40, kind: 'bridge' },
   { id: 'hill', name: 'Hill', x: 44, z: -40, kind: 'hill' },
   { id: 'cafe', name: 'Cafe', x: 44, z: 24, kind: 'cafe' },
   { id: 'city', name: 'City', x: 40, z: 72, kind: 'city' },
@@ -235,6 +270,14 @@ function onPath(x, z) {
   return false;
 }
 
+// Jembatan yang lagi diinjek di titik ini, kalau ada
+export function onBridge(x, z) {
+  return WORLD.bridges.find((b) => {
+    const dx = x - b.x, dz = z - b.z, c = Math.cos(b.rotY), s = Math.sin(b.rotY);
+    return Math.abs(dx * c - dz * s) < b.len / 2 + 1 && Math.abs(dx * s + dz * c) < b.w / 2;
+  }) || null;
+}
+
 export function isWater(x, z) {
   const l = WORLD.lake;
   if (Math.hypot(x - l.x, z - l.z) < l.r - 0.5) {
@@ -243,9 +286,7 @@ export function isWater(x, z) {
     return true;
   }
   if (distToRiver(x, z) < 3.2) {
-    const b = WORLD.bridge;
-    if (Math.abs(x - b.x) < b.len / 2 + 1 && Math.abs(z - b.z) < b.w / 2 + 1) return false;
-    return true;
+    return !onBridge(x, z);
   }
   return false;
 }
@@ -404,7 +445,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     if (isWater(x, z) || onPath(x, z) || distToRiver(x, z) < 3.6) continue;
     if (Math.hypot(x - WORLD.cafe.x, z - WORLD.cafe.z) < 7) continue;
     if (Math.abs(x - WORLD.pier.x) < WORLD.pier.w / 2 + 0.3 && Math.abs(z - WORLD.pier.z) < WORLD.pier.len / 2 + 0.6) continue;
-    if (Math.abs(x - WORLD.bridge.x) < WORLD.bridge.len / 2 + 1.4 && Math.abs(z - WORLD.bridge.z) < WORLD.bridge.w / 2 + 0.5) continue;
+    if (onBridge(x, z)) continue;
     const y = groundHeight(x, z);
     v3.set(x, y, z);
     q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), grnd() * Math.PI);
@@ -456,6 +497,9 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   }));
   river.position.y = -0.2;
   group.add(river);
+  const shallows = new THREE.Mesh(shallowGeometry(riverCurve), new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false }));
+  shallows.position.y = -0.17;
+  group.add(shallows);
 
   // Tepian air (pasir basah)
   const shoreMat = new THREE.MeshStandardMaterial({ color: 0x6b5d45, roughness: 1 });
@@ -540,26 +584,40 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   group.add(pier);
 
   // ---------- Jembatan ----------
-  const bridge = new THREE.Group();
-  for (let i = 0; i < 20; i++) {
-    const plank = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.1, WORLD.bridge.w), woodMat);
-    plank.position.set(-WORLD.bridge.len / 2 - 0.7 + i * 0.6, 0.5 + Math.sin((i / 19) * Math.PI) * 0.35, 0);
-    plank.castShadow = plank.receiveShadow = true;
-    bridge.add(plank);
-  }
-  for (let s = -1; s <= 1; s += 2) {
-    for (let i = -5; i <= 5; i += 2.5) {
-      const p = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 0.1), woodMat);
-      const yy = 0.5 + Math.sin(((i + 6) / 12) * Math.PI) * 0.35;
-      p.position.set(i, yy + 0.5, s * (WORLD.bridge.w / 2 - 0.1));
-      bridge.add(p);
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.07, 0.07), woodMat);
-      rail.position.set(i + 1.25, yy + 1.0, s * (WORLD.bridge.w / 2 - 0.1));
-      if (i < 5) bridge.add(rail);
+  for (const def of WORLD.bridges) {
+    const bridge = new THREE.Group();
+    for (let i = 0; i < 20; i++) {
+      const plank = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.1, def.w), woodMat);
+      plank.position.set(-def.len / 2 - 0.7 + i * 0.6, 0.5 + Math.sin((i / 19) * Math.PI) * 0.35, 0);
+      plank.castShadow = plank.receiveShadow = true;
+      bridge.add(plank);
     }
+    for (let s = -1; s <= 1; s += 2) {
+      for (let i = -5; i <= 5; i += 2.5) {
+        const p = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 0.1), woodMat);
+        const yy = 0.5 + Math.sin(((i + 6) / 12) * Math.PI) * 0.35;
+        p.position.set(i, yy + 0.5, s * (def.w / 2 - 0.1));
+        bridge.add(p);
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.07, 0.07), woodMat);
+        rail.position.set(i + 1.25, yy + 1.0, s * (def.w / 2 - 0.1));
+        if (i < 5) bridge.add(rail);
+      }
+    }
+    bridge.position.set(def.x, 0, def.z);
+    bridge.rotation.y = def.rotY;
+    group.add(bridge);
   }
-  bridge.position.set(WORLD.bridge.x, 0, WORLD.bridge.z);
-  group.add(bridge);
+
+  // Batu pijakan, biar nyebrang di bagian dangkal keliatan disengaja
+  const stepMat = new THREE.MeshStandardMaterial({ map: texStone, color: 0xa8a59c, roughness: 0.9 });
+  WORLD.steppingStones.forEach(([x, z], i) => {
+    const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(0.62, 1), stepMat);
+    stone.position.set(x, -0.14, z);
+    stone.scale.set(1, 0.42, 0.9);
+    stone.rotation.y = i * 1.7;
+    stone.castShadow = stone.receiveShadow = true;
+    group.add(stone);
+  });
 
   // ---------- Pohon (batang + kartu daun instanced) ----------
   const trunkMat = pbrMaterial(A.bark, texBark, { roughness: 1, repeat: 1 });

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight, distToRiver } from './world.js';
+import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight, distToRiver, onBridge } from './world.js';
 import { blockedByBuilding } from './city.js';
 import { createRobot, STATES } from './robot.js';
 import { createAudio } from './audio.js';
@@ -308,6 +308,9 @@ const behavior = {
   camDist: null,      // jarak kamera halus
   grounded: true,     // lagi napak atau lagi di udara (loncat)
   vy: 0,              // kecepatan vertikal
+  wading: false,      // lagi nyebrang air dangkal
+  wasWading: false,
+  wadeStep: 0,
   sitting: null,      // bangku yang diduduki
   nearBench: null,
   nearDrink: false,
@@ -397,6 +400,26 @@ const JUMP_SPEED = 6.4;
 const GRAVITY = 16;
 const BOUNDS = { min: -126, max: 126 }; // tepi tanah yang bisa diinjak, kota sampai ~126
 
+// Air dangkal: seluruh sungai, dan pinggir danau selebar 4 unit. Tengah danau dalam.
+function wadeDepth(x, z) {
+  const l = WORLD.lake;
+  const dl = Math.hypot(x - l.x, z - l.z);
+  if (dl < l.r) return 0.3 + Math.max(0, Math.min(1, (l.r - 0.5 - dl) / 4)) * 0.4;
+  const dr = distToRiver(x, z);
+  return 0.2 + Math.max(0, 1 - dr / 3.2) * 0.3; // paling dalam 0.5 di tengah sungai
+}
+function wadeable(x, z) {
+  const l = WORLD.lake;
+  const dl = Math.hypot(x - l.x, z - l.z);
+  if (dl < l.r - 0.5) return dl > l.r - 4.5; // cuma pinggiran danau
+  return distToRiver(x, z) < 3.2;
+}
+// batu pijakan: puncaknya y≈0.1, radius ~0.6
+function onStone(x, z) {
+  for (const [sx, sz] of WORLD.steppingStones || []) if (Math.hypot(x - sx, z - sz) < 0.6) return true;
+  return false;
+}
+
 function nearest(list, x, z, maxD) {
   let best = null, bd = maxD;
   for (const b of list) {
@@ -462,7 +485,8 @@ function tick() {
     behavior.lock = Math.max(0, behavior.lock - rawDt);
     const moving = Math.hypot(inp.moveRaw.x, inp.moveRaw.y) > 0.05 || Math.hypot(inp.move.x, inp.move.y) > 0.08;
     // kecepatan naik-turun halus (ramp), bukan langsung penuh
-    const targetSpeed = moving && behavior.lock <= 0 ? (inp.run ? SPEED_RUN : SPEED_WALK) : 0;
+    behavior.wading = isWater(pos.x, pos.z) && wadeable(pos.x, pos.z) && !onBridge(pos.x, pos.z) && !onStone(pos.x, pos.z);
+    const targetSpeed = moving && behavior.lock <= 0 ? (inp.run ? SPEED_RUN : SPEED_WALK) * (behavior.wading ? 0.55 : 1) : 0;
     behavior.speed += (targetSpeed - behavior.speed) * Math.min(1, dt * (targetSpeed > behavior.speed ? 6 : 10));
     if (moving && behavior.lock <= 0) {
       if (behavior.sitting) { behavior.sitting = null; }
@@ -474,8 +498,9 @@ function tick() {
       const dz = -mv.x * Math.sin(yaw) + mv.y * Math.cos(yaw);
       const nx = pos.x + dx * speed * dt;
       const nz = pos.z + dz * speed * dt;
-      // seluruh map bisa dijelajahi: batasnya tepi tanah, termasuk kota di tenggara
-      const free = (x, z) => !isWater(x, z) && !blockedByBuilding(x, z) && x > BOUNDS.min && x < BOUNDS.max && z > BOUNDS.min && z < BOUNDS.max;
+      // seluruh map bisa dijelajahi: batasnya tepi tanah, termasuk kota di tenggara.
+      // Sungai dan pinggir danau dangkal, bisa diseberangi jalan kaki; tengah danau tetap dalam.
+      const free = (x, z) => (!isWater(x, z) || wadeable(x, z)) && !blockedByBuilding(x, z) && x > BOUNDS.min && x < BOUNDS.max && z > BOUNDS.min && z < BOUNDS.max;
       if (free(nx, nz)) {
         pos.x = nx; pos.z = nz;
       } else if (free(nx, pos.z)) {
@@ -483,7 +508,7 @@ function tick() {
       } else if (free(pos.x, nz)) {
         pos.z = nz;
       } else if (isWater(nx, nz) && Math.random() < 0.02) {
-        say("Water. Not yet, my seals aren't rated for that.", 1600);
+        say("Too deep there. My seals aren't rated for that.", 1600);
       }
       const targetRot = Math.atan2(dx, dz);
       let diff = targetRot - robot.root.rotation.y;
@@ -505,12 +530,20 @@ function tick() {
       if (STATES.includes('jump')) robot.setState('jump');
     }
 
-    // tinggi tanah (bukit, jembatan, dermaga)
+    // tinggi tanah (bukit, jembatan, dermaga, air dangkal)
     let gy = groundHeight(pos.x, pos.z);
-    const b = WORLD.bridge;
-    if (Math.abs(pos.x - b.x) < b.len / 2 + 1 && Math.abs(pos.z - b.z) < b.w / 2) gy = 0.62;
+    const deck = onBridge(pos.x, pos.z);
+    if (deck) gy = deck.deckY ?? 0.62;
+    else if (onStone(pos.x, pos.z)) gy = 0.1;
     const p = WORLD.pier;
     if (Math.abs(pos.x - p.x) < p.w / 2 && Math.abs(pos.z - p.z) < p.len / 2) gy = 0.4;
+    if (behavior.wading) {
+      gy = Math.min(gy, -0.2 - wadeDepth(pos.x, pos.z)); // kaki nyemplung di bawah permukaan air (y -0.2)
+      if (!behavior.wasWading) { audio.play('plunk'); splash(pos.x, pos.z); if (Math.random() < 0.5) say('Cold. Fine. I can do this.', 1600); }
+      behavior.wadeStep += rawDt * (moving ? 1 : 0);
+      if (behavior.wadeStep > 0.4) { behavior.wadeStep = 0; splash(pos.x, pos.z); }
+    }
+    behavior.wasWading = behavior.wading;
     if (!behavior.sitting) {
       if (!behavior.grounded) {
         behavior.vy -= GRAVITY * dt;
@@ -614,7 +647,7 @@ function tick() {
       dt: rawDt, hour: hourNow, state: robot.state.name, time: elapsed,
       moving: Math.hypot(inp.move.x, inp.move.y) > 0.05 && behavior.lock <= 0, run: inp.run,
       waterDist: Math.min(lakeDist, distToRiver(pos.x, pos.z) - 3, nearFountain ? 2 : 99),
-      surface: onWood ? 'wood' : nearFountain ? 'stone' : 'grass',
+      surface: behavior.wading ? 'water' : onWood ? 'wood' : nearFountain ? 'stone' : 'grass',
     });
   }
 
@@ -679,7 +712,7 @@ window.addEventListener('resize', () => {
   composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-window.__u7 = { robot, behavior, controls, audio, scene, camera, renderer, blockedByBuilding };
+window.__u7 = { robot, behavior, controls, audio, scene, camera, renderer, blockedByBuilding, isWater, wadeable, onBridge, groundHeight };
 
 // kamera awal: dari depan robot
 controls.setYaw(Math.PI);
