@@ -10,7 +10,7 @@ import { CONFIG } from './config.js';
 import { createMinimap } from './minimap.js';
 import { createControls } from './controls.js';
 import { loadAssets } from './assets.js';
-import { loadSave, writeSave } from './save.js';
+import { loadSave, saveScore, writeSave } from './save.js';
 import { createDaily, defaultSpots, dayKey } from './daily.js';
 import { createChain } from './quests.js';
 import { pollHolders } from './holders.js';
@@ -128,8 +128,9 @@ const save = loadSave();
 let finaleDone = !!save.finaleDone;
 let daily = null;
 let chain = null;
-function persist() {
-  writeSave({
+let restoring = false;
+function currentSave() {
+  return {
     v: 1,
     signals: WORLD.signals.map((s, i) => (s.taken ? i : -1)).filter((i) => i >= 0),
     lights: cityLights,
@@ -140,7 +141,10 @@ function persist() {
     daily: daily ? { key: daily.key, taken: daily.items.filter((i) => i.taken).map((i) => i.id) } : save.daily || null,
     quest: chain ? chain.data : save.quest || null,
     savedAt: Date.now(),
-  });
+  };
+}
+function persist() {
+  if (!restoring) writeSave(currentSave(), walletState.address);
 }
 let persistTimer = 0;
 
@@ -249,6 +253,14 @@ const wallet = createWallet({
     walletState = s;
     const btn = $('wallet-btn');
     if (s.status === 'connected') {
+      // Progres per wallet: kalau wallet ini pernah lebih jauh di browser ini, lanjut dari situ
+      const mine = s.address ? loadSave(s.address) : {};
+      if (!restoring && saveScore(mine) > saveScore(currentSave())) {
+        restoring = true;
+        writeSave(mine);
+        showToast('Wallet progress found · loading it', 2000);
+        setTimeout(() => location.reload(), 1600);
+      }
       btn.textContent = `${s.short} · ${s.tier?.label || 'Signal'}`;
       btn.classList.add('connected');
       $('skin-hint').textContent = CONFIG.token.address
