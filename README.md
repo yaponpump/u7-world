@@ -58,11 +58,11 @@ Automatic: `high` on desktop, `low` on mobile. Force it with `?q=low` or `?q=hig
 
 ## Rendering
 
-- Physical sky with the sun following real time, stars at night, and a real sky photo by day
+- Physical sky with a moving sun, stars at night, and a real sky photo that fades in by day
 - Reflective water in the lake and fountain
 - Instanced grass tufts and leaves that move with the wind
 - Real CC0 assets from Poly Haven in `public/assets` (PBR textures, HDRI sky, four photo-scanned trees with two detail levels, city props). Without `manifest.json` the game falls back to procedural textures
-- Test a specific hour with `?hour=11`
+- A full day takes 12 minutes and starts in the morning. Lock an hour with `?hour=11`
 - Blacked-out city south of the park (`src/city.js`): windows and street lights follow the city lights count
 - Post-processing: bloom, vignette, slight chromatic aberration, film grain, SMAA
 
@@ -77,7 +77,7 @@ Automatic: `high` on desktop, `low` on mobile. Force it with `?q=low` or `?q=hig
 - `src/minimap.js`: minimap, place labels, objective arrow
 - `src/audio.js`: all sound (procedural Web Audio)
 - `src/wallet.js`, `src/skins.js`, `src/market.js`, `src/config.js`: wallet, skins, market feed, settings
-- `src/main.js`: game loop, day and night from the real clock, behavior, HUD, quest
+- `src/main.js`: game loop, in-game day and night clock, behavior, HUD, quest
 
 ## Deploy
 

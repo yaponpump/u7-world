@@ -94,6 +94,15 @@ const assets = await loadAssets((msg) => { const el = document.getElementById('l
 const world = buildWorld(scene, renderer, { quality: QUALITY, assets });
 { const el = document.getElementById('load-status'); if (el) el.textContent = assets.manifest ? 'Real assets loaded' : 'Procedural mode'; }
 let hdriRT = null;
+let photoDome = null;
+if (assets.hdri) {
+  photoDome = new THREE.Mesh(new THREE.SphereGeometry(460, 32, 16), new THREE.MeshBasicMaterial({
+    map: assets.hdri, side: THREE.BackSide, transparent: true, opacity: 0, depthWrite: false, fog: false,
+  }));
+  photoDome.renderOrder = -2;
+  photoDome.frustumCulled = false;
+  scene.add(photoDome);
+}
 if (assets.hdri) { hdriRT = pmrem.fromEquirectangular(assets.hdri); }
 const robot = createRobot();
 scene.add(robot.root);
@@ -363,10 +372,11 @@ function splash(x, z) {
 
 // ---------- Siang / malam ikut jam asli ----------
 const hourParam = new URLSearchParams(location.search).get('hour'); // ?hour=12 buat ngetes siang
+// Jam dalam game: satu hari penuh 12 menit, mulai dari pagi. ?hour=12 buat ngunci jam.
+const DAY_MINUTES = 12, START_HOUR = 7;
 function timeOfDay() {
   if (hourParam !== null) return +hourParam;
-  const d = new Date();
-  return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
+  return (START_HOUR + (performance.now() / 60000 / DAY_MINUTES) * 24) % 24;
 }
 let lastEnvHour = -1;
 const sunColor = new THREE.Color();
@@ -395,15 +405,17 @@ function applyDaylight(h) {
   scene.fog.density = 0.0028 + dusk * 0.0025 + night * 0.001;
   renderer.toneMappingExposure = 0.5 + daylight * 0.22 + dusk * 0.08;
   // Siang pakai foto langit asli kalau ada, senja dan malam balik ke langit fisik
-  const photoSky = assets.hdri && daylight > 0.3;
-  sky.visible = !photoSky;
-  scene.background = photoSky ? assets.hdri : null;
+  // Foto langit nongol pelan-pelan pas pagi dan ilang pelan-pelan pas sore
+  if (photoDome) {
+    photoDome.material.opacity = THREE.MathUtils.smoothstep(daylight, 0.2, 0.5);
+    photoDome.visible = photoDome.material.opacity > 0.01;
+  }
   gradePass.uniforms.uWarm.value = 0.3 + dusk * 0.7;
   bloom.strength = 0.2 + night * 0.4;
   world.setSun(sunDir, sunColor);
   applyNight(night);
   // refresh env map tiap ~6 menit waktu asli (0.1 jam)
-  if (Math.abs(h - lastEnvHour) > 0.1) { lastEnvHour = h; refreshEnvironment(); }
+  if (Math.abs(h - lastEnvHour) > 0.75) { lastEnvHour = h; refreshEnvironment(); }
   $('clock').textContent = `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.floor((h % 1) * 60)).padStart(2, '0')}`;
 }
 
