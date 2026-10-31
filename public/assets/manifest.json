@@ -1,0 +1,35 @@
+{
+  "textures": {
+    "grass": "aerial_grass_rock",
+    "dirt": "forest_ground_04",
+    "bark": "bark_brown_02",
+    "stone": "rock_boulder_dry",
+    "wood": "weathered_brown_planks",
+    "concrete": "concrete_wall_008",
+    "brick": "red_brick_03",
+    "asphalt": "asphalt_02",
+    "sidewalk": "concrete_floor_worn_001",
+    "rust": "rusty_metal_02"
+  },
+  "hdri": "hdri/sky_1k.hdr",
+  "trees": [
+    "models/tree_small_02_lod0.glb",
+    "models/island_tree_01_lod0.glb",
+    "models/island_tree_02_lod0.glb",
+    "models/island_tree_03_lod0.glb"
+  ],
+  "treesFar": [
+    "models/tree_small_02_lod1.glb",
+    "models/island_tree_01_lod1.glb",
+    "models/island_tree_02_lod1.glb",
+    "models/island_tree_03_lod1.glb"
+  ],
+  "props": {
+    "car": "models/covered_car.glb",
+    "lamp": "models/street_lamp_01.glb",
+    "barrier": "models/concrete_road_barrier.glb",
+    "utility": "models/utility_box_01.glb",
+    "power": "models/power_box_01.glb",
+    "hydrant": "models/fire_hydrant.glb"
+  }
+}
