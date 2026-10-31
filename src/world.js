@@ -9,7 +9,7 @@ import { Scatter, partsOf } from './scatter.js';
 import { createWeather } from './weather.js';
 import { createNpcs } from './npcs.js';
 import { createEcosystem } from './ecosystem.js';
-import { blockedByBuilding, buildCity, cityFlat, CITY_SIGNALS, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
+import { addObstacle, blockedByBuilding, buildCity, cityFlat, ROOF, setCityFinale, CITY_SIGNALS, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
 
 export const WORLD = {
   size: 140,
@@ -128,7 +128,24 @@ WORLD.interactables = [
   { id: 'notice', name: 'Notice board', x: 24, z: -17, line: 'Five signals got lost in The Blackout. The board says bring them home.' },
   { id: 'hill', name: 'Hill lookout', x: 39.5, z: -35.5, line: 'You can see the whole city from up here. Most of it is still dark.' },
   { id: 'pier', name: 'Pier', x: -19, z: 22, line: 'End of the line. Press R and skip a rock.' },
+  { id: 'cafeCounter', name: 'Cafe counter', x: 44, z: 23.6, line: 'Nobody has run this counter since The Blackout. The coffee machine still hums. Press F for a cup.' },
   { id: 'cityGate', name: 'City gate', x: 20, z: 44, line: 'Road closed since The Blackout. Barriers only stop cars.' },
+];
+// Titik misi harian, semuanya bisa dicapai jalan kaki
+WORLD.dailySpots = [
+  { x: 11, z: 13, label: 'by the park lawn' },
+  { x: 31, z: -13, label: 'south side of the park' },
+  { x: 48.5, z: 21, label: 'behind the cafe' },
+  { x: 40, z: -37, label: 'top of the hill' },
+  { x: -7, z: 38, label: 'on the lake shore' },
+  { x: -34, z: 56, label: 'far shore of the lake' },
+  { x: -3.5, z: -14, label: 'east end of the old bridge' },
+  { x: -16, z: 12.5, label: 'by the lake bridge' },
+  { x: -34, z: -48, label: 'at the north bridge' },
+  { x: -60, z: -22, label: 'out in the west field' },
+  { x: 8, z: 66, label: 'in a city side street' },
+  { x: 60, z: 90, label: 'deep in the city' },
+  { x: ROOF.cx, z: ROOF.cz, label: 'on the rooftop' },
 ];
 WORLD.landmarks = [
   { id: 'park', name: 'Park', x: 20, z: 0, kind: 'park' },
@@ -785,21 +802,43 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   // ---------- Kafe ----------
   const cafe = new THREE.Group();
   const plaster = new THREE.MeshStandardMaterial({ color: 0xe8ddc8, roughness: 0.95 });
-  const wall = new THREE.Mesh(new THREE.BoxGeometry(5.2, 3.1, 4.2), plaster);
-  wall.position.y = 1.55;
+  plaster.emissive = new THREE.Color(0x4a3220);
+  plaster.emissiveIntensity = 0.35;
+  const room = [[0, 1.55, -2.05, 5.2, 3.1, 0.14], [-2.53, 1.55, 0, 0.14, 3.1, 4.2], [2.53, 1.55, 0, 0.14, 3.1, 4.2], [-1.85, 1.55, 2.05, 1.5, 3.1, 0.14], [1.85, 1.55, 2.05, 1.5, 3.1, 0.14], [0, 2.75, 2.05, 2.2, 0.7, 0.14]];
+  for (const [x, y, z, sx, sy, sz] of room) {
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), plaster);
+    panel.position.set(x, y, z);
+    cafe.add(panel);
+  }
+  // Tembok jadi penghalang, pintunya di tengah depan
+  const walls = [[0, -2.05, 2.7, 0.1], [-2.53, 0, 0.1, 2.15], [2.53, 0, 0.1, 2.15], [-1.95, 2.05, 0.85, 0.1], [1.95, 2.05, 0.85, 0.1]];
+  for (const [x, z, hx, hz] of walls) addObstacle(WORLD.cafe.x + x, WORLD.cafe.z + z, hx, hz, 99);
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(5, 0.06, 4), woodMat);
+  floor.position.y = 0.03;
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 8), new THREE.MeshStandardMaterial({ color: 0x332a1c, emissive: 0xffc98a, emissiveIntensity: 2.4, toneMapped: false }));
+  lamp.position.set(0, 2.75, 0);
+  const counter = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.0, 0.6), woodMat);
+  counter.position.set(0, 0.5, -1.2);
+  addObstacle(WORLD.cafe.x, WORLD.cafe.z - 1.2, 1.7, 0.3, 1.0);
+  for (const sx of [-0.8, 0.8]) {
+    const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.08, 14), woodMat);
+    seat.position.set(sx, 0.62, -0.45);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.6, 8), ironMat);
+    leg.position.set(sx, 0.3, -0.45);
+    cafe.add(seat, leg);
+  }
+  cafe.add(floor, lamp, counter);
   const roof = new THREE.Mesh(new THREE.ConeGeometry(4.4, 1.9, 4), new THREE.MeshStandardMaterial({ color: 0x3a2f4f, roughness: 0.8 }));
   roof.position.y = 4.0;
   roof.rotation.y = Math.PI / 4;
   const awning = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.06, 1.7), new THREE.MeshStandardMaterial({ color: 0xc2552a, roughness: 0.9 }));
   awning.position.set(0, 2.35, 2.7);
   awning.rotation.x = 0.18;
-  const counter = new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.0, 0.6), woodMat);
-  counter.position.set(0, 0.5, 2.4);
-  const win = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 1.2), new THREE.MeshPhysicalMaterial({ color: 0x223344, roughness: 0.05, metalness: 0.2, clearcoat: 1 }));
-  win.position.set(0, 1.8, 2.11);
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.5), new THREE.MeshStandardMaterial({ color: 0xb8ff3c, emissive: 0xb8ff3c, emissiveIntensity: 0.6 }));
   sign.position.set(0, 2.85, 2.12);
-  cafe.add(wall, roof, awning, counter, win, sign);
+  cafe.add(roof, awning, sign);
+  WORLD.cafeAwning = awning;
+  WORLD.cafeRoof = roof;
   cafe.position.set(WORLD.cafe.x, 0, WORLD.cafe.z);
   cafe.traverse((m) => { m.castShadow = true; m.receiveShadow = true; });
   group.add(cafe);
@@ -919,6 +958,8 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
 
   const weather = createWeather(scene, renderer, { hi, waters, wind: windScale });
   const npcs = createNpcs(group, { hi });
+  WORLD.npcs = npcs.live;
+  WORLD.interactables.push({ id: 'rooftop', name: 'Rooftop', x: ROOF.cx, z: ROOF.cz, line: 'You can see the whole city from up here. Every dark window is somebody who left.' });
   for (const s of npcs.sisters) {
     WORLD.interactables.push({ id: 'unit', name: 'Dormant unit', x: s.root.position.x, z: s.root.position.z, line: 'Another unit like me. Still asleep. Maybe all five lights will wake it.' });
   }
@@ -928,11 +969,21 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     centers: [[36, 12], [6, 10], [34, -16], [-30, -6], [10, 30]],
     lake: WORLD.lake, onPier, river: riverCurve.getSpacedPoints(30), park: WORLD.park,
   });
-  let player = null;
+  let player = null, finale = null;
 
   const api = {
     group, waters, river, lake, npcs, ecosystem,
     setPlayer(pos) { player = pos; },
+    finaleDone: false,
+    npcTalk(id, seconds = 4) { npcs.talk(id, seconds); },
+    // Momen akhir: lampu nyala satu-satu, jendela nyusul, dua unit bangun. Cuma sekali.
+    playFinale({ onLamp, onDone } = {}) {
+      if (finale || api.finaleDone) return 0;
+      setCityLights(0);
+      finale = { t: 0, next: 0, onLamp, onDone, woke: false };
+      ecosystem.burst(FINALE_SECONDS);
+      return FINALE_SECONDS;
+    },
     setWeather(opts) { weather.set(opts); },
     get weather() { return weather.state; },
     updateTrees(camera) { for (const t of treeSets) t.update(camera); },
@@ -945,7 +996,27 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     },
     update(t, dt) {
       weather.update(t, dt);
-      npcs.update(dt, t, cityLightCount);
+      if (finale) {
+        finale.t += dt;
+        if (finale.next < 5 && finale.t >= 0.4 + finale.next * 0.8) {
+          setCityLights(finale.next + 1);
+          finale.onLamp?.(finale.next);
+          finale.next++;
+        }
+        setCityFinale(Math.min(0.95, (finale.t / 6.5) * 0.95));
+        if (!finale.woke && finale.t > 5) { finale.woke = true; npcs.wakeSisters(); }
+        if (finale.t >= FINALE_SECONDS) {
+          const done = finale.onDone;
+          finale = null;
+          api.finaleDone = true;
+          done?.();
+        }
+      }
+      if (WORLD.cafeRoof && player) {
+        const inside = Math.abs(player.x - WORLD.cafe.x) < 2.5 && Math.abs(player.z - WORLD.cafe.z) < 2.1;
+        WORLD.cafeRoof.visible = WORLD.cafeAwning.visible = !inside;
+      }
+      npcs.update(dt, t, cityLightCount, player);
       ecosystem.update(dt, t, nightNow, player);
       bladeMat.userData.wind.value = t;
       if (leafMat) leafMat.userData.wind.value = t;
@@ -1003,6 +1074,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   return api;
 }
 
+const FINALE_SECONDS = 9;
 let cityLightCount = 3;
 let nightNow = 0;
 export function setCityLights(n) {

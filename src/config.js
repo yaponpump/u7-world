@@ -5,11 +5,12 @@ export const CONFIG = {
 
   // Token on-chain (kosong = belum launch, semua wallet yang connect dihitung "sinyal").
   token: {
-    chain: '',          // 'solana' | 'evm'
-    address: '',        // mint (Solana) atau contract (EVM)
+    chain: 'solana',    // 'solana' | 'evm'
+    network: 'devnet',  // 'devnet' | 'mainnet'. Selain mainnet, game + web nampilin label "Testnet" dan tombol beli nonaktif.
+    address: '',        // mint (Solana) atau contract (EVM). Kosong = belum launch.
     decimals: 9,
-    evmChainId: '',     // contoh '0x1' mainnet, '0x2105' Base
-    rpc: '',            // RPC Solana buat cek saldo (opsional, default public RPC)
+    evmChainId: '',     // cuma buat EVM: contoh '0x1' mainnet, '0x2105' Base
+    rpc: '',            // RPC Solana buat cek saldo. Kosong = public RPC sesuai network.
   },
 
   // Market feed buat cuaca. Kosong = demo mode (cuaca ikut siklus palsu yang pelan).

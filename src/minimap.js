@@ -104,7 +104,7 @@ export function createMinimap({ canvas, labelsEl, objectiveEl = null }) {
   return {
     get zoom() { return zoom; },
     toggleZoom() { zoom = !zoom; },
-    update({ pos, rotY, camYaw, camera, signals = [], started = true }) {
+    update({ pos, rotY, camYaw, camera, signals = [], objectiveLabel = 'signal', started = true }) {
       // ---- minimap ----
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, SIZE, SIZE);
@@ -200,7 +200,7 @@ export function createMinimap({ canvas, labelsEl, objectiveEl = null }) {
           const ang = Math.atan2(fx * dz - fz * dx, fx * dx + fz * dz); // positif = kanan
           objectiveEl.hidden = false;
           objectiveEl.querySelector('.arrow').style.transform = `rotate(${ang}rad)`;
-          objectiveEl.querySelector('.txt').textContent = `Nearest signal · ${Math.round(nd)} m`;
+          objectiveEl.querySelector('.txt').textContent = `Nearest ${objectiveLabel} · ${Math.round(nd)} m`;
         } else objectiveEl.hidden = true;
       }
     },

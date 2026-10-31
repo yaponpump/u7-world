@@ -54,7 +54,7 @@ export function createWallet({ onChange = () => {} } = {}) {
         const hex = await evmProvider.request({ method: 'eth_call', params: [{ to: tok.address, data }, 'latest'] });
         state.balance = Number(BigInt(hex)) / 10 ** tok.decimals;
       } else if (state.chain === 'solana') {
-        const rpc = tok.rpc || 'https://api.mainnet-beta.solana.com';
+        const rpc = tok.rpc || (tok.network === 'mainnet' ? 'https://api.mainnet-beta.solana.com' : 'https://api.devnet.solana.com');
         const r = await fetch(rpc, {
           method: 'POST', headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getTokenAccountsByOwner', params: [state.address, { mint: tok.address }, { encoding: 'jsonParsed' }] }),
