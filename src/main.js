@@ -684,6 +684,7 @@ function tick() {
   }
 
   // update dunia + robot + langit
+  world.setPlayer(robot.root.position);
   world.update(elapsed, dt);
   if (frameNo++ % 12 === 0) { camera.updateMatrixWorld(); world.updateTrees(camera); }
   gradePass.uniforms.uTime.value = elapsed;
