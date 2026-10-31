@@ -14,16 +14,20 @@ const COL = {
   visor: 0x0b0d12,
 };
 
+const shared = {};
+
 export const STATES = ['idle', 'walk', 'run', 'sit', 'drink', 'yawn', 'sleep', 'throw', 'curious', 'wave'];
 
-export function createRobot() {
+export function createRobot({ dormant = false } = {}) {
   const root = new THREE.Group();
   const body = new THREE.Group(); // bagian yang bob
   root.add(body);
 
   // Material: cat logam yang udah aus, sendi baja, kaca visor
-  const panels = panelLineTexture();
-  const wear = wornPaintTextures();
+  // Tekstur canvasnya mahal, dipakai bareng kalau robotnya lebih dari satu
+  shared.panels ??= panelLineTexture();
+  shared.wear ??= wornPaintTextures();
+  const { panels, wear } = shared;
   const paint = (color, metalness = 0.55) => new THREE.MeshStandardMaterial({
     color, map: wear.map, roughnessMap: wear.rough, roughness: 1, metalness,
     bumpMap: panels, bumpScale: 0.6, envMapIntensity: 1.15,
@@ -203,7 +207,7 @@ export function createRobot() {
   // Lampu lime di dada biar kelihatan malam
   const glow = new THREE.PointLight(COL.lime, 0.8, 4, 2);
   glow.position.set(0, 1.1, 0.5);
-  root.add(glow);
+  if (!dormant) root.add(glow);
 
   root.traverse((m) => { if (m.isMesh) m.castShadow = true; });
 
@@ -216,8 +220,24 @@ export function createRobot() {
       state.name = name;
       state.t = 0;
       cup.visible = name === 'drink' || name === 'sit';
-      zz.visible = name === 'sleep';
+      zz.visible = name === 'sleep' && !dormant;
       api.setEyes(name === 'sleep' ? 'closed' : name === 'yawn' ? 'squint' : name === 'curious' ? 'wide' : name === 'sit' || name === 'drink' ? 'happy' : 'normal');
+    },
+    // Warna hex, semua opsional. Default tetep ungu, lime, oranye.
+    setSkin({ primary = COL.violet, secondary = COL.violetDark, accent = COL.orange, emissive = COL.lime } = {}) {
+      violet.color.set(primary);
+      violetDark.color.set(secondary);
+      orange.color.set(accent);
+      lime.color.set(emissive);
+      lime.emissive.set(emissive);
+      eyeMat.color.set(emissive);
+      eyeMat.emissive.set(emissive);
+      glow.color.set(emissive);
+    },
+    // Unit mati: satu mata nyala pas kotanya penuh lagi
+    setEyeSignal(on) {
+      eyeR.material = on ? signalEye : eyeL.material;
+      eyeR.scale.set(1, on ? 1 : 0.06, 1);
     },
     setEyes(mode) {
       state.eyeMode = mode;
@@ -323,6 +343,9 @@ export function createRobot() {
     },
   };
   api.setEyes('normal');
+  const signalEye = eyeMat.clone();
+  signalEye.emissive.set(COL.lime);
+  signalEye.color.set(COL.lime);
   return api;
 }
 
