@@ -1,4 +1,4 @@
-// Website VUZZ: satu canvas Three.js tetap di belakang, seksi DOM di depan,
+// Website 7POD: satu canvas Three.js tetap di belakang, seksi DOM di depan,
 // scroll halus (Lenis) yang nyetir kamera, pose robot, frame sequence, dan teks (GSAP).
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -204,11 +204,11 @@ function robotTimeline() {
   });
   // hero: pelan muter waktu mulai scroll, lalu mundur keluar ke kanan
   gsap.to(view, { ry: 0.9, s: 0.8, y: -0.4, cz: 8.4, on: 0, ease: 'none', scrollTrigger: { trigger: at('hero'), start: 'top top', end: 'bottom top', scrub: 0.6 } });
-  // moods: VUZZ di tengah kanan, deket, muter pelan
+  // moods: 7POD di tengah kanan, deket, muter pelan
   pose({ x: 2.0, y: 0, z: 0, ry: -0.25, s: 1, cz: 6.8, cy: 1.4, cx: 0.4, lx: 0.4, look: 1.4, on: 1 }, at('moods'), 'top bottom', 'top top');
   gsap.to(view, { ry: 0.35, ease: 'none', scrollTrigger: { trigger: at('moods'), start: 'top top', end: 'bottom bottom', scrub: 0.6 } });
   pose({ on: 0, y: -0.4 }, at('moods'), 'bottom 60%', 'bottom top');
-  // end: VUZZ di tengah, dadah
+  // end: 7POD di tengah, dadah
   pose({ x: 0, y: 0, z: 0, ry: 0.1, s: 1, cz: 8.6, cy: 1.2, cx: 0, lx: 0, look: 1.6, on: 1 }, at('end'), 'top bottom', 'top 30%');
   ScrollTrigger.create({ trigger: at('end'), start: 'top 60%', onEnter() { robot.setState('wave'); robot.setExpression('happy', 6); }, onLeaveBack() { robot.setState('idle'); } });
   // hero: dadah sekali waktu loading selesai
@@ -314,7 +314,7 @@ function tokenData() {
   if (cfg.buyUrl && mainnet) {
     const b = $('buy-link');
     b.href = cfg.buyUrl; b.target = '_blank'; b.rel = 'noopener';
-    b.removeAttribute('aria-disabled'); b.textContent = 'Buy $VUZZ';
+    b.removeAttribute('aria-disabled'); b.textContent = 'Buy $7POD';
   }
   for (const { label, url } of cfg.links || []) {
     const a = document.createElement('a');
