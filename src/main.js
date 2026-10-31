@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight, distToRiver, onBridge, onPier, deckHeight, blockedByRail } from './world.js';
-import { blockedByBuilding } from './city.js';
+import { blockedByBuilding, cameraBlocked } from './city.js';
 import { createRobot, STATES } from './robot.js';
 import { createAudio } from './audio.js';
 import { createWallet } from './wallet.js';
@@ -284,6 +284,7 @@ const market = createMarket({
         golden: 'Look at that sky. The market is pumping. Every signal is lit.',
       };
       say(lines[s.mood], 4200);
+      if (s.mood === 'storm' || s.mood === 'rain') express('sad', 4); else if (s.mood === 'golden') express('happy', 4);
     }
   },
 });
@@ -312,6 +313,9 @@ const behavior = {
   wading: false,      // lagi nyebrang air dangkal
   wasWading: false,
   wadeStep: 0,
+  wadeTime: 0,
+  flipping: false,
+  bump: 0,
   sitting: null,      // bangku yang diduduki
   nearBench: null,
   nearDrink: false,
@@ -334,6 +338,16 @@ const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.15, 0), new THREE.M
 rock.visible = false;
 scene.add(rock);
 const splashes = [];
+// Ekspresi wajah: robot.setExpression(name, detik). Kalau robot belum punya, ya diem aja.
+function express(name, seconds = 2.5) { robot.setExpression?.(name, seconds); }
+const faceLines = {
+  happy: ['Best day. No contest.', 'Look at me go.'],
+  sad: ["Nobody's answering the signals.", 'The city used to be brighter.'],
+  angry: ['Who turned the lights off. WHO.', 'My patience module is at 3%.'],
+  surprised: ['Wait. What was that.', 'Did the ground just move?'],
+  disgust: ['Ugh. Wet socks. I have no socks.', 'That smell is not in my database.'],
+};
+
 // geometri + material dipakai bareng, biar cipratan tiap 0,4 detik nggak bikin alokasi baru
 const splashGeo = new THREE.RingGeometry(0.2, 0.3, 24);
 const splashMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false });
@@ -517,8 +531,9 @@ function tick() {
         pos.x = nx; // meluncur sepanjang tembok / tepi
       } else if (free(pos.x, nz)) {
         pos.z = nz;
-      } else if (isWater(nx, nz) && Math.random() < 0.02) {
-        say("Too deep there. My seals aren't rated for that.", 1600);
+      } else {
+        behavior.bump = (behavior.bump || 0) + dt;
+        if (behavior.bump > 1.6) { behavior.bump = 0; express('angry', 2); say(['Who put a wall here.', 'Move. Please. I asked nicely.', 'Fine. Other way.'][Math.floor(Math.random() * 3)], 1600); }
       }
       const targetRot = Math.atan2(dx, dz);
       let diff = targetRot - robot.root.rotation.y;
@@ -528,6 +543,21 @@ function tick() {
       behavior.idleTime = 0;
     } else if (behavior.lock <= 0 && !behavior.sitting && behavior.grounded) {
       if (['walk', 'run', 'drink', 'throw', 'curious', 'yawn', 'wave'].includes(robot.state.name)) robot.setState('idle');
+    }
+
+    // --- ekspresi manual: 1-5 (seneng, sedih, marah, terkejut, jijik) ---
+    for (const [k, name] of [['1', 'happy'], ['2', 'sad'], ['3', 'angry'], ['4', 'surprised'], ['5', 'disgust']]) {
+      if (controls.consume(k)) { express(name, 3); say(faceLines[name][Math.floor(Math.random() * faceLines[name].length)], 2200); }
+    }
+
+    // --- backflip (B) ---
+    if (controls.consume('b') && behavior.grounded && !behavior.sitting && behavior.lock <= 0) {
+      behavior.grounded = false;
+      behavior.vy = JUMP_SPEED * 1.25;
+      behavior.flipping = true;
+      audio.play('whoosh');
+      robot.setState(STATES.includes('backflip') ? 'backflip' : 'jump');
+      express('happy', 2);
     }
 
     // --- loncat (Space), ala Roblox ---
@@ -548,7 +578,9 @@ function tick() {
     if (onPier(pos.x, pos.z)) gy = 0.34;
     if (behavior.wading) {
       gy = Math.min(gy, -0.2 - wadeDepth(pos.x, pos.z)); // kaki nyemplung di bawah permukaan air (y -0.2)
-      if (!behavior.wasWading) { audio.play('plunk'); splash(pos.x, pos.z); if (Math.random() < 0.5) say('Cold. Fine. I can do this.', 1600); }
+      if (!behavior.wasWading) { audio.play('plunk'); splash(pos.x, pos.z); express('surprised', 1.5); behavior.wadeTime = 0; if (Math.random() < 0.5) say('Cold. Fine. I can do this.', 1600); }
+      behavior.wadeTime += rawDt;
+      if (behavior.wadeTime > 7 && behavior.wadeTime < 7.1) { express('disgust', 2.5); say('Something slimy just touched my foot.', 2000); }
       behavior.wadeStep += rawDt * (moving ? 1 : 0);
       if (behavior.wadeStep > 0.4) { behavior.wadeStep = 0; splash(pos.x, pos.z); }
     }
@@ -561,7 +593,12 @@ function tick() {
           pos.y = gy; behavior.grounded = true; behavior.vy = 0;
           audio.play('land');
           robot.land();
-          if (robot.state.name === 'jump') robot.setState(moving ? (inp.run ? 'run' : 'walk') : 'idle');
+          if (behavior.flipping) {
+            behavior.flipping = false;
+            if (behavior.wading) { express('surprised', 2); say('Cold landing.', 1400); }
+            else if (Math.random() < 0.4) say(['Nailed it.', 'Did you see that?', 'Stuck the landing.'][Math.floor(Math.random() * 3)], 1600);
+          }
+          if (robot.state.name === 'jump' || robot.state.name === 'backflip') robot.setState(moving ? (inp.run ? 'run' : 'walk') : 'idle');
         }
       } else {
         pos.y += (gy - pos.y) * Math.min(1, dt * 14);
@@ -596,6 +633,7 @@ function tick() {
         $('quest-count').textContent = signalsFound;
         showToast(`Signal found (${signalsFound}/5)`);
         audio.play('chime');
+        express('happy', 3);
         robot.setState('wave');
         behavior.lock = 1.2;
         if (signalsFound === 3 && cityLights < 4) { cityLights = 4; refreshLamps(); setTimeout(() => audio.play('lamp'), 500); say('The fourth lamp! The city is getting brighter.'); }
@@ -612,7 +650,7 @@ function tick() {
     else if (onBridge(pos.x, pos.z)) setHint('A bridge over the river. Walk straight across.');
     else if (behavior.nearPier) setHint('Press R to skip a rock across the lake.');
     else if (distToRiver(pos.x, pos.z) < 7) setHint('The river is shallow: wade straight across, or take a bridge or the stepping stones.');
-    else setHint('WASD move · Space jump · Shift run · right-drag to look · scroll to zoom · follow the green arrow');
+    else setHint('WASD move · Space jump · B backflip · 1-5 faces · Shift run · right-drag to look · follow the green arrow');
   }
 
   // batu terbang
@@ -646,6 +684,7 @@ function tick() {
   }
 
   // update dunia + robot + langit
+  world.setPlayer(robot.root.position);
   world.update(elapsed, dt);
   if (frameNo++ % 12 === 0) { camera.updateMatrixWorld(); world.updateTrees(camera); }
   gradePass.uniforms.uTime.value = elapsed;
@@ -674,14 +713,11 @@ function tick() {
   // jarak kamera dipendekin kalau kehalang gedung atau tanah
   let dist = inp.camDist;
   const dir = new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
-  for (let d = 0.6; d < dist; d += 0.3) {
-    const px = camTarget.x + dir.x * d, py = camTarget.y + dir.y * d, pz = camTarget.z + dir.z * d;
-    if (blockedByBuilding(px, pz) || py < groundHeight(px, pz) + 0.5) { dist = Math.max(0.6, d - 0.3); break; }
+  for (let d = 0.8; d < dist; d += 0.25) {
+    if (cameraBlocked(camTarget.x + dir.x * d, camTarget.y + dir.y * d, camTarget.z + dir.z * d)) { dist = Math.max(1.1, d - 0.25); break; }
   }
-  behavior.camDist = behavior.camDist == null ? dist : behavior.camDist + (dist - behavior.camDist) * Math.min(1, dt * (dist < behavior.camDist ? 18 : 4));
+  behavior.camDist = behavior.camDist == null ? dist : behavior.camDist + (dist - behavior.camDist) * Math.min(1, dt * (dist < behavior.camDist ? 12 : 3));
   camPos.copy(camTarget).addScaledVector(dir, behavior.camDist);
-  // Kalau kepepet tembok, kamera naik ke atas kepala biar robot tetep keliatan
-  camPos.y += Math.max(0, 1.8 - behavior.camDist) * 2.6;
   const camGround = groundHeight(camPos.x, camPos.z) + 0.6;
   if (camPos.y < camGround) camPos.y = camGround;
   camera.position.copy(camPos);
