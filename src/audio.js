@@ -17,6 +17,7 @@ export function createAudio() {
   const amb = {}; // loop ambience: wind, leaves, water, crickets
   const loops = {}; // loop per state: sleep hum
   let stepPhase = 0;
+  let nextHorn = 0;
   let lastStep = 0;
   let nextBird = 0;
   let nextFrog = 0;
@@ -118,6 +119,9 @@ export function createAudio() {
     amb.wind = ambLoop('lowpass', 260, 0.7);
     amb.leaves = ambLoop('bandpass', 2600, 0.8);
     amb.water = ambLoop('bandpass', 700, 0.9);
+    // kota: dengung lalu lintas jauh + AC gedung
+    amb.traffic = ambLoop('lowpass', 170, 0.7);
+    amb.ac = ambLoop('bandpass', 420, 6);
     // jangkrik: noise sempit di 4.2k dipulse LFO
     amb.crickets = ambLoop('bandpass', 4200, 18);
     const lfo = ctx.createOscillator(); lfo.type = 'square'; lfo.frequency.value = 9;
@@ -231,6 +235,13 @@ export function createAudio() {
       });
       burst({ dur: 0.6, gain: 0.03, type: 'highpass', f0: 5000, attack: 0.05 });
     },
+    // klakson mobil di kejauhan
+    horn() {
+      const pan = Math.random() * 1.4 - 0.7;
+      for (const [f, delay] of [[392, 0], [466, 0], [392, 0.34], [466, 0.34]]) {
+        tone({ type: 'sawtooth', f0: f, dur: 0.24, gain: 0.012, attack: 0.02, delay, pan, filter: { type: 'lowpass', freq: 850 } });
+      }
+    },
     // lampu kota nyala: "tung" lonceng rendah + hum trafo sebentar
     lamp() {
       tone({ type: 'sine', f0: 196, dur: 1.6, gain: 0.18 });
@@ -330,7 +341,7 @@ export function createAudio() {
       }
     },
     // dipanggil tiap frame
-    update({ dt, hour, state, moving, run, waterDist = 99, surface = 'grass', time = 0, mood = 'cloudy', musicLevel = 1 }) {
+    update({ dt, hour, state, moving, run, waterDist = 99, surface = 'grass', time = 0, mood = 'cloudy', musicLevel = 1, cityK = 0 }) {
       if (!ctx || muted) return;
       // musik: pelan, lebih kecil pas tidur, ganti akor berkala
       if (music.g) {
@@ -348,6 +359,9 @@ export function createAudio() {
       const waterK = Math.max(0, 1 - waterDist / 18);
       lerp(amb.water.g.gain, waterK * waterK * 0.16);
       lerp(amb.crickets.g.gain, night * 0.014);
+      lerp(amb.traffic.g.gain, cityK * (0.04 + day * 0.05) * quiet);
+      lerp(amb.ac.g.gain, cityK * 0.012 * quiet);
+      if (cityK > 0.5 && time > nextHorn) { if (nextHorn) play('horn'); nextHorn = time + 14 + Math.random() * 24; }
 
       // burung pagi/siang, katak malam dekat air
       if (day > 0.1 && time > nextBird) { play('bird'); nextBird = time + 2 + Math.random() * 7 / (0.3 + day); }

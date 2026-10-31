@@ -3,9 +3,10 @@
 // ending udah dilihat, dan misi harian hari ini.
 const KEY = 'vuzz-save';
 
-export function loadSave() {
+// Tanpa address: save utama. Dengan address: salinan per wallet di browser ini.
+export function loadSave(address = null) {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(address ? `${KEY}:${address}` : KEY);
     const d = raw ? JSON.parse(raw) : null;
     return d && typeof d === 'object' ? d : {};
   } catch {
@@ -13,8 +14,17 @@ export function loadSave() {
   }
 }
 
-export function writeSave(data) {
-  try { localStorage.setItem(KEY, JSON.stringify(data)); return true; } catch { return false; }
+export function writeSave(data, address = null) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(data));
+    if (address) localStorage.setItem(`${KEY}:${address}`, JSON.stringify(data));
+    return true;
+  } catch { return false; }
+}
+
+// Dipakai buat milih save mana yang lebih jauh progresnya
+export function saveScore(d) {
+  return (d.finaleDone ? 10 : 0) + (d.signals?.length || 0) + (d.quest?.gens?.length || 0) + (d.quest?.parts?.length || 0);
 }
 
 export function clearSave() {
