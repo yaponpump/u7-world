@@ -21,7 +21,7 @@ export const CONFIG = {
 
   // Tier holder: saldo minimal (dalam token utuh) buat buka skin.
   tiers: [
-    { id: 'signal', min: 0, label: 'Sinyal' },
+    { id: 'signal', min: 0, label: 'Signal' },
     { id: 'spark', min: 1_000, label: 'Spark' },
     { id: 'beacon', min: 100_000, label: 'Beacon' },
     { id: 'core', min: 1_000_000, label: 'Core' },

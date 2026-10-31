@@ -14,13 +14,13 @@ const COL = {
 export function defaultLandmarks() {
   const c = { x: (CITY.x0 + CITY.x1) / 2, z: (CITY.z0 + 100) / 2 };
   return [
-    { id: 'park', name: 'Taman', x: WORLD.park.x, z: WORLD.park.z, kind: 'park' },
-    { id: 'lake', name: 'Danau', x: WORLD.lake.x, z: WORLD.lake.z, kind: 'water' },
-    { id: 'pier', name: 'Dermaga', x: WORLD.pier.x, z: WORLD.pier.z, kind: 'wood' },
-    { id: 'hill', name: 'Bukit', x: WORLD.hill.x, z: WORLD.hill.z, kind: 'hill' },
-    { id: 'cafe', name: 'Kafe', x: WORLD.cafe.x, z: WORLD.cafe.z, kind: 'cafe' },
-    { id: 'bridge', name: 'Jembatan', x: WORLD.bridge.x, z: WORLD.bridge.z, kind: 'wood' },
-    { id: 'city', name: 'Kota', x: c.x, z: c.z, kind: 'city' },
+    { id: 'park', name: 'Park', x: WORLD.park.x, z: WORLD.park.z, kind: 'park' },
+    { id: 'lake', name: 'Lake', x: WORLD.lake.x, z: WORLD.lake.z, kind: 'water' },
+    { id: 'pier', name: 'Pier', x: WORLD.pier.x, z: WORLD.pier.z, kind: 'wood' },
+    { id: 'hill', name: 'Hill', x: WORLD.hill.x, z: WORLD.hill.z, kind: 'hill' },
+    { id: 'cafe', name: 'Cafe', x: WORLD.cafe.x, z: WORLD.cafe.z, kind: 'cafe' },
+    { id: 'bridge', name: 'Bridge', x: WORLD.bridge.x, z: WORLD.bridge.z, kind: 'wood' },
+    { id: 'city', name: 'City', x: c.x, z: c.z, kind: 'city' },
   ];
 }
 
@@ -146,9 +146,9 @@ export function createMinimap({ canvas, labelsEl, objectiveEl = null }) {
       ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.arc(SIZE / 2, SIZE / 2, SIZE / 2 - 1, 0, Math.PI * 2); ctx.stroke();
       ctx.fillStyle = COL.text; ctx.font = '10px Chakra Petch, sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText('U', SIZE / 2, 11);
+      ctx.fillText('N', SIZE / 2, 11);
       ctx.textAlign = 'right'; ctx.font = '9px Figtree, sans-serif'; ctx.fillStyle = 'rgba(244,242,255,0.6)';
-      ctx.fillText(zoom ? 'klik: full map' : 'klik: zoom', SIZE - 8, SIZE - 7);
+      ctx.fillText(zoom ? 'click: full map' : 'click: zoom', SIZE - 8, SIZE - 7);
 
       // ---- label lokasi di layar ----
       let i = 0;
@@ -157,7 +157,7 @@ export function createMinimap({ canvas, labelsEl, objectiveEl = null }) {
         // sinyal terdekat juga dilabelin kalau dekat
         let near = null, nd = 45;
         for (const s of signals) { if (s.taken) continue; const d = Math.hypot(s.x - pos.x, s.z - pos.z); if (d < nd) { nd = d; near = s; } }
-        if (near) items.push({ id: 'signal', name: 'Sinyal hilang', x: near.x, z: near.z, y: 1.6, kind: 'signal' });
+        if (near) items.push({ id: 'signal', name: 'Lost signal', x: near.x, z: near.z, y: 1.6, kind: 'signal' });
         // yang lebih dekat digambar dulu; label yang numpuk di layar dilewatin
         items.forEach((it) => { it.d = Math.hypot(it.x - pos.x, it.z - pos.z); });
         items.sort((a, b) => a.d - b.d);
@@ -193,7 +193,7 @@ export function createMinimap({ canvas, labelsEl, objectiveEl = null }) {
           const ang = Math.atan2(fx * dz - fz * dx, fx * dx + fz * dz); // positif = kanan
           objectiveEl.hidden = false;
           objectiveEl.querySelector('.arrow').style.transform = `rotate(${ang}rad)`;
-          objectiveEl.querySelector('.txt').textContent = `Sinyal terdekat · ${Math.round(nd)} m`;
+          objectiveEl.querySelector('.txt').textContent = `Nearest signal · ${Math.round(nd)} m`;
         } else objectiveEl.hidden = true;
       }
     },
