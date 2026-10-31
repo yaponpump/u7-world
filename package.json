@@ -1,0 +1,29 @@
+{
+  "name": "u7-world",
+  "version": "0.1.0",
+  "description": "U-7 World: open world prototype for SIGNAL",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yaponpump/u7-world.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/yaponpump/u7-world/issues"
+  },
+  "homepage": "https://github.com/yaponpump/u7-world#readme",
+  "dependencies": {
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.10"
+  },
+  "private": true,
+  "type": "module"
+}

@@ -1,1 +1,46 @@
-# u7-world
+# U-7 World
+
+Open world kecil di browser buat project **SIGNAL ($SGNL)**. Lu ngontrol **Unit-7**, mecha mungil penjaga terakhir kota yang padam sejak *The Blackout*. Tiap sinyal (holder) baru nyalain satu lampu kota.
+
+Dibangun pake [Three.js](https://threejs.org) + [Vite](https://vitejs.dev). Status: **prototype**. Robotnya masih dibikin dari bentuk dasar, model 3D asli nyusul.
+
+## Jalanin lokal
+
+```bash
+npm install
+npm run dev
+```
+
+Buka `http://localhost:5173`.
+
+## Kontrol
+
+| Input | Aksi |
+|---|---|
+| WASD / panah / joystick (HP) | Jalan |
+| Shift | Lari |
+| Geser mouse / geser layar | Muter kamera |
+| E | Duduk di bangku (dekat bangku) |
+| F | Minum (dekat air mancur atau kafe) |
+| R | Lempar batu (dekat danau / dermaga) |
+| Q | Foto |
+
+Diemin U-7 sekitar 15 detik, dia nguap. 30 detik, dia ketiduran.
+
+## Struktur
+
+- `src/world.js` – tanah, bukit, sungai, danau, taman, dermaga, jembatan, pohon, lampu kota, kafe, sinyal quest
+- `src/robot.js` – U-7 (mesh prosedural + animasi per state: idle, walk, run, sit, drink, yawn, sleep, throw, curious, wave)
+- `src/controls.js` – keyboard, mouse, joystick sentuh
+- `src/main.js` – loop, siang/malam ikut jam asli, perilaku, HUD, quest
+
+## Deploy
+
+Push ke `main` otomatis deploy ke GitHub Pages lewat `.github/workflows/pages.yml`. Aktifin Pages di Settings → Pages → Source: GitHub Actions.
+
+## Roadmap
+
+1. Prototype (ini)
+2. Model 3D U-7 asli (GLB + rig + animasi)
+3. Dunia hidup: cuaca ikut market, NPC, pemain lain
+4. Wallet, skin holder, event "sync"
