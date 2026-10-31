@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight, distToRiver, onBridge, onPier, deckHeight, blockedByRail } from './world.js';
-import { BUILDINGS, blockedByBuilding, cameraBlocked, inCity, nearestFree, obstacleSlip, obstacleTop, rooftopHeight, touchingWall } from './city.js';
+import { BUILDINGS, blockedByBuilding, cameraBlocked, inCity, onClubRoof, nearestFree, obstacleSlip, obstacleTop, rooftopHeight, touchingWall } from './city.js';
 import { createRobot, STATES } from './robot.js';
 import { createAudio } from './audio.js';
 import { createWallet } from './wallet.js';
@@ -338,6 +338,8 @@ const market = createMarket({
     marketState = s;
     const chg = s.change24 == null ? '' : `${s.change24 >= 0 ? '+' : ''}${s.change24.toFixed(1)}% 24h`;
     const price = s.price == null ? (s.source === 'demo' ? 'Demo · token not launched yet' : '') : `$${s.price < 1 ? s.price.toPrecision(3) : s.price.toFixed(2)}`;
+    const livePrice = CONFIG.token.network === 'mainnet' && s.price != null;
+    world.setBillboard(livePrice ? { tag: 'LIVE', price, note: chg || 'Market price' } : { tag: 'DEMO', price: 'No live price', note: 'Testnet · token not launched yet' });
     $('market-text').innerHTML = `<span>${MOOD_LABEL[s.mood]}</span><span class="chg ${s.change24 >= 0 ? 'up' : 'down'}">${[price, chg].filter(Boolean).join(' · ')}</span>`;
     world.setWeather?.({ kind: s.mood, intensity: s.intensity });
     if (!first && prevMood !== s.mood && started) {
@@ -374,6 +376,21 @@ function setupDaily() {
   daily = createDaily(scene, { spots: WORLD.dailySpots?.length ? WORLD.dailySpots : defaultSpots(WORLD), key, taken, groundHeight });
   refreshQuestText();
 }
+// ---------- Lounge holder di atap ----------
+// Sebelum mainnet cukup connect wallet (demo). Di mainnet butuh tier Spark ke atas.
+function clubOpen() {
+  if (walletState.status !== 'connected') return false;
+  if (CONFIG.token.network !== 'mainnet' || !CONFIG.token.address) return true;
+  return CONFIG.tiers.findIndex((t) => t.id === walletState.tier?.id) >= 1;
+}
+function clubNotice(open) {
+  if (performance.now() < (behavior.clubToast || 0)) return;
+  behavior.clubToast = performance.now() + 6000;
+  const demo = CONFIG.token.network !== 'mainnet';
+  if (open) showToast(demo ? 'Holders lounge · demo access until mainnet' : 'Holders lounge · welcome in', 3600);
+  else showToast(walletState.status === 'connected' ? 'Holders lounge · needs Spark tier or higher' : `Holders lounge · connect a wallet${demo ? ' (demo until mainnet)' : ''}`, 3600);
+}
+
 // ---------- Quest berantai (kebuka setelah ending) ----------
 function onChain(event, value) {
   audio.play(event === 'generator' ? 'lamp' : 'chime');
@@ -747,7 +764,9 @@ function tick() {
       const nz = pos.z + dz * speed * dt;
       // seluruh map bisa dijelajahi: batasnya tepi tanah, termasuk kota di tenggara.
       // Sungai dan pinggir danau dangkal, bisa diseberangi jalan kaki; tengah danau tetap dalam.
-      const free = (x, z) => (!isWater(x, z) || wadeable(x, z)) && !blockedByBuilding(x, z, pos.y) && !blockedByRail(x, z) && x > BOUNDS.min && x < BOUNDS.max && z > BOUNDS.min && z < BOUNDS.max;
+      const clubGate = onClubRoof(nx, nz, pos.y);
+      if (clubGate) clubNotice(clubOpen());
+      const free = (x, z) => (!isWater(x, z) || wadeable(x, z)) && !blockedByBuilding(x, z, pos.y) && !(onClubRoof(x, z, pos.y) && !clubOpen()) && !blockedByRail(x, z) && x > BOUNDS.min && x < BOUNDS.max && z > BOUNDS.min && z < BOUNDS.max;
       if (free(nx, nz)) {
         pos.x = nx; pos.z = nz;
       } else if (free(nx, pos.z)) {

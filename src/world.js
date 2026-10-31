@@ -9,7 +9,7 @@ import { Scatter, partsOf } from './scatter.js';
 import { createWeather } from './weather.js';
 import { createNpcs } from './npcs.js';
 import { createEcosystem } from './ecosystem.js';
-import { addObstacle, BUILDINGS, blockedByBuilding, buildCity, cityFlat, ROOF, SHOP, setCityFinale, setCityPower, CITY_SIGNALS, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
+import { addObstacle, BUILDINGS, CLUB, blockedByBuilding, buildCity, cityFlat, ROOF, SHOP, setCityFinale, setCityPower, CITY_SIGNALS, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
 
 export const WORLD = {
   size: 140,
@@ -953,6 +953,46 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     addObstacle(g.x, g.z, 0.8, 0.65, y + 1.8);
   }
 
+  // ---------- Papan harga di jalan masuk kota ----------
+  const boardPos = { x: 28, z: 43 };
+  const boardCanvas = document.createElement('canvas');
+  boardCanvas.width = 1024; boardCanvas.height = 512;
+  const boardTex = new THREE.CanvasTexture(boardCanvas);
+  boardTex.colorSpace = THREE.SRGBColorSpace;
+  const boardMat = new THREE.MeshStandardMaterial({ map: boardTex, emissive: 0xffffff, emissiveMap: boardTex, emissiveIntensity: 0.55, roughness: 0.6 });
+  const boardFace = new THREE.Mesh(new THREE.PlaneGeometry(7, 3.5), boardMat);
+  boardFace.position.set(boardPos.x, 5.6, boardPos.z - 0.09);
+  boardFace.rotation.y = Math.PI;
+  const boardBack = new THREE.Mesh(new THREE.BoxGeometry(7.2, 3.7, 0.16), ironMat);
+  boardBack.position.set(boardPos.x, 5.6, boardPos.z);
+  group.add(boardFace, boardBack);
+  for (const dx of [-2.6, 2.6]) {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.14, 4, 8), ironMat);
+    pole.position.set(boardPos.x + dx, 2, boardPos.z);
+    pole.castShadow = true;
+    group.add(pole);
+    addObstacle(boardPos.x + dx, boardPos.z, 0.15, 0.15, 99);
+  }
+
+  // ---------- Lounge holder di atap ----------
+  const club = new THREE.Group();
+  const neon = new THREE.MeshStandardMaterial({ color: 0x223018, emissive: 0xb8ff3c, emissiveIntensity: 2.4, toneMapped: false });
+  const rimY = CLUB.h + 0.35, cx = CLUB.x + CLUB.w / 2, cz = CLUB.z + CLUB.d / 2;
+  for (const [sx, sz, x, z] of [[CLUB.w, 0.08, cx, CLUB.z], [CLUB.w, 0.08, cx, CLUB.z + CLUB.d], [0.08, CLUB.d, CLUB.x, cz], [0.08, CLUB.d, CLUB.x + CLUB.w, cz]]) {
+    const rim = new THREE.Mesh(new THREE.BoxGeometry(sx, 0.08, sz), neon);
+    rim.position.set(x, rimY, z);
+    club.add(rim);
+  }
+  const sofaMat = new THREE.MeshStandardMaterial({ color: 0x3b1f8f, roughness: 0.7 });
+  for (const dx of [-1.6, 1.6]) {
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.45, 0.8), sofaMat);
+    seat.position.set(cx + dx, CLUB.h + 0.23, cz + 1);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 0.2), sofaMat);
+    back.position.set(cx + dx, CLUB.h + 0.7, cz + 1.3);
+    club.add(seat, back);
+  }
+  group.add(club);
+
   // ---------- Paket kiriman + bagian tubuh VUZZ ----------
   const glowOrange = new THREE.MeshStandardMaterial({ color: 0x5a1a08, emissive: 0xff5a1f, emissiveIntensity: 2.4, toneMapped: false });
   const parcelMesh = new THREE.Group();
@@ -1124,6 +1164,21 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
       setCityPower(WORLD.generators.filter((k) => k.on).length);
     },
     setParcel(visible) { parcelMesh.visible = visible; },
+    // tag: LIVE atau DEMO, biar nggak ada angka palsu yang keliatan asli
+    setBillboard({ tag, price, note }) {
+      const c = boardCanvas.getContext('2d');
+      c.fillStyle = '#0d1016'; c.fillRect(0, 0, 1024, 512);
+      c.textBaseline = 'middle';
+      c.fillStyle = '#b8ff3c'; c.font = '700 96px sans-serif'; c.textAlign = 'left';
+      c.fillText('$VUZZ', 56, 96);
+      c.fillStyle = tag === 'LIVE' ? '#b8ff3c' : '#ffb347'; c.font = '700 64px sans-serif'; c.textAlign = 'right';
+      c.fillText(tag, 968, 96);
+      c.fillStyle = '#ece6d6'; c.font = '700 120px sans-serif'; c.textAlign = 'left';
+      c.fillText(price, 56, 270);
+      c.fillStyle = '#a7a396'; c.font = '48px sans-serif';
+      c.fillText(note, 56, 420);
+      boardTex.needsUpdate = true;
+    },
     setPart(id, visible) {
       const p = WORLD.parts.find((k) => k.id === id);
       if (p) p.mesh.visible = visible;

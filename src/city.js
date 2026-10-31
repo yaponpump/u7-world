@@ -67,6 +67,10 @@ export function rooftopHeight(x, z, y = Infinity) {
   for (const b of BUILDINGS) if (b.h > top && b.h <= y + 0.35 && nearB(b, x, z)) top = b.h;
   return top;
 }
+// Atap satu gedung di sebelah gedung bertangga jadi lounge khusus holder
+const clubB = BUILDINGS.filter((b) => b.z < 60 && b !== roofB).sort((a, b) => Math.abs(a.x - roofB.x) - Math.abs(b.x - roofB.x))[0];
+export const CLUB = { x: clubB.x, z: clubB.z, w: clubB.w, d: clubB.d, h: clubB.h };
+export const onClubRoof = (x, z, y) => y >= clubB.h - 0.2 && nearB(clubB, x, z);
 // Lagi nempel tembok gedung di titik ini, buat wall jump
 export const touchingWall = (x, z, y) => BUILDINGS.some((b) => y < b.h - 0.2 && nearB(b, x, z));
 
