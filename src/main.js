@@ -25,7 +25,8 @@ const qParam = new URLSearchParams(location.search).get('q');
 const QUALITY = qParam === 'low' || qParam === 'high' ? qParam : (isMobile ? 'low' : 'high');
 const canvas = document.getElementById('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, QUALITY === 'high' ? 2 : 1.5));
+let pixelRatio = Math.min(window.devicePixelRatio, QUALITY === 'high' ? 1.5 : 1.25);
+renderer.setPixelRatio(pixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -40,7 +41,7 @@ const hemi = new THREE.HemisphereLight(0xbfd8ff, 0x3b5a2e, 0.5);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff1dc, 3);
 sun.castShadow = true;
-sun.shadow.mapSize.set(QUALITY === 'high' ? 4096 : 2048, QUALITY === 'high' ? 4096 : 2048);
+sun.shadow.mapSize.set(QUALITY === 'high' ? 2048 : 1024, QUALITY === 'high' ? 2048 : 1024);
 sun.shadow.camera.left = -40; sun.shadow.camera.right = 40;
 sun.shadow.camera.top = 40; sun.shadow.camera.bottom = -40;
 sun.shadow.camera.near = 1; sun.shadow.camera.far = 250;
@@ -333,8 +334,12 @@ const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.15, 0), new THREE.M
 rock.visible = false;
 scene.add(rock);
 const splashes = [];
+// geometri + material dipakai bareng, biar cipratan tiap 0,4 detik nggak bikin alokasi baru
+const splashGeo = new THREE.RingGeometry(0.2, 0.3, 24);
+const splashMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false });
 function splash(x, z) {
-  const ring = new THREE.Mesh(new THREE.RingGeometry(0.2, 0.3, 24), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, side: THREE.DoubleSide }));
+  if (splashes.length > 12) return;
+  const ring = new THREE.Mesh(splashGeo, splashMat.clone());
   ring.rotation.x = -Math.PI / 2;
   ring.position.set(x, -0.2, z);
   scene.add(ring);
@@ -597,7 +602,10 @@ function tick() {
     if (behavior.sitting) setHint('Press E or move to stand up. Leave it alone and it will doze off.');
     else if (behavior.nearBench) setHint('A bench. Press E to sit.');
     else if (behavior.nearDrink) setHint('Press F to "drink". Does nothing for its systems, but it likes it.');
+    else if (behavior.wading) setHint('Shallow water. Slow going, but you can wade across. The middle of the lake is too deep.');
+    else if (onBridge(pos.x, pos.z)) setHint('A bridge over the river. Walk straight across.');
     else if (behavior.nearPier) setHint('Press R to skip a rock across the lake.');
+    else if (distToRiver(pos.x, pos.z) < 7) setHint('The river is shallow here: wade across, or use a bridge or the stepping stones.');
     else setHint('WASD move · Space jump · Shift run · right-drag to look · scroll to zoom · follow the green arrow');
   }
 
@@ -628,7 +636,7 @@ function tick() {
     s.t += dt;
     s.ring.scale.setScalar(1 + s.t * 6);
     s.ring.material.opacity = Math.max(0, 0.8 - s.t * 1.2);
-    if (s.t > 0.7) { scene.remove(s.ring); splashes.splice(i, 1); }
+    if (s.t > 0.7) { scene.remove(s.ring); s.ring.material.dispose(); splashes.splice(i, 1); }
   }
 
   // update dunia + robot + langit
@@ -683,7 +691,32 @@ function tick() {
   }
 
   composer.render();
+  adaptQuality(rawDt);
   requestAnimationFrame(tick);
+}
+
+// Kualitas adaptif: kalau rata-rata di bawah ~40 fps selama 3 detik, turunin resolusi render
+// setahap (sampai 1.0), terus matiin bloom. Nggak pernah naik lagi biar nggak kedip-kedip.
+const perf = { acc: 0, n: 0, cooldown: 4 };
+function adaptQuality(dt) {
+  if (!started || document.hidden) return;
+  perf.cooldown -= dt;
+  if (perf.cooldown > 0) return;
+  perf.acc += dt; perf.n++;
+  if (perf.acc < 3) return;
+  const fps = perf.n / perf.acc;
+  perf.acc = 0; perf.n = 0; perf.cooldown = 3;
+  if (fps >= 40) return;
+  if (pixelRatio > 1) {
+    pixelRatio = Math.max(1, pixelRatio - 0.25);
+    renderer.setPixelRatio(pixelRatio);
+    composer.setPixelRatio(pixelRatio);
+    composer.setSize(window.innerWidth, window.innerHeight);
+    console.info(`[perf] ${fps.toFixed(0)} fps → pixel ratio ${pixelRatio}`);
+  } else if (bloom.enabled) {
+    bloom.enabled = false;
+    console.info(`[perf] ${fps.toFixed(0)} fps → bloom off`);
+  }
 }
 
 function takePhoto() {

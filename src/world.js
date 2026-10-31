@@ -71,8 +71,11 @@ function shallowGeometry(curve, segments = 140) {
   pts.forEach((p, i) => {
     const n = new THREE.Vector3().crossVectors(up, curve.getTangentAt(i / segments)).normalize();
     for (const [d, a] of offsets) {
-      pos.push(p.x + n.x * d, 0, p.z + n.z * d);
-      col.push(0.62, 0.8, 0.74, a);
+      const x = p.x + n.x * d, z = p.z + n.z * d;
+      // di dalam danau gradasinya dimatiin, biar nggak jadi garis putih di air
+      const inLake = Math.hypot(x - WORLD.lake.x, z - WORLD.lake.z) < WORLD.lake.r + 1;
+      pos.push(x, 0, z);
+      col.push(0.62, 0.8, 0.74, inLake ? 0 : a);
     }
     if (i < segments && !inLake(pts[i + 1])) {
       const b = i * 4;
@@ -126,6 +129,7 @@ WORLD.landmarks = [
   { id: 'bridge', name: 'Bridge', x: -12, z: -14, kind: 'bridge' },
   { id: 'bridge2', name: 'Bridge', x: -22, z: 7, kind: 'bridge' },
   { id: 'bridge3', name: 'Bridge', x: -40, z: -40, kind: 'bridge' },
+  { id: 'stones', name: 'Stepping stones', x: -16, z: -2, kind: 'stone', minor: true },
   { id: 'hill', name: 'Hill', x: 44, z: -40, kind: 'hill' },
   { id: 'cafe', name: 'Cafe', x: 44, z: 24, kind: 'cafe' },
   { id: 'city', name: 'City', x: 40, z: 72, kind: 'city' },
@@ -585,7 +589,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   bench(20, 9, Math.PI);
   bench(20, -9, 0);
   bench(29, 0, -Math.PI / 2);
-  bench(-8.5, 34, -Math.PI / 2);
+  bench(-10, 37, Math.PI * 0.6); // di tepi danau, bukan di dalam air
   bench(44, -40, Math.PI * 0.75);
 
   // ---------- Dermaga ----------
