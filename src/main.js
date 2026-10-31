@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight, distToRiver, onBridge } from './world.js';
+import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight, distToRiver, onBridge, onPier, deckHeight, blockedByRail } from './world.js';
 import { blockedByBuilding } from './city.js';
 import { createRobot, STATES } from './robot.js';
 import { createAudio } from './audio.js';
@@ -405,7 +405,7 @@ const JUMP_SPEED = 6.4;
 const GRAVITY = 16;
 const BOUNDS = { min: -126, max: 126 }; // tepi tanah yang bisa diinjak, kota sampai ~126
 
-// Air dangkal: seluruh sungai, dan pinggir danau selebar 4 unit. Tengah danau dalam.
+// Semua air dangkal: sungai dan danau bisa dijalanin, makin ke tengah makin dalam.
 function wadeDepth(x, z) {
   const l = WORLD.lake;
   const dl = Math.hypot(x - l.x, z - l.z);
@@ -416,7 +416,7 @@ function wadeDepth(x, z) {
 function wadeable(x, z) {
   const l = WORLD.lake;
   const dl = Math.hypot(x - l.x, z - l.z);
-  if (dl < l.r - 0.5) return dl > l.r - 4.5; // cuma pinggiran danau
+  if (dl < l.r - 0.5) return true;
   return distToRiver(x, z) < 3.2;
 }
 // batu pijakan: puncaknya y≈0.1, radius ~0.6
@@ -449,7 +449,7 @@ function tick() {
     behavior.nearBench = nearest(WORLD.benches, pos.x, pos.z, 2.6);
     const f = WORLD.fountain;
     behavior.nearDrink = Math.hypot(pos.x - f.x, pos.z - f.z) < f.r + 2.2 || Math.hypot(pos.x - WORLD.cafe.x, pos.z - (WORLD.cafe.z + 3.5)) < 3.5;
-    behavior.nearPier = Math.hypot(pos.x - WORLD.pier.x, pos.z - (WORLD.pier.z + WORLD.pier.len / 2 - 1)) < 2.5
+    behavior.nearPier = Math.hypot(pos.x - (WORLD.pier.x - WORLD.pier.len / 2 + 1), pos.z - WORLD.pier.z) < 3
       || Math.hypot(pos.x - WORLD.lake.x, pos.z - WORLD.lake.z) < WORLD.lake.r + 2.5;
     $('act-sit').hidden = !behavior.nearBench && !behavior.sitting;
     $('act-sit').textContent = behavior.sitting ? 'E · Berdiri' : 'E · Duduk';
@@ -505,7 +505,7 @@ function tick() {
       const nz = pos.z + dz * speed * dt;
       // seluruh map bisa dijelajahi: batasnya tepi tanah, termasuk kota di tenggara.
       // Sungai dan pinggir danau dangkal, bisa diseberangi jalan kaki; tengah danau tetap dalam.
-      const free = (x, z) => (!isWater(x, z) || wadeable(x, z)) && !blockedByBuilding(x, z) && x > BOUNDS.min && x < BOUNDS.max && z > BOUNDS.min && z < BOUNDS.max;
+      const free = (x, z) => (!isWater(x, z) || wadeable(x, z)) && !blockedByBuilding(x, z) && !blockedByRail(x, z) && x > BOUNDS.min && x < BOUNDS.max && z > BOUNDS.min && z < BOUNDS.max;
       if (free(nx, nz)) {
         pos.x = nx; pos.z = nz;
       } else if (free(nx, pos.z)) {
@@ -538,10 +538,9 @@ function tick() {
     // tinggi tanah (bukit, jembatan, dermaga, air dangkal)
     let gy = groundHeight(pos.x, pos.z);
     const deck = onBridge(pos.x, pos.z);
-    if (deck) gy = deck.deckY ?? 0.62;
+    if (deck) gy = deckHeight(deck, pos.x, pos.z);
     else if (onStone(pos.x, pos.z)) gy = 0.1;
-    const p = WORLD.pier;
-    if (Math.abs(pos.x - p.x) < p.w / 2 && Math.abs(pos.z - p.z) < p.len / 2) gy = 0.4;
+    if (onPier(pos.x, pos.z)) gy = 0.34;
     if (behavior.wading) {
       gy = Math.min(gy, -0.2 - wadeDepth(pos.x, pos.z)); // kaki nyemplung di bawah permukaan air (y -0.2)
       if (!behavior.wasWading) { audio.play('plunk'); splash(pos.x, pos.z); if (Math.random() < 0.5) say('Cold. Fine. I can do this.', 1600); }
@@ -603,10 +602,10 @@ function tick() {
     if (behavior.sitting) setHint('Press E or move to stand up. Leave it alone and it will doze off.');
     else if (behavior.nearBench) setHint('A bench. Press E to sit.');
     else if (behavior.nearDrink) setHint('Press F to "drink". Does nothing for its systems, but it likes it.');
-    else if (behavior.wading) setHint('Shallow water. Slow going, but you can wade across. The middle of the lake is too deep.');
+    else if (behavior.wading) setHint('Shallow water. Slow going, but you can wade anywhere in the river and the lake.');
     else if (onBridge(pos.x, pos.z)) setHint('A bridge over the river. Walk straight across.');
     else if (behavior.nearPier) setHint('Press R to skip a rock across the lake.');
-    else if (distToRiver(pos.x, pos.z) < 7) setHint('The river is shallow here: wade across, or use a bridge or the stepping stones.');
+    else if (distToRiver(pos.x, pos.z) < 7) setHint('The river is shallow: wade straight across, or take a bridge or the stepping stones.');
     else setHint('WASD move · Space jump · Shift run · right-drag to look · scroll to zoom · follow the green arrow');
   }
 
@@ -648,7 +647,7 @@ function tick() {
   const hourNow = window.__u7?.forceHour ?? timeOfDay();
   applyDaylight(hourNow);
   if (started) {
-    const onWood = Math.abs(pos.y - 0.62) < 0.08 || Math.abs(pos.y - 0.4) < 0.08;
+    const onWood = !!onBridge(pos.x, pos.z) || onPier(pos.x, pos.z);
     const nearFountain = Math.hypot(pos.x - WORLD.fountain.x, pos.z - WORLD.fountain.z) < WORLD.fountain.r + 3;
     const lakeDist = Math.max(0, Math.hypot(pos.x - WORLD.lake.x, pos.z - WORLD.lake.z) - WORLD.lake.r);
     audio.update({
@@ -701,6 +700,8 @@ function tick() {
 const perf = { acc: 0, n: 0, cooldown: 4 };
 function adaptQuality(dt) {
   if (!started || document.hidden) return;
+  // frame yang kelewat lama (tab di-pause, window kehalang) bukan ukuran performa, abaikan dan mulai ulang
+  if (dt > 0.25) { perf.acc = 0; perf.n = 0; perf.cooldown = Math.max(perf.cooldown, 1); return; }
   perf.cooldown -= dt;
   if (perf.cooldown > 0) return;
   perf.acc += dt; perf.n++;

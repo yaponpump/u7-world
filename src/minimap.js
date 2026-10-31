@@ -73,7 +73,7 @@ export function createMinimap({ canvas, labelsEl, objectiveEl = null }) {
     sc.beginPath(); sc.arc(W(WORLD.fountain.x), W(WORLD.fountain.z), WORLD.fountain.r * PPU, 0, Math.PI * 2); sc.fill();
     // dermaga, jembatan, kafe
     sc.fillStyle = COL.wood;
-    const pr = WORLD.pier; sc.fillRect(W(pr.x - pr.w / 2), W(pr.z - pr.len / 2), pr.w * PPU, pr.len * PPU);
+    const pr = WORLD.pier; sc.fillRect(W(pr.x - pr.len / 2), W(pr.z - pr.w / 2), pr.len * PPU, pr.w * PPU);
     for (const br of WORLD.bridges || [WORLD.bridge]) {
       // sumbu panjang = (cos rotY, -sin rotY)
       sc.save(); sc.translate(W(br.x), W(br.z)); sc.rotate(-(br.rotY || 0));
