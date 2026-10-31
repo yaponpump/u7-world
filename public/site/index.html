@@ -9,7 +9,7 @@
   <meta property="og:description" content="A city went dark. One small robot stayed." />
   <meta property="og:image" content="img/hero-day.jpg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@500;800&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;800&display=swap" />
   <link rel="stylesheet" href="site.css" />
 </head>
 <body>
@@ -27,10 +27,11 @@
 
   <main id="top">
     <section class="hero">
-      <img class="hero-img" src="img/hero-day.jpg" alt="VUZZ, a small red robot in a party hat, smiling in a sunny park" width="1600" height="889" />
+      <div class="stars" aria-hidden="true"></div>
+      <img class="hero-bot" src="img/vuzz-cut.webp" alt="VUZZ, a small violet robot, smiling and waving" width="864" height="1300" />
       <div class="hero-copy">
-        <p class="status" id="status">Solana · token not launched yet</p>
         <h1>A city went dark.<br />One small robot stayed.</h1>
+        <p class="status" id="status">Solana · token not launched yet</p>
         <p class="lead">VUZZ is an open world you can walk through right in your browser. Every new holder turns one more light back on.</p>
         <div class="actions">
           <a class="btn" data-play href="../">Play now</a>
@@ -40,7 +41,7 @@
       </div>
     </section>
 
-    <section class="story" id="story" aria-label="The story of the city">
+    <section class="story line" id="story" aria-label="The story of the city">
       <div class="story-stage">
         <img src="img/city-dark.jpg" alt="" width="1600" height="900" />
         <img class="lit" id="lit" src="img/city-lit.jpg" alt="" width="1600" height="900" />
@@ -54,34 +55,34 @@
       </div>
     </section>
 
-    <section class="band" id="live" aria-labelledby="live-title">
+    <section class="band blue line" id="live" aria-labelledby="live-title">
       <h2 id="live-title">City lights</h2>
       <p class="count" id="holders">Live count starts at launch</p>
-      <p class="muted" id="holders-note">This number will come straight from the chain. We will not show a made-up figure before then.</p>
+      <p class="sub" id="holders-note">This number will come straight from the chain. We will not show a made-up figure before then.</p>
     </section>
 
-    <section class="world" id="world" aria-labelledby="world-title">
+    <section class="band black line" id="world" aria-labelledby="world-title">
       <h2 id="world-title">Walk it yourself</h2>
-      <div class="split">
-        <img src="img/park-day.jpg" alt="VUZZ in a grassy park with a fountain and a hill under a bright sky" width="1600" height="900" loading="lazy" />
-        <ul class="facts">
-          <li><b>No download.</b> It runs in the browser.</li>
-          <li><b>A real day.</b> Morning, noon, sunset and night pass while you play.</li>
-          <li><b>Weather from the market.</b> Pumps bring golden light, dumps bring storms.</li>
-          <li><b>Things to do.</b> Find lost signals, walk into the cafe, climb to the rooftop, talk to five robots.</li>
-        </ul>
-      </div>
-      <h3>VUZZ has moods</h3>
-      <ul class="faces">
-        <li><img src="img/face-happy.jpg" alt="VUZZ looking happy" width="640" height="360" loading="lazy" /><span>Happy</span></li>
-        <li><img src="img/face-sad.jpg" alt="VUZZ looking sad" width="640" height="360" loading="lazy" /><span>Sad</span></li>
-        <li><img src="img/face-angry.jpg" alt="VUZZ looking angry" width="640" height="360" loading="lazy" /><span>Angry</span></li>
-        <li><img src="img/face-surprised.jpg" alt="VUZZ looking surprised" width="640" height="360" loading="lazy" /><span>Surprised</span></li>
-        <li><img src="img/face-disgust.jpg" alt="VUZZ looking disgusted" width="640" height="360" loading="lazy" /><span>Disgust</span></li>
+      <ul class="features">
+        <li><img src="img/park-day.jpg" alt="VUZZ in a grassy park with a fountain and a hill" width="1200" height="675" loading="lazy" /><h3>No download</h3><p>It runs in the browser.</p></li>
+        <li><img src="img/hero-day.jpg" alt="VUZZ smiling in the park on a clear morning" width="1000" height="556" loading="lazy" /><h3>A real day</h3><p>Morning, noon, sunset and night pass while you play.</p></li>
+        <li><img src="img/city-lit.jpg" alt="City blocks at night with every window lit" width="1600" height="900" loading="lazy" /><h3>Weather from the market</h3><p>Pumps bring golden light, dumps bring storms.</p></li>
+        <li><img src="img/shop.jpg" alt="VUZZ inside the mini mart beside shelves full of goods" width="900" height="563" loading="lazy" /><h3>Things to do</h3><p>Find lost signals, walk into the cafe, climb to the rooftop, talk to five robots.</p></li>
       </ul>
     </section>
 
-    <section class="token" id="token" aria-labelledby="token-title">
+    <section class="band blue line" aria-labelledby="moods-title">
+      <h2 id="moods-title">VUZZ has moods</h2>
+      <ul class="faces">
+        <li><img src="img/face-happy.jpg" alt="VUZZ looking happy" width="420" height="326" loading="lazy" /><span>Happy</span></li>
+        <li><img src="img/face-sad.jpg" alt="VUZZ looking sad" width="420" height="326" loading="lazy" /><span>Sad</span></li>
+        <li><img src="img/face-angry.jpg" alt="VUZZ looking angry" width="420" height="326" loading="lazy" /><span>Angry</span></li>
+        <li><img src="img/face-surprised.jpg" alt="VUZZ looking surprised" width="420" height="326" loading="lazy" /><span>Surprised</span></li>
+        <li><img src="img/face-disgust.jpg" alt="VUZZ looking disgusted" width="420" height="326" loading="lazy" /><span>Disgust</span></li>
+      </ul>
+    </section>
+
+    <section class="band black line" id="token" aria-labelledby="token-title">
       <h2 id="token-title">$VUZZ</h2>
       <dl id="tokenomics">
         <div><dt>Chain</dt><dd>Solana</dd></div>
@@ -89,7 +90,6 @@
         <div><dt>Allocation</dt><dd>Published before launch</dd></div>
         <div><dt>Contract</dt><dd>Published at launch</dd></div>
       </dl>
-      <div class="table-card">
       <h3>What holding unlocks</h3>
       <table>
         <thead><tr><th scope="col">Tier</th><th scope="col">Minimum balance</th><th scope="col">In the game</th></tr></thead>
@@ -100,13 +100,12 @@
           <tr><td>Core</td><td class="num">1,000,000</td><td>Core skin</td></tr>
         </tbody>
       </table>
-      <p class="muted">Tiers are cosmetic. They do not pay anything.</p>
-      </div>
+      <p class="sub">Tiers are cosmetic. They do not pay anything.</p>
     </section>
 
-    <section class="buy" id="buy" aria-labelledby="buy-title">
+    <section class="band blue line" id="buy" aria-labelledby="buy-title">
       <h2 id="buy-title">How to buy</h2>
-      <ol>
+      <ol class="steps">
         <li><h3>Get a Solana wallet</h3><p>Phantom, Solflare or Backpack all work. Never share your seed phrase, with anyone, ever.</p></li>
         <li><h3>Add some SOL</h3><p>Buy it on an exchange and send it to your wallet.</p></li>
         <li><h3>Swap for $VUZZ</h3><p>Check the contract address on this page first. Fake tokens with the same name are common.</p></li>
@@ -114,15 +113,16 @@
       <a class="btn" id="buy-link" aria-disabled="true">Buy opens at launch</a>
     </section>
 
-    <section class="plan" aria-labelledby="plan-title">
+    <section class="band black line" aria-labelledby="plan-title">
       <h2 id="plan-title">What comes next</h2>
-      <ol>
+      <ol class="plan">
         <li><b>Now</b> Playable world on devnet, with wallet connect, skins and daily supply runs</li>
         <li><b>Mainnet</b> Token launch, live holder count lights the city</li>
       </ol>
     </section>
 
-    <section class="end">
+    <section class="end line">
+      <div class="stars" aria-hidden="true"></div>
       <h2>The lights are not going to turn themselves on.</h2>
       <a class="btn" data-play href="../">Wake up VUZZ</a>
     </section>
