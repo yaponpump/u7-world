@@ -486,7 +486,7 @@ function onChain(event, value) {
     world.npcTalk?.(value.id, 5);
     earnBolts(3, 'delivery');
     npcSay(value, "That's your old parts list. Three pieces of you were scattered in The Blackout.", 5600);
-    say('Pieces of me? Then I know what we are doing next.', 3400);
+    setTimeout(() => say('Pieces of me? Then I know what we are doing next.', 3400), 3200);
   }
   if (event === 'part') { earnBolts(3, 'lost part'); showToast(value === 3 ? 'All parts found' : `Lost part found · ${value}/3`, 3200); if (value < 3) say(['That one is definitely mine.', 'I knew I felt lighter.'][value - 1], 2800); }
   if (event === 'done') { robot.setState('wave'); say('All of me, all of the lights. This city has a robot again.', 5000); }
