@@ -88,7 +88,9 @@ main { position: relative; z-index: 10; }
 
 /* 01 hero */
 .s-hero { min-height: 100svh; padding-top: 140px; }
+.s-hero .wrap { margin-left: 0; }
 .hero-copy { display: grid; gap: 22px; width: min(640px, 100%); }
+@media (min-width: 901px) and (max-width: 1250px) { .hero-copy { width: min(520px, 50vw); } .s-hero h1 { font-size: clamp(38px, 4.4vw, 56px); } }
 .hero-fallback { position: absolute; right: clamp(-40px, 2vw, 60px); bottom: -8%; height: 100%; width: auto; max-width: none; filter: drop-shadow(0 0 60px rgba(109, 61, 245, 0.45)); }
 .hero-fallback[hidden] { display: none; }
 .status { justify-self: start; padding: 4px 12px; border: 1px solid var(--line); border-radius: 4px; font: 400 11px/1.6 'Space Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; color: var(--soft); }
