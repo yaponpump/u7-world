@@ -365,8 +365,13 @@ function tick() {
       const nx = pos.x + dx * speed * dt;
       const nz = pos.z + dz * speed * dt;
       const half = WORLD.size * 0.75;
-      if (!isWater(nx, nz) && !blockedByBuilding(nx, nz) && Math.abs(nx) < half && Math.abs(nz) < half) {
+      const free = (x, z) => !isWater(x, z) && !blockedByBuilding(x, z) && Math.abs(x) < half && Math.abs(z) < half;
+      if (free(nx, nz)) {
         pos.x = nx; pos.z = nz;
+      } else if (blockedByBuilding(nx, nz) && free(nx, pos.z)) {
+        pos.x = nx; // meluncur sepanjang tembok
+      } else if (blockedByBuilding(nx, nz) && free(pos.x, nz)) {
+        pos.z = nz;
       } else if (isWater(nx, nz) && Math.random() < 0.02) {
         say('Air. Nggak dulu, sistem gua belum kedap.', 1600);
       }
