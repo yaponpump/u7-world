@@ -152,7 +152,7 @@ export function cityFlat(x, z) {
 }
 
 export const cityUniforms = { uLit: { value: 0.27 }, uGlow: { value: 0 }, uFill: { value: 0 } };
-const pools = { mesh: null, heads: null, total: 0, lit: 3, night: 0, finale: 0, power: 0 };
+const pools = { mesh: null, heads: null, total: 0, lit: 3, night: 0, finale: 0, power: 0, holders: 0 };
 const updateFill = () => { cityUniforms.uFill.value = pools.night * (0.08 + 0.14 * pools.lit / 5 + 0.05 * pools.power); };
 
 // Cahaya pantul kota: sekadar biar gang gelap tapi masih kebaca
@@ -167,9 +167,15 @@ function addFill(mat, inner) {
 }
 
 // Dipanggil pas lampu kota nambah dan tiap ganti waktu
+const refreshLit = () => { cityUniforms.uLit.value = Math.max(pools.lit * 0.09, pools.finale, pools.holders); };
+// Holder asli nyalain jendela: 10 holder 25%, 100 holder 50%, 10.000 holder hampir penuh
+export function setCityHolders(n) {
+  pools.holders = Math.min(0.95, Math.log10(n + 1) / 4);
+  refreshLit();
+}
 export function setCityLit(n) {
-  cityUniforms.uLit.value = Math.max(n * 0.09, pools.finale);
   pools.lit = n;
+  refreshLit();
   updateFill();
   const on = Math.round(pools.total * n / 5);
   if (pools.mesh) { pools.mesh.count = on; pools.heads.count = on; }
@@ -177,7 +183,7 @@ export function setCityLit(n) {
 // Momen akhir: v 0..1 nambah jendela yang nyala, nggak turun lagi setelahnya
 export function setCityFinale(v) {
   pools.finale = Math.max(pools.finale, v);
-  cityUniforms.uLit.value = Math.max(pools.lit * 0.09, pools.finale);
+  refreshLit();
 }
 // Jumlah generator yang nyala: jendela sekota ikut lebih terang
 export function setCityPower(n) {
