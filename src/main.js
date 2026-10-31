@@ -12,6 +12,7 @@ import { createControls } from './controls.js';
 import { loadAssets } from './assets.js';
 import { loadSave, writeSave } from './save.js';
 import { createDaily, defaultSpots, dayKey } from './daily.js';
+import { createChain } from './quests.js';
 import { pollHolders } from './holders.js';
 
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
@@ -126,6 +127,7 @@ robot.root.rotation.y = Math.PI;
 const save = loadSave();
 let finaleDone = !!save.finaleDone;
 let daily = null;
+let chain = null;
 function persist() {
   writeSave({
     v: 1,
@@ -136,6 +138,7 @@ function persist() {
     pos: [+robot.root.position.x.toFixed(1), +robot.root.position.z.toFixed(1)],
     finaleDone,
     daily: daily ? { key: daily.key, taken: daily.items.filter((i) => i.taken).map((i) => i.id) } : save.daily || null,
+    quest: chain ? chain.data : save.quest || null,
     savedAt: Date.now(),
   });
 }
@@ -354,7 +357,9 @@ market.start();
 
 // ---------- Misi harian (kebuka setelah ending) ----------
 function refreshQuestText() {
-  if (daily) {
+  if (chain?.text) {
+    $('quest-text').innerHTML = chain.text;
+  } else if (daily) {
     $('quest-text').innerHTML = daily.done
       ? `Daily done · come back tomorrow`
       : `Daily · find 3 supply crates · <b id="quest-count">${daily.found}</b>/3`;
@@ -369,7 +374,28 @@ function setupDaily() {
   daily = createDaily(scene, { spots: WORLD.dailySpots?.length ? WORLD.dailySpots : defaultSpots(WORLD), key, taken, groundHeight });
   refreshQuestText();
 }
-if (finaleDone) setupDaily();
+// ---------- Quest berantai (kebuka setelah ending) ----------
+function onChain(event, value) {
+  audio.play(event === 'generator' ? 'lamp' : 'chime');
+  express('happy', 3);
+  if (event === 'start') { showToast('New job · restart the 3 city generators', 4500); say('The lamps are back, but the grid is failing. Three generators, three levers.', 4200); }
+  if (event === 'generator') {
+    showToast(value === 3 ? 'Grid stable · 3/3 generators' : `Generator back online · ${value}/3`, 3200);
+    say(value === 3 ? "Grid's stable. There's a parcel outside the cafe with a courier's name on it." : ['Hear that hum? Good hum.', 'Two down. The windows look brighter already.'][value - 1], 3600);
+  }
+  if (event === 'parcel') { showToast(`Parcel picked up · bring it to ${value.name}`, 3600); say(`For ${value.name}. Heavier than it looks.`, 2800); }
+  if (event === 'delivered') {
+    world.npcTalk?.(value.id, 5);
+    showToast(`${value.name}: That's your old parts list. Three pieces of you were scattered in The Blackout.`, 5600);
+    say('Pieces of me? Then I know what we are doing next.', 3400);
+  }
+  if (event === 'part') { showToast(value === 3 ? 'All parts found' : `Lost part found · ${value}/3`, 3200); if (value < 3) say(['That one is definitely mine.', 'I knew I felt lighter.'][value - 1], 2800); }
+  if (event === 'done') { robot.setState('wave'); say('All of me, all of the lights. This city has a robot again.', 5000); }
+  refreshQuestText();
+  persist();
+}
+chain = createChain(world, WORLD, save.quest, onChain);
+if (finaleDone) { chain.start(); setupDaily(); }
 
 // ---------- Ending: semua sinyal ketemu ----------
 let finale = null; // { t, dur }
@@ -394,6 +420,7 @@ function startFinale() {
     robot.setState('wave');
     showToast('The city is awake · daily supply runs unlocked', 4500);
     setupDaily();
+    setTimeout(() => chain.start(), 5000);
     persist();
   }, finale.dur * 1000);
 }
@@ -649,8 +676,9 @@ function tick() {
     behavior.nearDrink = Math.hypot(pos.x - f.x, pos.z - f.z) < f.r + 2.2 || Math.hypot(pos.x - WORLD.cafe.x, pos.z - (WORLD.cafe.z + 3.5)) < 3.5;
     behavior.nearPier = Math.hypot(pos.x - (WORLD.pier.x - WORLD.pier.len / 2 + 1), pos.z - WORLD.pier.z) < 3
       || Math.hypot(pos.x - WORLD.lake.x, pos.z - WORLD.lake.z) < WORLD.lake.r + 2.5;
-    $('act-sit').hidden = !behavior.nearBench && !behavior.sitting && !behavior.nearThing && !behavior.nearNpc;
-    $('act-sit').textContent = behavior.sitting ? 'E · Stand up' : behavior.nearBench ? 'E · Sit' : 'E · Inspect';
+    const chainHint = chain.hint(pos);
+    $('act-sit').hidden = !chainHint && !behavior.nearBench && !behavior.sitting && !behavior.nearThing && !behavior.nearNpc;
+    $('act-sit').textContent = behavior.sitting ? 'E · Stand up' : chainHint ? 'E · Use' : behavior.nearBench ? 'E · Sit' : 'E · Inspect';
     $('act-drink').hidden = !behavior.nearDrink || !!behavior.sitting;
     $('act-throw').hidden = !behavior.nearPier || !!behavior.sitting;
 
@@ -659,6 +687,8 @@ function tick() {
       if (behavior.sitting) {
         behavior.sitting = null;
         robot.setState('idle');
+      } else if (chain.use(pos)) {
+        behavior.idleTime = 0;
       } else if (behavior.nearBench) {
         const b = behavior.nearBench;
         behavior.sitting = b;
@@ -871,11 +901,13 @@ function tick() {
         persist();
       }
     }
+    chain.update(pos);
     persistTimer += rawDt;
     if (persistTimer > 5) { persistTimer = 0; persist(); }
 
     // hint kontekstual
     if (behavior.sitting) setHint('Press E or move to stand up. Leave it alone and it will doze off.');
+    else if (chainHint) setHint(chainHint);
     else if (behavior.nearBench) setHint('A bench. Press E to sit.');
     else if (behavior.nearNpc) setHint(`${behavior.nearNpc.name}, a courier drone. Press E to talk.`);
     else if (behavior.nearThing) setHint(`${behavior.nearThing.name}. Press E to inspect.`);
@@ -974,7 +1006,8 @@ function tick() {
   }
   camera.position.copy(camPos);
   camera.lookAt(camTarget);
-  minimap.update({ pos, rotY: robot.root.rotation.y, camYaw: yaw, camera, signals: daily && !daily.done ? daily.items : (daily ? [] : WORLD.signals), objectiveLabel: daily ? 'crate' : 'signal', started: started && !finale });
+  const chainGoals = chain.targets;
+  minimap.update({ pos, rotY: robot.root.rotation.y, camYaw: yaw, camera, signals: chainGoals.length ? chainGoals : daily && !daily.done ? daily.items : (daily ? [] : WORLD.signals), objectiveLabel: chainGoals.length ? chain.label : daily ? 'crate' : 'signal', started: started && !finale });
   sun.target.position.copy(pos);
 
   // posisi bubble di atas kepala
@@ -1052,7 +1085,7 @@ window.addEventListener('resize', () => {
   composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-window.__u7 = { gameClock, BUILDINGS, rooftopHeight, obstacleTop, WORLD, world, get daily() { return daily; }, signals: WORLD.signals, robot, behavior, controls, audio, scene, camera, renderer, blockedByBuilding, isWater, wadeable, onBridge, groundHeight };
+window.__u7 = { get chain() { return chain; }, gameClock, BUILDINGS, rooftopHeight, obstacleTop, WORLD, world, get daily() { return daily; }, signals: WORLD.signals, robot, behavior, controls, audio, scene, camera, renderer, blockedByBuilding, isWater, wadeable, onBridge, groundHeight };
 
 // kamera awal: dari depan robot
 controls.setYaw(Math.PI);
