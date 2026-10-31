@@ -164,7 +164,8 @@ export function createMinimap({ canvas, labelsEl, objectiveEl = null }) {
         // sinyal terdekat juga dilabelin kalau dekat
         let near = null, nd = 45;
         for (const s of signals) { if (s.taken) continue; const d = Math.hypot(s.x - pos.x, s.z - pos.z); if (d < nd) { nd = d; near = s; } }
-        if (near) items.push({ id: 'signal', name: 'Lost signal', x: near.x, z: near.z, y: 1.6, kind: 'signal' });
+        const goalName = { signal: 'Lost signal', crate: 'Supply crate', generator: 'Generator', parcel: 'Parcel', courier: near?.name || 'Courier', 'lost part': 'Lost part' }[objectiveLabel] || objectiveLabel;
+        if (near) items.push({ id: 'signal', name: goalName, x: near.x, z: near.z, y: (near.y || 0) + 1.6, kind: 'signal' });
         // yang lebih dekat digambar dulu; label yang numpuk di layar dilewatin
         items.forEach((it) => { it.d = Math.hypot(it.x - pos.x, it.z - pos.z); });
         items.sort((a, b) => a.d - b.d);

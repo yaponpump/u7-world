@@ -72,47 +72,58 @@ export function createAudio() {
     src.start();
     return { src, f, g };
   }
-  // ---- musik ambient: pad pelan 3 nada, akor ganti tiap ~9 detik, skala ikut jam & cuaca ----
-  const music = { voices: [], g: null, next: 0, step: 0, mood: 'cloudy' };
+  // ---- musik: loop chiptune ceria. Bass + melodi + drum dijadwalkan per bar pakai jam AudioContext,
+  // jadi temponya rapi. Siang mayor dan cepat, malam minor dan pelan, badai minor tapi tetap gerak. ----
+  const music = { g: null, nextAt: 0, bar: 0, set: '' };
   function buildMusic() {
     music.g = ctx.createGain(); music.g.gain.value = 0;
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 0.4;
-    const delay = ctx.createDelay(1.5); delay.delayTime.value = 0.42;
-    const fb = ctx.createGain(); fb.gain.value = 0.32;
-    const wet = ctx.createGain(); wet.gain.value = 0.35;
-    music.g.connect(lp).connect(master);
-    lp.connect(delay).connect(fb).connect(delay); delay.connect(wet).connect(master);
-    for (let i = 0; i < 3; i++) {
-      const a = ctx.createOscillator(), b = ctx.createOscillator();
-      a.type = 'triangle'; b.type = 'sine'; b.detune.value = 7 + i * 3;
-      const vg = ctx.createGain(); vg.gain.value = 0;
-      a.connect(vg); b.connect(vg); vg.connect(music.g);
-      a.start(); b.start();
-      music.voices.push({ a, b, g: vg });
-    }
+    const delay = ctx.createDelay(1); delay.delayTime.value = 0.27;
+    const fb = ctx.createGain(); fb.gain.value = 0.2;
+    const wet = ctx.createGain(); wet.gain.value = 0.16;
+    music.g.connect(master);
+    music.g.connect(delay).connect(fb).connect(delay); delay.connect(wet).connect(master);
   }
-  // progresi: siang mayor (I vi IV V), malam minor (i VI iv VII), badai lebih rendah & lambat
-  const CHORDS = {
-    day: [[0, 4, 7], [9, 12, 16], [5, 9, 12], [7, 11, 14]],
-    night: [[0, 3, 7], [8, 12, 15], [5, 8, 12], [10, 14, 17]],
-    storm: [[0, 3, 7], [-2, 2, 5], [0, 3, 7], [-4, 0, 3]],
+  // chords: semitone dari root (4 bar). melody: 2 baris x 16 langkah (8 per bar), derajat skala, -1 = diam
+  const SONGS = {
+    day: { bpm: 118, root: 60, chords: [[0, 4, 7], [7, 11, 14], [9, 12, 16], [5, 9, 12]], scale: [0, 2, 4, 7, 9, 12, 14, 16], drums: true,
+      melody: [[0, 2, 4, -1, 4, 5, 4, 2, 0, -1, 2, 4, 2, -1, 0, -1], [4, 5, 7, -1, 7, 5, 4, 2, 5, 4, 2, -1, 0, -1, -1, -1]] },
+    night: { bpm: 94, root: 57, chords: [[0, 3, 7], [8, 12, 15], [5, 8, 12], [7, 10, 14]], scale: [0, 3, 5, 7, 10, 12, 15, 17], drums: false,
+      melody: [[0, -1, 2, -1, 3, -1, 2, -1, 0, -1, -1, -1, 1, -1, -1, -1], [3, -1, 2, -1, 0, -1, -1, -1, 2, -1, 3, -1, 2, -1, -1, -1]] },
+    storm: { bpm: 108, root: 55, chords: [[0, 3, 7], [-2, 2, 5], [0, 3, 7], [-4, 0, 3]], scale: [0, 3, 5, 7, 10, 12, 15, 17], drums: true,
+      melody: [[0, 0, 3, -1, 0, 0, 5, -1, 0, 0, 3, -1, 2, -1, 0, -1], [5, -1, 3, -1, 2, -1, 0, -1, 3, 2, 0, -1, -1, -1, -1, -1]] },
   };
-  function musicStep(hour, mood, time) {
+  const midi = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  function musicBar(hour, mood) {
     const elev = Math.sin(((hour - 6) / 12) * Math.PI);
     const set = mood === 'storm' || mood === 'rain' ? 'storm' : elev > 0.1 ? 'day' : 'night';
-    const root = mood === 'golden' ? 50 : set === 'storm' ? 41 : 45; // D, F, A (MIDI)
-    const chord = CHORDS[set][music.step % 4];
-    music.step++;
-    const t = now();
-    music.voices.forEach((v, i) => {
-      const f = 440 * Math.pow(2, (root + chord[i] - 69) / 12);
-      v.a.frequency.setTargetAtTime(f, t, 0.8);
-      v.b.frequency.setTargetAtTime(f * 2, t, 0.8);
-      v.g.gain.cancelScheduledValues(t);
-      v.g.gain.setTargetAtTime(0.02, t, 0.4);
-      v.g.gain.setTargetAtTime(0.055 - i * 0.008, t + 1.2, 1.6);
-    });
-    music.next = time + (set === 'storm' ? 11 : 9);
+    const S = SONGS[set];
+    if (music.set !== set) { music.set = set; music.bar = 0; }
+    const beat = 60 / S.bpm, step = beat / 2, barLen = beat * 4;
+    const startAt = Math.max(music.nextAt, now() + 0.02);
+    const base = startAt - now();
+    const chord = S.chords[music.bar % 4];
+    const mel = S.melody[Math.floor(music.bar / 2) % 2];
+    const half = music.bar % 2;
+    const out = music.g;
+    for (let i = 0; i < 8; i++) {
+      const d = base + i * step;
+      // bass: root, oktaf, kuint gantian; square dilembutin lowpass
+      const bn = S.root - 12 + chord[0] + (i % 4 === 2 ? 7 : i % 2 ? 12 : 0);
+      tone({ type: 'square', f0: midi(bn), dur: step * 0.8, gain: 0.045, delay: d, filter: { freq: 650 }, out });
+      // melodi
+      const deg = mel[half * 8 + i];
+      if (deg >= 0) tone({ type: 'triangle', f0: midi(S.root + 12 + S.scale[deg]), dur: step * 1.1, gain: 0.07, delay: d, attack: 0.01, pan: 0.15, out });
+      // drum: kick di 1 dan 3, snare di 2 dan 4, hi-hat tiap 1/8
+      if (S.drums) {
+        if (i % 4 === 0) tone({ type: 'sine', f0: 150, f1: 45, dur: 0.14, gain: 0.15, delay: d, out });
+        if (i % 4 === 2) burst({ f0: 1800, dur: 0.09, gain: 0.045, delay: d, q: 0.7, out });
+        burst({ type: 'highpass', f0: 7000, dur: i % 2 ? 0.02 : 0.035, gain: i % 2 ? 0.01 : 0.018, delay: d, out });
+      } else if (i % 4 === 0) tone({ type: 'sine', f0: 120, f1: 50, dur: 0.12, gain: 0.06, delay: d, out });
+    }
+    // pad akor tipis di belakang
+    chord.forEach((c, k) => tone({ type: 'triangle', f0: midi(S.root + c), dur: barLen * 0.95, gain: 0.016, delay: base, attack: 0.2, pan: k === 0 ? -0.3 : k === 2 ? 0.3 : 0, out }));
+    music.bar++;
+    music.nextAt = startAt + barLen;
   }
 
   function buildAmbience() {
@@ -146,7 +157,7 @@ export function createAudio() {
     g.gain.exponentialRampToValueAtTime(peak, t0 + a);
     g.gain.exponentialRampToValueAtTime(sustainTo, t0 + a + d);
   }
-  function tone({ type = 'sine', f0 = 440, f1 = f0, dur = 0.2, gain = 0.2, delay = 0, attack = 0.005, filter = null, pan = 0 }) {
+  function tone({ type = 'sine', f0 = 440, f1 = f0, dur = 0.2, gain = 0.2, delay = 0, attack = 0.005, filter = null, pan = 0, out = master }) {
     const t0 = now() + delay;
     const o = ctx.createOscillator(); o.type = type;
     o.frequency.setValueAtTime(f0, t0);
@@ -155,17 +166,17 @@ export function createAudio() {
     let node = o;
     if (filter) { const f = ctx.createBiquadFilter(); f.type = filter.type || 'lowpass'; f.frequency.value = filter.freq; f.Q.value = filter.q || 1; node.connect(f); node = f; }
     const p = ctx.createStereoPanner(); p.pan.value = pan;
-    node.connect(g).connect(p).connect(master);
+    node.connect(g).connect(p).connect(out);
     o.start(t0); o.stop(t0 + attack + dur + 0.05);
   }
-  function burst({ dur = 0.1, gain = 0.2, delay = 0, type = 'bandpass', f0 = 1000, f1 = f0, q = 1, attack = 0.003 }) {
+  function burst({ dur = 0.1, gain = 0.2, delay = 0, type = 'bandpass', f0 = 1000, f1 = f0, q = 1, attack = 0.003, out = master }) {
     const t0 = now() + delay;
     const s = noiseSource(false);
     const f = ctx.createBiquadFilter(); f.type = type; f.Q.value = q;
     f.frequency.setValueAtTime(f0, t0);
     if (f1 !== f0) f.frequency.exponentialRampToValueAtTime(Math.max(40, f1), t0 + dur);
     const g = ctx.createGain(); env(g, t0, attack, gain, dur);
-    s.connect(f).connect(g).connect(master);
+    s.connect(f).connect(g).connect(out);
     s.start(t0, Math.random() * 1.5); s.stop(t0 + attack + dur + 0.05);
   }
 
@@ -345,7 +356,7 @@ export function createAudio() {
       if (!ctx || muted) return;
       // musik: pelan, lebih kecil pas tidur, ganti akor berkala
       if (music.g) {
-        if (time > music.next || music.mood !== mood) { music.mood = mood; musicStep(hour, mood, time); }
+        if (now() > music.nextAt - 0.15) musicBar(hour, mood);
         const target = 0.55 * musicLevel * (state === 'sleep' ? 0.5 : 1);
         music.g.gain.value += (target - music.g.gain.value) * 0.02;
       }
