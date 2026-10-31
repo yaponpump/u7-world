@@ -93,7 +93,9 @@ robot.root.position.set(WORLD.park.x, 0, WORLD.park.z + 12);
 robot.root.rotation.y = Math.PI;
 
 // Post-processing: bloom halus + vignette/grain + SMAA
-const composer = new EffectComposer(renderer);
+const composer = QUALITY === 'high'
+  ? new EffectComposer(renderer, new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, { type: THREE.HalfFloatType, samples: 4 }))
+  : new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.25, 0.5, 0.9);
 composer.addPass(bloom);
@@ -210,7 +212,9 @@ function splash(x, z) {
 }
 
 // ---------- Siang / malam ikut jam asli ----------
+const hourParam = new URLSearchParams(location.search).get('hour'); // ?hour=12 buat ngetes siang
 function timeOfDay() {
+  if (hourParam !== null) return +hourParam;
   const d = new Date();
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
 }
@@ -240,6 +244,10 @@ function applyDaylight(h) {
   scene.fog.color.copy(fogDay).lerp(fogDusk, dusk).lerp(fogNight, night);
   scene.fog.density = 0.0028 + dusk * 0.0025 + night * 0.001;
   renderer.toneMappingExposure = 0.5 + daylight * 0.22 + dusk * 0.08;
+  // Siang pakai foto langit asli kalau ada, senja dan malam balik ke langit fisik
+  const photoSky = assets.hdri && daylight > 0.3;
+  sky.visible = !photoSky;
+  scene.background = photoSky ? assets.hdri : null;
   gradePass.uniforms.uWarm.value = 0.3 + dusk * 0.7;
   bloom.strength = 0.2 + night * 0.4;
   world.setSun(sunDir, sunColor);
@@ -254,6 +262,7 @@ const clock = new THREE.Clock();
 const camTarget = new THREE.Vector3();
 const camPos = new THREE.Vector3();
 let elapsed = 0;
+let frameNo = 0;
 const SPEED_WALK = 4.2;
 const SPEED_RUN = 8.5;
 
@@ -427,6 +436,7 @@ function tick() {
 
   // update dunia + robot + langit
   world.update(elapsed, dt);
+  if (frameNo++ % 12 === 0) { camera.updateMatrixWorld(); world.updateTrees(camera); }
   gradePass.uniforms.uTime.value = elapsed;
   robot.update(dt, 0, elapsed);
   applyDaylight(window.__u7?.forceHour ?? timeOfDay());
@@ -483,7 +493,7 @@ window.addEventListener('resize', () => {
   composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-window.__u7 = { robot, behavior, controls };
+window.__u7 = { robot, behavior, controls, scene, camera, renderer };
 
 // kamera awal: dari depan robot
 controls.input.camYaw = Math.PI;

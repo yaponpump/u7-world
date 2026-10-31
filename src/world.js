@@ -3,7 +3,9 @@ import { Water } from 'three/examples/jsm/objects/Water.js';
 import {
   grassTexture, dirtTexture, barkTexture, leafCardTexture, waterNormalTexture, stoneTexture, woodTexture,
 } from './textures.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { pbrMaterial } from './assets.js';
+import { Scatter, partsOf } from './scatter.js';
 
 export const WORLD = {
   size: 140,
@@ -150,7 +152,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   groundGeo.setAttribute('aMix', new THREE.Float32BufferAttribute(mix, 1));
   groundGeo.computeVertexNormals();
   const A = assets.textures || {};
-  const groundMat = pbrMaterial(A.grass, texGrass, { roughness: 0.95, normalScale: 0.8 });
+  const groundMat = pbrMaterial(A.grass, texGrass, { roughness: 0.95, normalScale: 0.8, color: A.grass ? 0xb8ea7a : 0xffffff });
   const dirtSet = A.dirt;
   groundMat.onBeforeCompile = (shader) => {
     shader.uniforms.tDirt = { value: dirtSet?.map || texDirt };
@@ -181,29 +183,43 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   group.add(ground);
 
   // ---------- Rumput (instanced blades) ----------
-  const bladeCount = hi ? 160000 : 60000;
-  const bladeGeo = new THREE.PlaneGeometry(0.07, 0.42, 1, 3);
-  bladeGeo.translate(0, 0.21, 0);
-  // lancip di ujung
-  const bp = bladeGeo.attributes.position;
-  for (let i = 0; i < bp.count; i++) { const y = bp.getY(i) / 0.42; bp.setX(i, bp.getX(i) * (1 - y * 0.9)); }
-  const bladeMat = new THREE.MeshStandardMaterial({ color: 0x4f8a34, roughness: 0.95, side: THREE.DoubleSide });
+  // Tiap instance = serumpun helai, biar padat tanpa nambah instance terlalu banyak
+  const bladeCount = hi ? 260000 : 70000;
+  let gseed = 1234567;
+  const grnd = () => { gseed = (gseed + 0x6D2B79F5) | 0; let t = Math.imul(gseed ^ (gseed >>> 15), 1 | gseed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const tuft = [];
+  for (let b = 0; b < (hi ? 5 : 4); b++) {
+    const g = new THREE.PlaneGeometry(0.032, 0.5, 1, 2);
+    g.translate(0, 0.25, 0);
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) p.setX(i, p.getX(i) * (1 - Math.pow(p.getY(i) / 0.5, 2) * 0.95));
+    const h = 0.6 + grnd() * 0.7, a = grnd() * 6.28, r = grnd() * 0.17;
+    g.scale(1, h, 1);
+    g.rotateY(grnd() * Math.PI);
+    g.translate(Math.cos(a) * r, 0, Math.sin(a) * r);
+    tuft.push(g);
+  }
+  const bladeGeo = mergeGeometries(tuft);
+  const bladeMat = new THREE.MeshStandardMaterial({ roughness: 0.8, side: THREE.DoubleSide });
   bladeMat.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = bladeMat.userData.wind;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nuniform float uTime; varying float vH;')
+      .replace('#include <beginnormal_vertex>', 'vec3 objectNormal = vec3(0.0, 1.0, 0.0);')
       .replace('#include <begin_vertex>', `
         #include <begin_vertex>
         vec4 wp = instanceMatrix * vec4(transformed, 1.0);
         float ph = wp.x * 0.5 + wp.z * 0.4;
         float k = uv.y * uv.y;
-        transformed.x += (sin(uTime * 1.8 + ph) * 0.5 + sin(uTime * 3.1 + ph * 2.3) * 0.25) * 0.28 * k;
-        transformed.z += cos(uTime * 1.4 + ph) * 0.12 * k;
+        transformed.x += (sin(uTime * 1.8 + ph) * 0.5 + sin(uTime * 3.1 + ph * 2.3) * 0.25) * 0.2 * k;
+        transformed.z += cos(uTime * 1.4 + ph) * 0.1 * k;
         vH = uv.y;
       `);
+    // Normal selalu ke atas: rumput kena cahaya kayak tanahnya, sisi belakang nggak jadi item
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying float vH;')
-      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb *= mix(0.45, 1.15, vH);');
+      .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\nnormal = normalize(vNormal);')
+      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb *= mix(0.32, 0.85, vH);');
   };
   bladeMat.userData.wind = { value: 0 };
   const blades = new THREE.InstancedMesh(bladeGeo, bladeMat, bladeCount);
@@ -214,18 +230,22 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   let placed = 0;
   // lebih padat deket taman, makin jarang ke pinggir
   while (placed < bladeCount) {
-    const ang = rnd() * Math.PI * 2, rad = Math.pow(rnd(), 0.6) * 85;
+    const ang = grnd() * Math.PI * 2, rad = Math.pow(grnd(), 0.6) * 85;
     const x = WORLD.park.x * 0.4 + Math.cos(ang) * rad, z = Math.sin(ang) * rad;
     if (isWater(x, z) || onPath(x, z) || distToRiver(x, z) < 3.6) continue;
     if (Math.hypot(x - WORLD.cafe.x, z - WORLD.cafe.z) < 4) continue;
     const y = groundHeight(x, z);
     v3.set(x, y, z);
-    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rnd() * Math.PI);
-    const sc = 0.6 + rnd() * 1.0;
+    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), grnd() * Math.PI);
+    const patch = Math.sin(x * 0.13 + Math.sin(z * 0.09) * 2) * 0.5 + Math.sin(z * 0.17 + x * 0.05) * 0.5;
+    const sc = 0.55 + grnd() * 0.5 + Math.max(0, patch) * 0.45;
     s3.set(1, sc, 1);
     m4.compose(v3, q, s3);
     blades.setMatrixAt(placed, m4);
-    colorTmp.setHSL(0.25 + (rnd() - 0.5) * 0.05, 0.45, 0.26 + rnd() * 0.12);
+    {
+      const u = grnd(), dry = Math.max(0, -patch) * 0.65 * grnd();
+      colorTmp.setRGB(0.07 + u * 0.09 + dry * 0.2, 0.13 + u * 0.09 + dry * 0.1, 0.03 + u * 0.03 + dry * 0.04);
+    }
     blades.setColorAt(placed, colorTmp);
     placed++;
   }
@@ -248,6 +268,9 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
       fog: true,
     });
     w.material.uniforms.size.value = 3.5;
+    // Pantulan air nggak perlu rumput: ini yang paling makan GPU
+    const reflect = w.onBeforeRender;
+    w.onBeforeRender = (...args) => { blades.visible = false; reflect.apply(w, args); blades.visible = true; };
     return w;
   }
   const lake = makeWater(new THREE.CircleGeometry(WORLD.lake.r, 64), 0x0f3b4a);
@@ -383,8 +406,9 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   }
   const treeModels = assets.trees || [];
   let leafMat = null;
+  const treeSets = [];
   if (treeModels.length) {
-    // Model asli: instance tiap mesh di GLB, satu InstancedMesh per (model, mesh)
+    // Model asli: pohon deket detail tinggi, pohon jauh versi ringan
     const perModel = treeModels.map(() => []);
     treePositions.forEach((tp, i) => perModel[i % treeModels.length].push(tp));
     treeModels.forEach((model, mi) => {
@@ -393,24 +417,14 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
       model.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(model);
       const h = Math.max(0.01, box.max.y - box.min.y);
-      const norm = 7.5 / h; // tinggi pohon ~7.5 m
-      model.traverse((child) => {
-        if (!child.isMesh) return;
-        const mat = child.material;
-        if (mat) { mat.side = THREE.DoubleSide; if (mat.map) mat.map.anisotropy = 8; if (mat.transparent) { mat.transparent = false; mat.alphaTest = Math.max(mat.alphaTest || 0, 0.4); } }
-        const inst = new THREE.InstancedMesh(child.geometry, mat, list.length);
-        inst.castShadow = inst.receiveShadow = true;
-        list.forEach(([x, z, sc], k) => {
-          const y = groundHeight(x, z) - box.min.y * norm * sc;
-          v3.set(x, y, z);
-          q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rnd() * Math.PI * 2);
-          s3.setScalar(norm * sc);
-          m4.compose(v3, q, s3).multiply(child.matrixWorld);
-          inst.setMatrixAt(k, m4);
-        });
-        inst.instanceMatrix.needsUpdate = true;
-        group.add(inst);
+      const norm = 11 / h; // tinggi pohon ~11 m
+      const items = list.map(([x, z, sc]) => {
+        return { x, z, y: groundHeight(x, z) - box.min.y * norm * sc, s: norm * sc, ry: rnd() * Math.PI * 2 };
       });
+      treeSets.push(new Scatter(group, [
+        { far: 32, parts: partsOf(model) },
+        { far: 400, parts: partsOf(assets.treesFar?.[mi] || model) },
+      ], items, Math.max(box.max.x - box.min.x, h), [Math.min(list.length, 14), list.length]));
     });
   } else {
     const cardsPerTree = hi ? 110 : 60;
@@ -602,6 +616,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
 
   return {
     group, waters, river, lake,
+    updateTrees(camera) { for (const t of treeSets) t.update(camera); },
     setSun(dir, color) {
       for (const w of waters) {
         w.material.uniforms.sunDirection.value.copy(dir);

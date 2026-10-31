@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 
 // Asset asli (CC0, Poly Haven dll) dibaca dari /assets/manifest.json.
 // Kalau file nggak ada, semuanya jatuh ke tekstur prosedural, jadi app tetep jalan.
@@ -12,6 +13,7 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 //                 "stone": "rock_boulder_dry", "wood": "wood_planks_grey", "sand": "..." },
 //   "hdri": "hdri/sky_1k.hdr",
 //   "trees": ["models/tree_a.glb", "models/tree_b.glb"],
+//   "treesFar": ["models/tree_a_far.glb", "models/tree_b_far.glb"],
 //   "props": { "bench": "models/bench.glb", "lamp": "models/lamp.glb" }
 // }
 // Tekstur Poly Haven: textures/<name>/<name>_diff_1k.jpg, _nor_gl_1k.jpg, _rough_1k.jpg, _arm_1k.jpg, _disp_1k.jpg (opsional)
@@ -71,13 +73,14 @@ function loadGLB(url) {
     const draco = new DRACOLoader();
     draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
     loader.setDRACOLoader(draco);
+    loader.setMeshoptDecoder(MeshoptDecoder);
     loader.load(url, (g) => resolve(g.scene), undefined, () => resolve(null));
   });
 }
 
 export async function loadAssets(onProgress = () => {}) {
   const manifest = await fetchJSON(`${base}manifest.json`);
-  const assets = { manifest, textures: {}, hdri: null, trees: [], props: {} };
+  const assets = { manifest, textures: {}, hdri: null, trees: [], treesFar: [], props: {} };
   if (!manifest) { onProgress('Asset asli nggak ketemu, pake tekstur prosedural'); return assets; }
 
   const texJobs = Object.entries(manifest.textures || {}).map(async ([key, name]) => {
@@ -85,10 +88,12 @@ export async function loadAssets(onProgress = () => {}) {
     assets.textures[key] = await loadPBR(name, 1);
   });
   const hdriJob = manifest.hdri ? loadHDRI(base + manifest.hdri).then((t) => { assets.hdri = t; }) : null;
-  const treeJobs = (manifest.trees || []).map(async (p) => {
+  // treesFar opsional: versi ringan, urutannya sama kayak trees
+  const treeJobs = (manifest.trees || []).map(async (p, i) => {
     onProgress(`Pohon ${p.split('/').pop()}`);
-    const s = await loadGLB(base + p);
-    if (s) assets.trees.push(s);
+    const far = manifest.treesFar?.[i];
+    const [s, f] = await Promise.all([loadGLB(base + p), far ? loadGLB(base + far) : null]);
+    if (s) { assets.trees.push(s); assets.treesFar.push(f || s); }
   });
   const propJobs = Object.entries(manifest.props || {}).map(async ([k, p]) => {
     const s = await loadGLB(base + p);

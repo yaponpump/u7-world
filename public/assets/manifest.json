@@ -1,0 +1,22 @@
+{
+  "textures": {
+    "grass": "aerial_grass_rock",
+    "dirt": "forest_ground_04",
+    "bark": "bark_brown_02",
+    "stone": "rock_boulder_dry",
+    "wood": "weathered_brown_planks"
+  },
+  "hdri": "hdri/sky_1k.hdr",
+  "trees": [
+    "models/tree_small_02_lod0.glb",
+    "models/island_tree_01_lod0.glb",
+    "models/island_tree_02_lod0.glb",
+    "models/island_tree_03_lod0.glb"
+  ],
+  "treesFar": [
+    "models/tree_small_02_lod1.glb",
+    "models/island_tree_01_lod1.glb",
+    "models/island_tree_02_lod1.glb",
+    "models/island_tree_03_lod1.glb"
+  ]
+}

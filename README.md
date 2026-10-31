@@ -36,7 +36,8 @@ Otomatis: `high` di desktop, `low` di HP. Paksa lewat URL: `?q=low` atau `?q=hig
 - Langit fisik (`Sky`) dengan posisi matahari dari jam asli, bintang pas malam, environment map dari langit buat refleksi
 - Air reflektif (`Water`) di danau dan air mancur, sungai pakai material kaca
 - Rumput instanced bergoyang, daun pohon kartu instanced dengan angin
-- Semua tekstur prosedural (rumput, tanah, kulit kayu, daun, batu, normal air, panel robot), nggak ada asset eksternal
+- Aset asli CC0 dari Poly Haven di `public/assets` (tekstur PBR, langit HDRI, 4 pohon foto-scan dengan 2 level detail). Kalau `manifest.json` nggak ada, balik ke tekstur prosedural
+- Tes jam tertentu lewat URL: `?hour=11`
 - Post-processing: bloom, vignette, chromatic aberration tipis, film grain, SMAA
 
 ## Struktur
