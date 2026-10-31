@@ -24,7 +24,7 @@ export function createControls(canvas) {
 
   window.addEventListener('keydown', (e) => {
     const k = e.key.toLowerCase();
-    if (!keys.has(k) && ['e', 'f', 'r', 'q', 'm', ' '].includes(k)) input.pressed.add(k);
+    if (!keys.has(k) && ['e', 'f', 'r', 'q', 'm', 'b', '1', '2', '3', '4', '5', ' '].includes(k)) input.pressed.add(k);
     keys.add(k);
     // Roblox: I / O zoom in / out
     if (k === 'i') cam.dist = Math.max(DIST_MIN, cam.dist - 1);
@@ -128,7 +128,7 @@ export function createControls(canvas) {
   canvas.addEventListener('pointercancel', camEnd);
 
   // Tombol aksi di HUD → sama kayak tombol keyboard
-  for (const [id, key] of [['act-sit', 'e'], ['act-drink', 'f'], ['act-throw', 'r'], ['act-photo', 'q'], ['act-jump', ' ']]) {
+  for (const [id, key] of [['act-sit', 'e'], ['act-drink', 'f'], ['act-throw', 'r'], ['act-photo', 'q'], ['act-jump', ' '], ['act-flip', 'b']]) {
     document.getElementById(id)?.addEventListener('click', () => input.pressed.add(key));
   }
 
