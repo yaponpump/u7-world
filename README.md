@@ -24,8 +24,13 @@ Buka `http://localhost:5173`.
 | F | Minum (dekat air mancur atau kafe) |
 | R | Lempar batu (dekat danau / dermaga) |
 | Q | Foto |
+| M | Suara on/off |
 
 Diemin U-7 sekitar 15 detik, dia nguap. 30 detik, dia ketiduran.
+
+## Suara
+
+Semua suara disintesis di browser pakai Web Audio (`src/audio.js`), nggak ada file audio. Robot: servo tiap langkah (beda di rumput, kayu dermaga, batu), motor pas duduk/berdiri, gulp pas minum, desah nguap, dengung rendah plus bip napas pas tidur, bip-bip penasaran dan dadah, chime pas nemu sinyal, "tung" pas lampu kota nyala, wuss dan plung pas lempar batu. Dunia: angin berhembus, gesekan daun, air kalau dekat danau/sungai/air mancur, burung siang, jangkrik dan katak malam.
 
 ## Kualitas grafis
 
@@ -44,6 +49,7 @@ Otomatis: `high` di desktop, `low` di HP. Paksa lewat URL: `?q=low` atau `?q=hig
 - `src/world.js` – tanah, bukit, sungai, danau, taman, dermaga, jembatan, pohon, lampu kota, kafe, sinyal quest
 - `src/robot.js` – U-7 (mesh prosedural + animasi per state: idle, walk, run, sit, drink, yawn, sleep, throw, curious, wave)
 - `src/controls.js` – keyboard, mouse, joystick sentuh
+- `src/audio.js` – semua suara (Web Audio prosedural)
 - `src/main.js` – loop, siang/malam ikut jam asli, perilaku, HUD, quest
 
 ## Deploy
