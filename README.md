@@ -1,6 +1,6 @@
 # U-7 World
 
-Open world kecil di browser buat project **CQD ($CQD)**. Lu ngontrol **Unit-7**, mecha mungil penjaga terakhir kota yang padam sejak *The Blackout*. Tiap sinyal (holder) baru nyalain satu lampu kota.
+Open world kecil di browser buat project **VUZZ ($VUZZ)**. Lu ngontrol **Unit-7**, mecha mungil penjaga terakhir kota yang padam sejak *The Blackout*. Tiap sinyal (holder) baru nyalain satu lampu kota.
 
 Dibangun pake [Three.js](https://threejs.org) + [Vite](https://vitejs.dev). Status: **prototype** dengan rendering realistis (langit fisik, air reflektif, rumput, PBR). Robotnya masih dibikin dari bentuk dasar, model 3D asli nyusul.
 
