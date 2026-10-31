@@ -392,6 +392,32 @@ function startFinale() {
   }, finale.dur * 1000);
 }
 
+// Label testnet selama token belum mainnet, biar nggak ada yang ngira ini udah bisa dibeli
+if (CONFIG.token.network !== 'mainnet') $('net-chip').hidden = false;
+
+// Tips di layar awal, ganti tiap 4 detik sampai mulai
+const INTRO_TIPS = [
+  'Follow the green arrow to the nearest lost signal.',
+  'Hold Shift to run. Space jumps high enough to clear a car.',
+  'Press B for a backflip. Press G to change VUZZ\'s face.',
+  'The river is shallow. Wade across, or use a bridge or the stepping stones.',
+  'Talk to the courier drones (E). They know what the market is doing.',
+  'Press T to skip three hours. Nights pass faster than days.',
+  'Press Q for a photo with the $VUZZ mark. Share it with #VUZZWorld.',
+  'Leave VUZZ alone for a while. It gets bored, then sleepy.',
+  'Find all five signals and watch the city wake up.',
+];
+{
+  let ti = Math.floor(Math.random() * INTRO_TIPS.length);
+  const el = $('intro-tip');
+  const timer = setInterval(() => {
+    if (started) { clearInterval(timer); return; }
+    ti = (ti + 1) % INTRO_TIPS.length;
+    el.style.opacity = 0;
+    setTimeout(() => { el.textContent = 'Tip: ' + INTRO_TIPS[ti]; el.style.opacity = 0.85; }, 400);
+  }, 4000);
+}
+
 // Intro
 $('start-btn').addEventListener('click', () => {
   $('intro').classList.add('hidden');
