@@ -3,6 +3,10 @@ import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight, di
 import { blockedByBuilding } from './city.js';
 import { createRobot } from './robot.js';
 import { createAudio } from './audio.js';
+import { createWallet } from './wallet.js';
+import { createMarket, MOOD_LABEL } from './market.js';
+import { SKINS, isUnlocked, applySkin } from './skins.js';
+import { CONFIG } from './config.js';
 import { createControls } from './controls.js';
 import { loadAssets } from './assets.js';
 
@@ -185,9 +189,102 @@ function say(text, ms = 3200) {
   bubbleTimer = setTimeout(() => { bubble.hidden = true; }, ms);
 }
 
-$('wallet-btn').addEventListener('click', () => {
-  showToast('Connect wallet nyusul di versi berikutnya. Sementara, nikmatin dulu kotanya.');
+// ---------- Wallet + skin holder ----------
+let walletState = { isHolder: false };
+const wallet = createWallet({
+  onChange(s) {
+    walletState = s;
+    const btn = $('wallet-btn');
+    if (s.status === 'connected') {
+      btn.textContent = `${s.short} · ${s.tier?.label || 'Sinyal'}`;
+      btn.classList.add('connected');
+      $('skin-hint').textContent = CONFIG.token.address
+        ? `Saldo ${s.balance == null ? '?' : s.balance.toLocaleString('id-ID')} ${CONFIG.ticker} · tier ${s.tier?.label}`
+        : 'Wallet nyambung. Skin tier lain kebuka pas token launch.';
+    } else if (s.status === 'connecting') {
+      btn.textContent = 'Nyambungin...';
+    } else {
+      btn.textContent = 'Connect wallet';
+      btn.classList.remove('connected');
+      $('skin-hint').textContent = 'Connect wallet buat buka skin lain.';
+      if (s.status === 'error') {
+        showToast(s.error === 'no-wallet' ? 'Nggak ada wallet di browser ini. Pasang Phantom atau MetaMask dulu.'
+          : s.error === 'rejected' ? 'Yaudah, kapan-kapan aja.' : `Wallet gagal: ${s.error}`);
+      }
+    }
+    renderSkins();
+  },
 });
+$('wallet-btn').addEventListener('click', async () => {
+  if (walletState.status === 'connected') {
+    await wallet.disconnect();
+    showToast('Wallet dilepas');
+    return;
+  }
+  const ok = await wallet.connect();
+  if (ok) {
+    showToast(`Sinyal baru dari ${walletState.providerName}. Selamat datang.`);
+    say('Lu beneran masuk. Lampu di sini nyala karena orang kayak lu.', 3600);
+  }
+});
+wallet.eager();
+
+let currentSkin = SKINS[0];
+function pickSkin(skin, { silent = false } = {}) {
+  if (!isUnlocked(skin, walletState, CONFIG.tiers)) { showToast('Skin ini kekunci. Connect wallet atau naik tier dulu.'); return; }
+  currentSkin = skin;
+  applySkin(robot, skin);
+  document.documentElement.style.setProperty('--violet', skin.primary);
+  try { localStorage.setItem('vuzz-skin', skin.id); } catch {}
+  renderSkins();
+  if (!silent) showToast(`Skin ${skin.name}`, 1400);
+}
+function renderSkins() {
+  const grid = $('skin-grid');
+  grid.innerHTML = '';
+  for (const s of SKINS) {
+    const unlocked = isUnlocked(s, walletState, CONFIG.tiers);
+    const el = document.createElement('button');
+    el.className = 'skin' + (s.id === currentSkin.id ? ' active' : '') + (unlocked ? '' : ' locked');
+    el.title = unlocked ? s.name : `${s.name} · butuh ${s.unlock === 'wallet' ? 'wallet' : 'tier ' + (CONFIG.tiers.find((t) => t.id === s.unlock)?.label || s.unlock)}`;
+    el.innerHTML = `<span class="sw" style="background:linear-gradient(135deg,${s.primary} 55%,${s.secondary} 55%);--acc:${s.accent};--emi:${s.emissive}"></span><span>${s.name}</span>`;
+    el.addEventListener('click', () => pickSkin(s));
+    grid.appendChild(el);
+  }
+}
+$('skin-btn').addEventListener('click', () => { const p = $('skins-panel'); p.hidden = !p.hidden; });
+renderSkins();
+{
+  let saved = null;
+  try { saved = localStorage.getItem('vuzz-skin'); } catch {}
+  const s = SKINS.find((k) => k.id === saved);
+  if (s && isUnlocked(s, walletState, CONFIG.tiers)) pickSkin(s, { silent: true });
+}
+
+// ---------- Market → cuaca ----------
+let marketState = null;
+const market = createMarket({
+  onChange(s) {
+    const first = !marketState;
+    const prevMood = marketState?.mood;
+    marketState = s;
+    const chg = s.change24 == null ? '' : `${s.change24 >= 0 ? '+' : ''}${s.change24.toFixed(1)}% 24j`;
+    const price = s.price == null ? (s.source === 'demo' ? 'Demo · token belum launch' : '') : `$${s.price < 1 ? s.price.toPrecision(3) : s.price.toFixed(2)}`;
+    $('market-text').innerHTML = `<span>${MOOD_LABEL[s.mood]}</span><span class="chg ${s.change24 >= 0 ? 'up' : 'down'}">${[price, chg].filter(Boolean).join(' · ')}</span>`;
+    world.setWeather?.({ kind: s.mood, intensity: s.intensity });
+    if (!first && prevMood !== s.mood && started) {
+      const lines = {
+        storm: 'Badai. Sistem gua bilang market lagi dump. Gua tunggu di bawah atap.',
+        rain: 'Hujan. Market merah. Nggak apa-apa, lampunya masih nyala.',
+        cloudy: 'Mendung. Market datar. Hari biasa di kota ini.',
+        clear: 'Cerah. Market hijau. Enak buat jalan-jalan.',
+        golden: 'Lu liat langitnya? Market lagi pump. Semua sinyal lagi nyala.',
+      };
+      say(lines[s.mood], 4200);
+    }
+  },
+});
+market.start();
 
 // Intro
 $('start-btn').addEventListener('click', () => {
