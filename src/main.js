@@ -608,10 +608,10 @@ function tick() {
     else if (behavior.nearBench) setHint('A bench. Press E to sit.');
     else if (behavior.nearThing) setHint(`${behavior.nearThing.name}. Press E to inspect.`);
     else if (behavior.nearDrink) setHint('Press F to "drink". Does nothing for its systems, but it likes it.');
-    else if (behavior.wading) setHint('Shallow water. Slow going, but you can wade anywhere.');
+    else if (behavior.wading) setHint('Shallow water. Slow going, but you can wade anywhere in the river and the lake.');
     else if (onBridge(pos.x, pos.z)) setHint('A bridge over the river. Walk straight across.');
     else if (behavior.nearPier) setHint('Press R to skip a rock across the lake.');
-    else if (distToRiver(pos.x, pos.z) < 7) setHint('The river is shallow here: wade across, or use a bridge or the stepping stones.');
+    else if (distToRiver(pos.x, pos.z) < 7) setHint('The river is shallow: wade straight across, or take a bridge or the stepping stones.');
     else setHint('WASD move · Space jump · Shift run · right-drag to look · scroll to zoom · follow the green arrow');
   }
 
@@ -706,6 +706,8 @@ function tick() {
 const perf = { acc: 0, n: 0, cooldown: 4 };
 function adaptQuality(dt) {
   if (!started || document.hidden) return;
+  // frame yang kelewat lama (tab di-pause, window kehalang) bukan ukuran performa, abaikan dan mulai ulang
+  if (dt > 0.25) { perf.acc = 0; perf.n = 0; perf.cooldown = Math.max(perf.cooldown, 1); return; }
   perf.cooldown -= dt;
   if (perf.cooldown > 0) return;
   perf.acc += dt; perf.n++;
