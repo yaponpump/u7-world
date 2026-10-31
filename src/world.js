@@ -3,6 +3,7 @@ import { Water } from 'three/examples/jsm/objects/Water.js';
 import {
   grassTexture, dirtTexture, barkTexture, leafCardTexture, waterNormalTexture, stoneTexture, woodTexture,
 } from './textures.js';
+import { pbrMaterial } from './assets.js';
 
 export const WORLD = {
   size: 140,
@@ -117,7 +118,7 @@ function addWind(material, { strength = 0.25, leaf = false } = {}) {
   };
 }
 
-export function buildWorld(scene, renderer, { quality = 'high' } = {}) {
+export function buildWorld(scene, renderer, { quality = 'high', assets = { textures: {}, trees: [], props: {} } } = {}) {
   const group = new THREE.Group();
   scene.add(group);
   const hi = quality === 'high';
@@ -148,18 +149,31 @@ export function buildWorld(scene, renderer, { quality = 'high' } = {}) {
   }
   groundGeo.setAttribute('aMix', new THREE.Float32BufferAttribute(mix, 1));
   groundGeo.computeVertexNormals();
-  const groundMat = new THREE.MeshStandardMaterial({ map: texGrass, roughness: 0.95, metalness: 0 });
+  const A = assets.textures || {};
+  const groundMat = pbrMaterial(A.grass, texGrass, { roughness: 0.95, normalScale: 0.8 });
+  const dirtSet = A.dirt;
   groundMat.onBeforeCompile = (shader) => {
-    shader.uniforms.tDirt = { value: texDirt };
+    shader.uniforms.tDirt = { value: dirtSet?.map || texDirt };
+    shader.uniforms.tDirtN = { value: dirtSet?.normalMap || null };
+    shader.uniforms.uHasDirtN = { value: dirtSet?.normalMap ? 1 : 0 };
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nattribute float aMix; varying float vMix;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvMix = aMix;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform sampler2D tDirt; varying float vMix;')
+      .replace('#include <common>', '#include <common>\nuniform sampler2D tDirt; uniform sampler2D tDirtN; uniform float uHasDirtN; varying float vMix;')
       .replace('#include <map_fragment>', `
         vec4 g = texture2D(map, vMapUv);
         vec4 d = texture2D(tDirt, vMapUv * 1.7);
         diffuseColor *= mix(g, d, smoothstep(0.2, 0.8, vMix));
+      `)
+      .replace('#include <normal_fragment_maps>', `
+        #ifdef USE_NORMALMAP
+          vec3 nG = texture2D(normalMap, vNormalMapUv).xyz * 2.0 - 1.0;
+          vec3 nD = uHasDirtN > 0.5 ? texture2D(tDirtN, vNormalMapUv * 1.7).xyz * 2.0 - 1.0 : nG;
+          vec3 mapN = mix(nG, nD, smoothstep(0.2, 0.8, vMix));
+          mapN.xy *= normalScale;
+          normal = normalize( tbn * mapN );
+        #endif
       `);
   };
   const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -257,7 +271,7 @@ export function buildWorld(scene, renderer, { quality = 'high' } = {}) {
   group.add(shore);
 
   // ---------- Air mancur ----------
-  const stoneMat = new THREE.MeshStandardMaterial({ map: texStone, roughness: 0.85 });
+  const stoneMat = pbrMaterial(A.stone, texStone, { roughness: 0.85, repeat: 2 });
   const basin = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.5, 0.75, 48, 1, true), stoneMat);
   basin.position.set(WORLD.fountain.x, 0.37, WORLD.fountain.z);
   const basinRim = new THREE.Mesh(new THREE.TorusGeometry(3.3, 0.18, 12, 48), stoneMat);
@@ -280,7 +294,7 @@ export function buildWorld(scene, renderer, { quality = 'high' } = {}) {
   group.add(spray);
 
   // ---------- Bangku ----------
-  const woodMat = new THREE.MeshStandardMaterial({ map: texWood, roughness: 0.7 });
+  const woodMat = pbrMaterial(A.wood, texWood, { roughness: 0.7, repeat: 1 });
   const ironMat = new THREE.MeshStandardMaterial({ color: 0x1b1d22, roughness: 0.5, metalness: 0.8 });
   function bench(x, z, rotY) {
     const b = new THREE.Group();
@@ -354,7 +368,7 @@ export function buildWorld(scene, renderer, { quality = 'high' } = {}) {
   group.add(bridge);
 
   // ---------- Pohon (batang + kartu daun instanced) ----------
-  const trunkMat = new THREE.MeshStandardMaterial({ map: texBark, roughness: 1 });
+  const trunkMat = pbrMaterial(A.bark, texBark, { roughness: 1, repeat: 1 });
   const treePositions = [];
   seed = 7;
   for (let i = 0; i < (hi ? 160 : 90); i++) {
@@ -367,53 +381,81 @@ export function buildWorld(scene, renderer, { quality = 'high' } = {}) {
     if (Math.hypot(x - 44, z + 40) < 4) continue;
     treePositions.push([x, z, 0.8 + rnd() * 0.9]);
   }
-  const cardsPerTree = hi ? 110 : 60;
-  const leafGeo = new THREE.PlaneGeometry(1.6, 1.6);
-  const leafMat = new THREE.MeshStandardMaterial({
-    map: texLeaf, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.9, color: 0xd8ffd0,
-  });
-  addWind(leafMat, { strength: 0.12, leaf: true });
-  const leaves = new THREE.InstancedMesh(leafGeo, leafMat, treePositions.length * cardsPerTree);
-  leaves.castShadow = true;
-  leaves.receiveShadow = true;
-  let li = 0;
-  for (const [x, z, s] of treePositions) {
-    const y = groundHeight(x, z);
-    const trunkH = 3.2 * s;
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.16 * s, 0.32 * s, trunkH, 9), trunkMat);
-    trunk.position.set(x, y + trunkH / 2, z);
-    trunk.castShadow = true;
-    group.add(trunk);
-    // cabang
-    for (let b = 0; b < 3; b++) {
-      const br = new THREE.Mesh(new THREE.CylinderGeometry(0.05 * s, 0.1 * s, 1.6 * s, 6), trunkMat);
-      const a = b * 2.1 + rnd();
-      br.position.set(x + Math.cos(a) * 0.5 * s, y + trunkH * 0.85, z + Math.sin(a) * 0.5 * s);
-      br.rotation.set(Math.sin(a) * 0.9, 0, -Math.cos(a) * 0.9);
-      group.add(br);
+  const treeModels = assets.trees || [];
+  let leafMat = null;
+  if (treeModels.length) {
+    // Model asli: instance tiap mesh di GLB, satu InstancedMesh per (model, mesh)
+    const perModel = treeModels.map(() => []);
+    treePositions.forEach((tp, i) => perModel[i % treeModels.length].push(tp));
+    treeModels.forEach((model, mi) => {
+      const list = perModel[mi];
+      if (!list.length) return;
+      model.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(model);
+      const h = Math.max(0.01, box.max.y - box.min.y);
+      const norm = 7.5 / h; // tinggi pohon ~7.5 m
+      model.traverse((child) => {
+        if (!child.isMesh) return;
+        const mat = child.material;
+        if (mat) { mat.side = THREE.DoubleSide; if (mat.map) mat.map.anisotropy = 8; if (mat.transparent) { mat.transparent = false; mat.alphaTest = Math.max(mat.alphaTest || 0, 0.4); } }
+        const inst = new THREE.InstancedMesh(child.geometry, mat, list.length);
+        inst.castShadow = inst.receiveShadow = true;
+        list.forEach(([x, z, sc], k) => {
+          const y = groundHeight(x, z) - box.min.y * norm * sc;
+          v3.set(x, y, z);
+          q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rnd() * Math.PI * 2);
+          s3.setScalar(norm * sc);
+          m4.compose(v3, q, s3).multiply(child.matrixWorld);
+          inst.setMatrixAt(k, m4);
+        });
+        inst.instanceMatrix.needsUpdate = true;
+        group.add(inst);
+      });
+    });
+  } else {
+    const cardsPerTree = hi ? 110 : 60;
+    const leafGeo = new THREE.PlaneGeometry(1.6, 1.6);
+    leafMat = new THREE.MeshStandardMaterial({
+      map: texLeaf, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.9, color: 0xd8ffd0,
+    });
+    addWind(leafMat, { strength: 0.12, leaf: true });
+    const leaves = new THREE.InstancedMesh(leafGeo, leafMat, treePositions.length * cardsPerTree);
+    leaves.castShadow = true;
+    leaves.receiveShadow = true;
+    let li = 0;
+    for (const [x, z, s] of treePositions) {
+      const y = groundHeight(x, z);
+      const trunkH = 3.2 * s;
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.16 * s, 0.32 * s, trunkH, 9), trunkMat);
+      trunk.position.set(x, y + trunkH / 2, z);
+      trunk.castShadow = true;
+      group.add(trunk);
+      for (let b = 0; b < 3; b++) {
+        const br = new THREE.Mesh(new THREE.CylinderGeometry(0.05 * s, 0.1 * s, 1.6 * s, 6), trunkMat);
+        const a = b * 2.1 + rnd();
+        br.position.set(x + Math.cos(a) * 0.5 * s, y + trunkH * 0.85, z + Math.sin(a) * 0.5 * s);
+        br.rotation.set(Math.sin(a) * 0.9, 0, -Math.cos(a) * 0.9);
+        group.add(br);
+      }
+      const cx = x, cy = y + trunkH + 0.8 * s, cz = z;
+      const cr = 2.1 * s;
+      for (let c = 0; c < cardsPerTree; c++) {
+        const u = rnd(), v = rnd(), w = Math.cbrt(rnd());
+        const th = u * Math.PI * 2, ph = Math.acos(2 * v - 1);
+        v3.set(cx + Math.sin(ph) * Math.cos(th) * cr * w, cy + Math.cos(ph) * cr * 0.8 * w, cz + Math.sin(ph) * Math.sin(th) * cr * w);
+        q.setFromEuler(new THREE.Euler(rnd() * Math.PI, rnd() * Math.PI, rnd() * Math.PI));
+        s3.setScalar(0.9 * s + rnd() * 0.6);
+        m4.compose(v3, q, s3);
+        leaves.setMatrixAt(li, m4);
+        colorTmp.setHSL(0.26 + (rnd() - 0.5) * 0.05, 0.45, 0.42 + rnd() * 0.2);
+        leaves.setColorAt(li, colorTmp);
+        li++;
+      }
     }
-    const cx = x, cy = y + trunkH + 0.8 * s, cz = z;
-    const cr = 2.1 * s;
-    for (let c = 0; c < cardsPerTree; c++) {
-      // distribusi dalam elipsoid, lebih padat di luar
-      const u = rnd(), v = rnd(), w = Math.cbrt(rnd());
-      const th = u * Math.PI * 2, ph = Math.acos(2 * v - 1);
-      const px = cx + Math.sin(ph) * Math.cos(th) * cr * w;
-      const py = cy + Math.cos(ph) * cr * 0.8 * w;
-      const pz = cz + Math.sin(ph) * Math.sin(th) * cr * w;
-      v3.set(px, py, pz);
-      q.setFromEuler(new THREE.Euler(rnd() * Math.PI, rnd() * Math.PI, rnd() * Math.PI));
-      s3.setScalar(0.9 * s + rnd() * 0.6);
-      m4.compose(v3, q, s3);
-      leaves.setMatrixAt(li, m4);
-      colorTmp.setHSL(0.26 + (rnd() - 0.5) * 0.05, 0.45, 0.42 + rnd() * 0.2);
-      leaves.setColorAt(li, colorTmp);
-      li++;
-    }
+    leaves.count = li;
+    leaves.instanceMatrix.needsUpdate = true;
+    group.add(leaves);
   }
-  leaves.count = li;
-  leaves.instanceMatrix.needsUpdate = true;
-  group.add(leaves);
 
   // ---------- Lampu taman ----------
   const lampPositions = [
@@ -568,7 +610,7 @@ export function buildWorld(scene, renderer, { quality = 'high' } = {}) {
     },
     update(t, dt) {
       bladeMat.userData.wind.value = t;
-      leafMat.userData.wind.value = t;
+      if (leafMat) leafMat.userData.wind.value = t;
       for (const w of waters) w.material.uniforms.time.value = t * 0.6;
       texWaterN.offset.set(t * 0.015, t * 0.02);
       // air mancur

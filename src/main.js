@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight } from './world.js';
 import { createRobot } from './robot.js';
 import { createControls } from './controls.js';
+import { loadAssets } from './assets.js';
 
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
@@ -77,10 +78,15 @@ function refreshEnvironment() {
   envSky.material.uniforms.sunPosition.value.copy(skyU.sunPosition.value);
   if (envRT) envRT.dispose();
   envRT = pmrem.fromScene(envScene, 0.02);
-  scene.environment = envRT.texture;
+  // siang pakai HDRI asli kalau ada (refleksi lebih kaya), malam pakai langit
+  scene.environment = (typeof hdriRT !== 'undefined' && hdriRT && skyU.sunPosition.value.y > 0.05) ? hdriRT.texture : envRT.texture;
 }
 
-const world = buildWorld(scene, renderer, { quality: QUALITY });
+const assets = await loadAssets((msg) => { const el = document.getElementById('load-status'); if (el) el.textContent = msg; });
+const world = buildWorld(scene, renderer, { quality: QUALITY, assets });
+{ const el = document.getElementById('load-status'); if (el) el.textContent = assets.manifest ? 'Asset asli kepasang' : 'Mode prosedural'; }
+let hdriRT = null;
+if (assets.hdri) { hdriRT = pmrem.fromEquirectangular(assets.hdri); }
 const robot = createRobot();
 scene.add(robot.root);
 robot.root.position.set(WORLD.park.x, 0, WORLD.park.z + 12);
