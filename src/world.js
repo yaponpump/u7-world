@@ -97,6 +97,19 @@ export function isWater(x, z) {
   return false;
 }
 
+// Titik bulat lembut buat cipratan, biar partikel nggak jadi kotak
+function dropTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 32;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 32, 32);
+  return new THREE.CanvasTexture(c);
+}
+
 // ---------- Shader tambahan: angin buat rumput dan daun ----------
 function addWind(material, { strength = 0.25, leaf = false } = {}) {
   material.userData.wind = { value: 0 };
@@ -233,7 +246,9 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     const ang = grnd() * Math.PI * 2, rad = Math.pow(grnd(), 0.6) * 85;
     const x = WORLD.park.x * 0.4 + Math.cos(ang) * rad, z = Math.sin(ang) * rad;
     if (isWater(x, z) || onPath(x, z) || distToRiver(x, z) < 3.6) continue;
-    if (Math.hypot(x - WORLD.cafe.x, z - WORLD.cafe.z) < 4) continue;
+    if (Math.hypot(x - WORLD.cafe.x, z - WORLD.cafe.z) < 7) continue;
+    if (Math.abs(x - WORLD.pier.x) < WORLD.pier.w / 2 + 0.3 && Math.abs(z - WORLD.pier.z) < WORLD.pier.len / 2 + 0.6) continue;
+    if (Math.abs(x - WORLD.bridge.x) < WORLD.bridge.len / 2 + 1.4 && Math.abs(z - WORLD.bridge.z) < WORLD.bridge.w / 2 + 0.5) continue;
     const y = groundHeight(x, z);
     v3.set(x, y, z);
     q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), grnd() * Math.PI);
@@ -311,7 +326,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   const sprayCount = 600;
   const spray = new THREE.Points(
     new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(new Array(sprayCount * 3).fill(0), 3)),
-    new THREE.PointsMaterial({ color: 0xe8f6ff, size: 0.07, transparent: true, opacity: 0.75, depthWrite: false }),
+    new THREE.PointsMaterial({ color: 0xe8f6ff, size: 0.05, map: dropTexture(), transparent: true, opacity: 0.7, depthWrite: false }),
   );
   spray.position.set(WORLD.fountain.x, 2.4, WORLD.fountain.z);
   group.add(spray);
@@ -608,7 +623,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   }
   const motes = new THREE.Points(
     new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(motePos, 3)),
-    new THREE.PointsMaterial({ color: 0xfff4d6, size: 0.05, transparent: true, opacity: 0.5, depthWrite: false }),
+    new THREE.PointsMaterial({ color: 0xfff4d6, size: 0.05, map: dropTexture(), transparent: true, opacity: 0.5, depthWrite: false }),
   );
   group.add(motes);
 

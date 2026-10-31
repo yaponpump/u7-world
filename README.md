@@ -1,8 +1,8 @@
-# U-7 World
+# VUZZ World
 
-Open world kecil di browser buat project **SIGNAL ($SGNL)**. Lu ngontrol **Unit-7**, mecha mungil penjaga terakhir kota yang padam sejak *The Blackout*. Tiap sinyal (holder) baru nyalain satu lampu kota.
+Open world kecil di browser buat project **SIGNAL ($VUZZ)**. Lu ngontrol **VUZZ**, mecha mungil penjaga terakhir kota yang padam sejak *The Blackout*. Tiap sinyal (holder) baru nyalain satu lampu kota.
 
-Dibangun pake [Three.js](https://threejs.org) + [Vite](https://vitejs.dev). Status: **prototype** dengan rendering realistis (langit fisik, air reflektif, rumput, PBR). Robotnya masih dibikin dari bentuk dasar, model 3D asli nyusul.
+Dibangun pake [Three.js](https://threejs.org) + [Vite](https://vitejs.dev). Status: **prototype** dengan rendering realistis (langit fisik, air reflektif, rumput, PBR). Robotnya dibikin langsung di kode (cat logam aus, piston, sendi).
 
 ## Jalanin lokal
 

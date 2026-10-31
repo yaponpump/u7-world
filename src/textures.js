@@ -216,3 +216,45 @@ export function woodTexture(size = 512) {
     }
   });
 }
+
+// Cat logam aus: bintik kotor, baret tipis, dan bagian cat yang kelupas
+export function wornPaintTextures(size = 1024) {
+  const mk = () => { const c = document.createElement('canvas'); c.width = c.height = size; return c; };
+  const a = mk(), b = mk();
+  const ca = a.getContext('2d'), cb = b.getContext('2d');
+  ca.fillStyle = '#cfcfcf'; ca.fillRect(0, 0, size, size);
+  cb.fillStyle = '#7a7a7a'; cb.fillRect(0, 0, size, size);
+  for (let i = 0; i < 9000; i++) {
+    const x = Math.random() * size, y = Math.random() * size, r = Math.random() * Math.random() * 7;
+    const v = 150 + Math.random() * 90 | 0;
+    ca.fillStyle = `rgba(${v},${v},${v},0.16)`;
+    ca.beginPath(); ca.arc(x, y, r, 0, 6.28); ca.fill();
+    const w = 90 + Math.random() * 90 | 0;
+    cb.fillStyle = `rgba(${w},${w},${w},0.14)`;
+    cb.beginPath(); cb.arc(x, y, r * 1.6, 0, 6.28); cb.fill();
+  }
+  for (let i = 0; i < 420; i++) {
+    const x = Math.random() * size, y = Math.random() * size, ang = Math.random() * 6.28, len = 10 + Math.random() * 90;
+    ca.strokeStyle = 'rgba(255,255,255,0.5)'; cb.strokeStyle = 'rgba(45,45,45,0.55)';
+    ca.lineWidth = cb.lineWidth = 0.6 + Math.random() * 1.2;
+    for (const ctx of [ca, cb]) {
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(ang) * len, y + Math.sin(ang) * len); ctx.stroke();
+    }
+  }
+  for (let i = 0; i < 70; i++) {
+    const x = Math.random() * size, y = Math.random() * size, n = 6 + Math.random() * 10 | 0;
+    for (let k = 0; k < n; k++) {
+      const px = x + (Math.random() - 0.5) * 34, py = y + (Math.random() - 0.5) * 18, r = 1 + Math.random() * 5;
+      ca.fillStyle = 'rgba(70,68,66,0.8)'; cb.fillStyle = 'rgba(200,200,200,0.8)';
+      for (const ctx of [ca, cb]) { ctx.beginPath(); ctx.arc(px, py, r, 0, 6.28); ctx.fill(); }
+    }
+  }
+  const tex = (c, srgb) => {
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.anisotropy = 8;
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  };
+  return { map: tex(a, true), rough: tex(b, false) };
+}
