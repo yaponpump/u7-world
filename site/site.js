@@ -43,7 +43,7 @@ async function loadSequence(name, count) {
   frames[0] = first;
   // 12 frame pertama ikut preloader, sisanya ngalir di belakang
   const eager = [];
-  for (let i = 2; i <= Math.min(12, count); i++) eager.push(loadImage(`${ASSETS}frames/${name}/${pad(i)}.webp`).then((im) => { frames[i - 1] = im; }));
+  for (let i = 2; i <= Math.min(4, count); i++) eager.push(loadImage(`${ASSETS}frames/${name}/${pad(i)}.webp`).then((im) => { frames[i - 1] = im; }));
   await Promise.all(eager);
   (async () => { for (let i = 13; i <= count; i++) frames[i - 1] = await loadImage(`${ASSETS}frames/${name}/${pad(i)}.webp`); })();
   return frames;
@@ -118,10 +118,11 @@ function frame(now) {
     const r = robot.root;
     // skala layar sempit: robot lebih kecil dan ke tengah
     const nw = narrow();
-    const k = nw ? 0.35 : 1;
+    const mid = !nw && innerWidth < 1250;
+    const k = nw ? 0.35 : mid ? 0.92 : 1;
     r.position.set(view.x * k, view.y + (nw ? 1.9 : 0), view.z);
     r.rotation.y = view.ry + mouse.x * 0.18;
-    r.scale.setScalar(view.s * view.on * (nw ? 0.82 : 1));
+    r.scale.setScalar(view.s * view.on * (nw ? 0.82 : mid ? 0.86 : 1));
     r.visible = view.on > 0.01;
     camera.position.set(view.cx * k + mouse.x * 0.12, view.cy + 0.25 + mouse.y * -0.08, view.cz * (nw ? 2.1 : 1));
     camera.lookAt(view.lx * k, view.look + (nw ? 0.7 : 0), 0);
@@ -349,7 +350,6 @@ async function main() {
   const seqPromise = track(loadSequence('city', 90));
   const jobs = [
     track(document.fonts.ready),
-    track(loadImage('img/city-dark.jpg')),
     seqPromise,
   ];
   if (webgl) {
@@ -358,7 +358,8 @@ async function main() {
   }
   if (!webgl) { stage.style.display = 'none'; $('hero-fallback').hidden = false; }
   tokenData();
-  await Promise.all(jobs);
+  // jangan nahan layar lebih dari 4 detik, sisanya ngalir di belakang
+  await Promise.race([Promise.all(jobs), new Promise((ok) => setTimeout(ok, 4000))]);
   // selesai: tutup loader, mulai render, dan robot dadah sekali
   await gsap.to(load.pct, { v: 100, duration: 0.4, onUpdate() { $('loader-pct').textContent = Math.round(load.pct.v); $('loader-fill').style.width = `${load.pct.v}%`; } });
   gsap.to($('loader'), { yPercent: -100, duration: 0.9, ease: 'power4.inOut', onComplete() { $('loader').remove(); } });
