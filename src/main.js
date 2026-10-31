@@ -7,6 +7,7 @@ import { createWallet } from './wallet.js';
 import { createMarket, MOOD_LABEL } from './market.js';
 import { SKINS, isUnlocked, applySkin } from './skins.js';
 import { CONFIG } from './config.js';
+import { createMinimap } from './minimap.js';
 import { createControls } from './controls.js';
 import { loadAssets } from './assets.js';
 
@@ -142,6 +143,7 @@ composer.addPass(new OutputPass());
 if (QUALITY === 'high') composer.addPass(new SMAAPass(window.innerWidth, window.innerHeight));
 
 const controls = createControls(canvas);
+const minimap = createMinimap({ canvas: document.getElementById('minimap'), labelsEl: document.getElementById('labels'), objectiveEl: document.getElementById('objective') });
 
 // ---------- HUD ----------
 const $ = (id) => document.getElementById(id);
@@ -302,6 +304,8 @@ let started = false;
 const behavior = {
   idleTime: 0,        // berapa lama nggak ada input
   lock: 0,            // lama state dikunci (animasi sekali jalan)
+  speed: 0,           // kecepatan jalan sekarang (ramp)
+  camDist: null,      // jarak kamera halus
   sitting: null,      // bangku yang diduduki
   nearBench: null,
   nearDrink: false,
@@ -403,7 +407,7 @@ function tick() {
   const rawDt = clock.getDelta();
   const dt = Math.min(0.05, rawDt); // fisika di-clamp biar nggak loncat
   elapsed += dt;
-  controls.poll();
+  controls.poll(rawDt);
   const inp = controls.input;
   const pos = robot.root.position;
 
@@ -451,14 +455,18 @@ function tick() {
 
     // --- gerak ---
     behavior.lock = Math.max(0, behavior.lock - rawDt);
-    const moving = Math.hypot(inp.move.x, inp.move.y) > 0.05;
+    const moving = Math.hypot(inp.moveRaw.x, inp.moveRaw.y) > 0.05 || Math.hypot(inp.move.x, inp.move.y) > 0.08;
+    // kecepatan naik-turun halus (ramp), bukan langsung penuh
+    const targetSpeed = moving && behavior.lock <= 0 ? (inp.run ? SPEED_RUN : SPEED_WALK) : 0;
+    behavior.speed += (targetSpeed - behavior.speed) * Math.min(1, dt * (targetSpeed > behavior.speed ? 6 : 10));
     if (moving && behavior.lock <= 0) {
       if (behavior.sitting) { behavior.sitting = null; }
-      const speed = inp.run ? SPEED_RUN : SPEED_WALK;
-      // arah relatif kamera
+      const speed = behavior.speed;
+      // arah relatif kamera: kamera ada di pos + (sin yaw, cos yaw), jadi "maju" (W) = (-sin yaw, -cos yaw)
       const yaw = inp.camYaw;
-      const dx = inp.move.x * Math.cos(yaw) + inp.move.y * Math.sin(yaw);
-      const dz = -inp.move.x * Math.sin(yaw) + inp.move.y * Math.cos(yaw);
+      const mv = inp.move;
+      const dx = mv.x * Math.cos(yaw) + mv.y * Math.sin(yaw);
+      const dz = -mv.x * Math.sin(yaw) + mv.y * Math.cos(yaw);
       const nx = pos.x + dx * speed * dt;
       const nz = pos.z + dz * speed * dt;
       const half = WORLD.size * 0.75;
@@ -475,9 +483,13 @@ function tick() {
       const targetRot = Math.atan2(dx, dz);
       let diff = targetRot - robot.root.rotation.y;
       diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-      robot.root.rotation.y += diff * Math.min(1, dt * 12);
+      robot.root.rotation.y += diff * Math.min(1, dt * 10);
       robot.setState(inp.run ? 'run' : 'walk');
       behavior.idleTime = 0;
+      // auto-follow: kalau user nggak lagi muter kamera, kamera pelan-pelan ke belakang robot
+      if (inp.sinceDrag > 1.5 && Math.hypot(inp.moveRaw.x, inp.moveRaw.y) > 0.3) {
+        controls.followYaw(robot.root.rotation.y + Math.PI, dt, inp.run ? 1.6 : 1.0);
+      }
     } else if (behavior.lock <= 0 && !behavior.sitting) {
       if (['walk', 'run', 'drink', 'throw', 'curious', 'yawn', 'wave'].includes(robot.state.name)) robot.setState('idle');
     }
@@ -530,7 +542,7 @@ function tick() {
     else if (behavior.nearBench) setHint('Ada bangku. E buat duduk.');
     else if (behavior.nearDrink) setHint('F buat "minum". Nggak ngaruh ke sistemnya, tapi dia suka.');
     else if (behavior.nearPier) setHint('R buat lempar batu ke danau.');
-    else setHint('WASD / joystick buat jalan · Shift lari · geser mouse buat muter kamera');
+    else setHint('WASD jalan · Shift lari · drag mouse muter kamera · scroll zoom · ikutin panah hijau ke sinyal');
   }
 
   // batu terbang
@@ -582,20 +594,27 @@ function tick() {
     });
   }
 
-  // kamera orbit ngikutin robot
-  const dist = 6.5;
+  // kamera orbit ngikutin robot. Yaw/pitch/dist udah di-damp di controls, jadi posisi
+  // dihitung langsung dari sudut (nggak lerp posisi, biar nggak motong lewat tengah pas orbit).
+  // Yang di-damp cuma titik fokusnya, biar nggak ikut goyang tiap langkah.
   const yaw = inp.camYaw;
   const pitch = inp.camPitch;
-  camTarget.set(pos.x, pos.y + 1.4, pos.z);
-  camPos.set(
-    pos.x + Math.sin(yaw) * Math.cos(pitch) * dist,
-    pos.y + 1.4 + Math.sin(pitch) * dist,
-    pos.z + Math.cos(yaw) * Math.cos(pitch) * dist,
-  );
+  const focus = new THREE.Vector3(pos.x, pos.y + 1.4, pos.z);
+  camTarget.lerp(focus, started ? Math.min(1, dt * 10) : 1);
+  // jarak kamera dipendekin kalau kehalang gedung atau tanah
+  let dist = inp.camDist;
+  const dir = new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
+  for (let d = 1.2; d < dist; d += 0.5) {
+    const px = camTarget.x + dir.x * d, py = camTarget.y + dir.y * d, pz = camTarget.z + dir.z * d;
+    if (blockedByBuilding(px, pz) || py < groundHeight(px, pz) + 0.5) { dist = Math.max(1.2, d - 0.5); break; }
+  }
+  behavior.camDist = behavior.camDist == null ? dist : behavior.camDist + (dist - behavior.camDist) * Math.min(1, dt * (dist < behavior.camDist ? 18 : 4));
+  camPos.copy(camTarget).addScaledVector(dir, behavior.camDist);
   const camGround = groundHeight(camPos.x, camPos.z) + 0.6;
   if (camPos.y < camGround) camPos.y = camGround;
-  camera.position.lerp(camPos, started ? Math.min(1, dt * 6) : 1);
+  camera.position.copy(camPos);
   camera.lookAt(camTarget);
+  minimap.update({ pos, rotY: robot.root.rotation.y, camYaw: yaw, camera, signals: WORLD.signals, started });
   sun.target.position.copy(pos);
 
   // posisi bubble di atas kepala
@@ -637,5 +656,5 @@ window.addEventListener('resize', () => {
 window.__u7 = { robot, behavior, controls, audio, scene, camera, renderer, blockedByBuilding };
 
 // kamera awal: dari depan robot
-controls.input.camYaw = Math.PI;
+controls.setYaw(Math.PI);
 tick();

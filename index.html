@@ -12,14 +12,17 @@
 
   <div id="hud">
     <div class="hud-top">
-      <div class="panel lights" id="lights-panel">
-        <div class="label">Lampu kota</div>
-        <div class="lamps" id="lamps"></div>
-        <div class="small" id="lamps-text">3/5 · 1.000 sinyal</div>
-      </div>
-      <div class="panel market" id="market-panel">
-        <div class="label">Market · cuaca</div>
-        <div class="small" id="market-text">Nyambung ke market...</div>
+      <div class="hud-left">
+        <div class="panel lights" id="lights-panel">
+          <div class="label">Lampu kota</div>
+          <div class="lamps" id="lamps"></div>
+          <div class="small" id="lamps-text">3/5 · 1.000 sinyal</div>
+        </div>
+        <div class="panel market" id="market-panel">
+          <div class="label">Market · cuaca</div>
+          <div class="small" id="market-text">Nyambung ke market...</div>
+        </div>
+        <canvas id="minimap" class="minimap" title="Klik buat ganti zoom"></canvas>
       </div>
       <div class="hud-right">
         <div class="wallet-row">
@@ -39,7 +42,7 @@
     </div>
 
     <div class="hud-bottom">
-      <div class="panel hint" id="hint">WASD / joystick buat jalan · Shift lari · geser mouse buat muter kamera</div>
+      <div class="panel hint" id="hint">WASD jalan · Shift lari · drag mouse muter kamera · scroll zoom · klik minimap buat full map</div>
       <div class="actions">
         <button class="btn action" id="act-sit" hidden>E · Duduk</button>
         <button class="btn action" id="act-drink" hidden>F · Minum</button>
@@ -49,6 +52,8 @@
       </div>
     </div>
 
+    <div id="labels"></div>
+    <div class="panel objective" id="objective" hidden><span class="arrow">➤</span><span class="txt">Sinyal terdekat</span></div>
     <div class="panel clock" id="clock">--:--</div>
     <div id="bubble" class="bubble" hidden></div>
     <div id="toast" class="toast" hidden></div>
