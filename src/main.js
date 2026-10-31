@@ -518,6 +518,7 @@ function tick() {
         if (pos.y <= gy && behavior.vy <= 0) {
           pos.y = gy; behavior.grounded = true; behavior.vy = 0;
           audio.play('land');
+          robot.land();
           if (robot.state.name === 'jump') robot.setState(moving ? (inp.run ? 'run' : 'walk') : 'idle');
         }
       } else {

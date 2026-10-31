@@ -86,7 +86,7 @@ export function createWallet({ onChange = () => {} } = {}) {
     solProvider = p;
     const res = await p.connect(silent ? { onlyIfTrusted: true } : undefined);
     const pk = res?.publicKey || p.publicKey;
-    if (!pk) throw new Error('Wallet nggak ngasih alamat');
+    if (!pk) throw new Error('Wallet returned no address');
     state.chain = 'solana';
     state.address = pk.toString();
     state.providerName = nameOf(p, 'solana');
@@ -94,7 +94,7 @@ export function createWallet({ onChange = () => {} } = {}) {
   async function connectEvm(p, { silent = false } = {}) {
     evmProvider = p;
     const accounts = await p.request({ method: silent ? 'eth_accounts' : 'eth_requestAccounts' });
-    if (!accounts?.length) throw new Error(silent ? 'no-eager' : 'Wallet nggak ngasih alamat');
+    if (!accounts?.length) throw new Error(silent ? 'no-eager' : 'Wallet returned no address');
     if (CONFIG.token.evmChainId && !silent) {
       try { await p.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: CONFIG.token.evmChainId }] }); } catch { /* biarin, saldo aja yang kosong */ }
     }
