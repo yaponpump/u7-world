@@ -264,25 +264,21 @@ function renderSkins() {
     grid.appendChild(el);
   }
 }
-$('skin-btn').addEventListener('click', () => { const p = $('skins-panel'); p.hidden = !p.hidden; $('faces-panel').hidden = true; });
-$('face-btn').addEventListener('click', () => { const p = $('faces-panel'); p.hidden = !p.hidden; $('skins-panel').hidden = true; });
+$('skin-btn').addEventListener('click', () => { const p = $('skins-panel'); p.hidden = !p.hidden; });
 
-// Panel wajah: pilihan pemain bertahan sampai diganti
+// Tombol wajah: sekali pencet ganti ke ekspresi berikutnya, bertahan sampai diganti lagi
 const FACE_OPTIONS = [['neutral', 'Normal'], ['happy', 'Happy'], ['sad', 'Sad'], ['angry', 'Angry'], ['surprised', 'Surprised'], ['disgust', 'Disgust']];
 function pickFace(name) {
   robot.setFace(name);
-  document.querySelectorAll('#face-grid button').forEach((b) => b.classList.toggle('active', b.dataset.face === name));
+  $('face-btn').textContent = `G · ${FACE_OPTIONS.find(([id]) => id === name)[1]}`;
   const lines = faceLines[name];
   if (lines) say(lines[Math.floor(Math.random() * lines.length)], 2200);
 }
-for (const [id, label] of FACE_OPTIONS) {
-  const b = document.createElement('button');
-  b.className = 'face-option' + (id === 'neutral' ? ' active' : '');
-  b.dataset.face = id;
-  b.textContent = label;
-  b.addEventListener('click', () => pickFace(id));
-  $('face-grid').appendChild(b);
+function nextFace() {
+  const i = FACE_OPTIONS.findIndex(([id]) => id === (robot.state.base || 'neutral'));
+  pickFace(FACE_OPTIONS[(i + 1) % FACE_OPTIONS.length][0]);
 }
+$('face-btn').addEventListener('click', nextFace);
 renderSkins();
 {
   let saved = null;
@@ -547,6 +543,7 @@ function tick() {
     }
     if (controls.consume('q')) takePhoto();
     if (controls.consume('m')) toggleMute();
+    if (controls.consume('g')) nextFace();
 
     // --- gerak ---
     behavior.lock = Math.max(0, behavior.lock - rawDt);
@@ -698,7 +695,7 @@ function tick() {
     else if (onBridge(pos.x, pos.z)) setHint('A bridge over the river. Walk straight across.');
     else if (behavior.nearPier) setHint('Press R to skip a rock across the lake.');
     else if (distToRiver(pos.x, pos.z) < 7) setHint('The river is shallow: wade straight across, or take a bridge or the stepping stones.');
-    else setHint('WASD move · Space jump (clears cars) · B backflip · 1-5 faces · T skip time · Shift run · right-drag to look · follow the green arrow');
+    else setHint('WASD move · Space jump (clears cars) · B backflip · G face · T skip time · Shift run · right-drag to look · follow the green arrow');
   }
 
   // batu terbang
