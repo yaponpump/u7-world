@@ -74,9 +74,154 @@ export function groundHeight(x, z) {
   return (hillHeight(x, z) + microHeight(x, z)) * cityFlat(x, z) + (onSidewalk(x, z) ? 0.14 : 0);
 }
 
+// ---------- Rute dan papan petunjuk ----------
+// Garis tengah jalan setapak. Dipakai buat mesh jalan, nyisihin rumput/pohon, dan minimap.
+WORLD.routes = [
+  { id: 'cafe', points: [[26.8, 0], [44, 0], [44, 19]] },
+  { id: 'hill', points: [[20, -6.8], [20, -30], [34, -30]] },
+  { id: 'lake', points: [[20, 6.8], [20, 22], [-11, 22]] },
+  { id: 'city', points: [[20, 22], [20, 46]] },
+  { id: 'bridge', points: [[13.2, 0], [3, 0], [3, -16]] },
+];
+WORLD.landmarks = [
+  { id: 'park', name: 'Taman', x: 20, z: 0, kind: 'park' },
+  { id: 'fountain', name: 'Air mancur', x: 20, z: 0, kind: 'fountain' },
+  { id: 'lake', name: 'Danau', x: -34, z: 30, kind: 'lake' },
+  { id: 'pier', name: 'Dermaga', x: -14, z: 22, kind: 'pier' },
+  { id: 'bridge', name: 'Jembatan', x: -4, z: -16, kind: 'bridge' },
+  { id: 'hill', name: 'Bukit', x: 44, z: -40, kind: 'hill' },
+  { id: 'cafe', name: 'Kafe', x: 44, z: 24, kind: 'cafe' },
+  { id: 'city', name: 'Kota', x: 40, z: 72, kind: 'city' },
+];
+
+function segDist(x, z, a, b) {
+  const dx = b[0] - a[0], dz = b[1] - a[1];
+  const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz)));
+  return Math.hypot(x - a[0] - dx * t, z - a[1] - dz * t);
+}
+function onRoute(x, z) {
+  return WORLD.routes.some((r) => r.points.some((p, i) => i > 0 && segDist(x, z, r.points[i - 1], p) < 1.7));
+}
+
+// Pita jalan dan batu tepinya
+function buildPaths(group, mat, hi) {
+  const pos = [], uv = [], idx = [], stones = [];
+  const lines = WORLD.routes.map((r) => r.points);
+  const ring = [];
+  for (let i = 0; i <= 72; i++) {
+    const a = (i / 72) * Math.PI * 2;
+    ring.push([WORLD.park.x + Math.cos(a) * 18.9, WORLD.park.z + Math.sin(a) * 18.9]);
+  }
+  lines.push(ring);
+  for (const line of lines) {
+    let run = 0;
+    for (let s = 1; s < line.length; s++) {
+      const [ax, az] = line[s - 1], [bx, bz] = line[s];
+      const len = Math.hypot(bx - ax, bz - az);
+      const nx = -(bz - az) / len, nz = (bx - ax) / len;
+      const steps = Math.max(1, Math.round(len / 1.4));
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps, x = ax + (bx - ax) * t, z = az + (bz - az) * t;
+        const base = pos.length / 3;
+        for (const side of [-1, 1]) {
+          const px = x + nx * side * 1.25, pz = z + nz * side * 1.25;
+          pos.push(px, groundHeight(px, pz) + 0.07, pz);
+          uv.push((side + 1) * 0.31, (run + len * t) / 2.5);
+        }
+        if (i < steps) idx.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
+        if (i % (hi ? 1 : 2) === 0) {
+          for (const side of [-1, 1]) {
+            const px = x + nx * side * (1.42 + Math.sin(i * 7.1) * 0.05), pz = z + nz * side * (1.42 + Math.cos(i * 5.3) * 0.05);
+            stones.push([px, groundHeight(px, pz) + 0.06, pz, 0.7 + ((i * 37) % 10) * 0.07]);
+          }
+        }
+      }
+      run += len;
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  const road = new THREE.Mesh(g, mat);
+  road.receiveShadow = true;
+  group.add(road);
+
+  const rock = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.15, 0), new THREE.MeshStandardMaterial({ color: 0xbfb9ab, roughness: 0.9 }), stones.length);
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), s = new THREE.Vector3();
+  stones.forEach(([x, y, z, k], i) => {
+    q.setFromEuler(new THREE.Euler(i, i * 2.3, i * 1.1));
+    rock.setMatrixAt(i, m.compose(v.set(x, y, z), q, s.set(k, k * 0.7, k)));
+  });
+  rock.receiveShadow = true;
+  group.add(rock);
+}
+
+function signLabel(text) {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 128;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#efe6d2';
+  ctx.font = 'bold 76px "Chakra Petch", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 256, 70);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return new THREE.MeshBasicMaterial({ map: t, transparent: true });
+}
+
+// Tiang kayu dengan papan yang ujungnya nunjuk ke tujuan
+function buildSignposts(group, woodMat, list) {
+  const postGeo = new THREE.CylinderGeometry(0.08, 0.1, 3.1, 10);
+  const boardGeo = new THREE.BoxGeometry(1.6, 0.34, 0.06);
+  const tipGeo = new THREE.ConeGeometry(0.17 * Math.SQRT2, 0.24, 4);
+  tipGeo.rotateY(Math.PI / 4);
+  tipGeo.rotateZ(-Math.PI / 2);
+  tipGeo.scale(1, 1, 0.18);
+  const planeGeo = new THREE.PlaneGeometry(1.44, 0.36);
+  const stripGeo = new THREE.BoxGeometry(1.5, 0.03, 0.075);
+  const stripMat = new THREE.MeshStandardMaterial({ color: 0x20261a, emissive: 0xb8ff3c, emissiveIntensity: 0 });
+  WORLD.signGlow = stripMat;
+  const labels = new Map();
+  for (const { x, z, to } of list) {
+    const sign = new THREE.Group();
+    const y0 = groundHeight(x, z);
+    sign.position.set(x, y0, z);
+    const post = new THREE.Mesh(postGeo, woodMat);
+    post.position.y = 1.55;
+    post.castShadow = true;
+    sign.add(post);
+    to.forEach((id, i) => {
+      const lm = WORLD.landmarks.find((l) => l.id === id);
+      const arm = new THREE.Group();
+      arm.position.y = 2.8 - i * 0.43;
+      arm.rotation.y = -Math.atan2(lm.z - z, lm.x - x);
+      const board = new THREE.Mesh(boardGeo, woodMat);
+      board.position.x = 0.84;
+      board.castShadow = true;
+      const tip = new THREE.Mesh(tipGeo, woodMat);
+      tip.position.x = 1.76;
+      const strip = new THREE.Mesh(stripGeo, stripMat);
+      strip.position.set(0.84, -0.17, 0);
+      if (!labels.has(id)) labels.set(id, signLabel(lm.name));
+      const front = new THREE.Mesh(planeGeo, labels.get(id));
+      front.position.set(0.84, 0, 0.033);
+      const back = new THREE.Mesh(planeGeo, labels.get(id));
+      back.position.set(0.84, 0, -0.033);
+      back.rotation.y = Math.PI;
+      arm.add(board, tip, strip, front, back);
+      sign.add(arm);
+    });
+    group.add(sign);
+  }
+}
+
 function onPath(x, z) {
   if (inCity(x, z)) return true;
-  if (Math.abs(x - WORLD.park.x) < 1.4 && z > WORLD.park.r - 1 && z < 46) return true;
+  if (onRoute(x, z)) return true;
   const d = Math.hypot(x - WORLD.park.x, z - WORLD.park.z);
   if (d < 6.8) return true;
   if (d > WORLD.park.r - 2.4 && d < WORLD.park.r + 0.2) return true;
@@ -585,6 +730,15 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   }
 
   buildCity(group, { hi, A, props: assets.props, fallback: texStone });
+  buildPaths(group, pbrMaterial(A.sidewalk, texStone, { roughness: 0.95, color: 0xd8c8a4 }), hi);
+  buildSignposts(group, woodMat, [
+    { x: 27.5, z: 3.2, to: ['lake', 'pier', 'hill', 'cafe', 'city'] },
+    { x: 22.6, z: 24.4, to: ['city', 'pier', 'park'] },
+    { x: 22.6, z: -28, to: ['hill', 'park'] },
+    { x: 46.4, z: 2.4, to: ['cafe', 'park'] },
+    { x: 5.4, z: 2.2, to: ['bridge', 'park'] },
+    { x: 22.6, z: 43, to: ['city', 'park'] },
+  ]);
 
   // ---------- Batu ----------
   const rockMat = new THREE.MeshStandardMaterial({ map: texStone, roughness: 0.95 });
@@ -723,6 +877,7 @@ export function setCityLights(n) {
 }
 
 export function applyNight(nightAmount) {
+  if (WORLD.signGlow) WORLD.signGlow.emissiveIntensity = nightAmount * 2.2;
   setCityNight(nightAmount);
   for (const l of WORLD.lamps) {
     const k = l.on ? nightAmount : 0;
