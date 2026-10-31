@@ -51,6 +51,10 @@ export const ROOF = {
   b: roofB, cx: roofB.x + roofB.w / 2, cz: roofB.z + roofB.d / 2,
   x1: roofB.x + roofB.w - 0.5, x0: roofB.x + roofB.w - 0.5 - stairLen, zA: roofB.z - 1.3, zB: roofB.z,
 };
+// Satu lot di blok depan dikosongin buat minimarket, pintunya ngadep jalan di utara
+const shopLot = BUILDINGS.filter((b) => b.z < 60 && b.x >= 38 && b.x < 56 && b !== roofB).sort((a, b) => b.w - a.w)[0];
+BUILDINGS.splice(BUILDINGS.indexOf(shopLot), 1);
+export const SHOP = { x: shopLot.x + shopLot.w / 2, z: shopLot.z + 2.9, hw: 3.6, hd: 2.8 };
 const inStair = (x, z) => x > ROOF.x0 - 0.2 && x < ROOF.x1 + 0.2 && z > ROOF.zA && z < ROOF.zB;
 const stairY = (x) => 0.14 + Math.min(1, Math.max(0, (x - ROOF.x0) / (ROOF.x1 - ROOF.x0))) * (roofB.h - 0.14);
 const PAD = 0.55;
@@ -120,7 +124,9 @@ export const CITY_SIGNALS = [alleySpot(), [60, 103]];
 export function cameraBlocked(x, y, z) {
   const pad = 0.25;
   const hit = (b) => y < b.h + 0.4 && x > b.x - pad && x < b.x + b.w + pad && z > b.z - pad && z < b.z + b.d + pad;
-  return BUILDINGS.some(hit) || SKYLINE.some(hit);
+  const sx = Math.abs(x - SHOP.x), sz = Math.abs(z - SHOP.z);
+  const shopWall = y < 3.2 && sx < SHOP.hw + pad && sz < SHOP.hd + pad && (sx > SHOP.hw - pad || sz > SHOP.hd - pad);
+  return shopWall || BUILDINGS.some(hit) || SKYLINE.some(hit);
 }
 
 // 0 di kota, 1 di luar: buat ngeratain tanah di bawah jalan
@@ -131,8 +137,8 @@ export function cityFlat(x, z) {
 }
 
 export const cityUniforms = { uLit: { value: 0.27 }, uGlow: { value: 0 }, uFill: { value: 0 } };
-const pools = { mesh: null, heads: null, total: 0, lit: 3, night: 0, finale: 0 };
-const updateFill = () => { cityUniforms.uFill.value = pools.night * (0.08 + 0.14 * pools.lit / 5); };
+const pools = { mesh: null, heads: null, total: 0, lit: 3, night: 0, finale: 0, power: 0 };
+const updateFill = () => { cityUniforms.uFill.value = pools.night * (0.08 + 0.14 * pools.lit / 5 + 0.05 * pools.power); };
 
 // Cahaya pantul kota: sekadar biar gang gelap tapi masih kebaca
 function addFill(mat, inner) {
@@ -158,9 +164,15 @@ export function setCityFinale(v) {
   pools.finale = Math.max(pools.finale, v);
   cityUniforms.uLit.value = Math.max(pools.lit * 0.09, pools.finale);
 }
+// Jumlah generator yang nyala: jendela sekota ikut lebih terang
+export function setCityPower(n) {
+  pools.power = n;
+  setCityNight(pools.realNight ?? 0);
+}
 export function setCityNight(realNight) {
+  pools.realNight = realNight;
   const night = Math.max(realNight, pools.finale * 0.75);
-  cityUniforms.uGlow.value = night * 1.15;
+  cityUniforms.uGlow.value = night * (1.15 + pools.power * 0.2);
   pools.night = night;
   updateFill();
   if (pools.mesh) {

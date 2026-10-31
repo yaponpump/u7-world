@@ -9,7 +9,7 @@ import { Scatter, partsOf } from './scatter.js';
 import { createWeather } from './weather.js';
 import { createNpcs } from './npcs.js';
 import { createEcosystem } from './ecosystem.js';
-import { addObstacle, blockedByBuilding, buildCity, cityFlat, ROOF, setCityFinale, CITY_SIGNALS, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
+import { addObstacle, BUILDINGS, blockedByBuilding, buildCity, cityFlat, ROOF, SHOP, setCityFinale, setCityPower, CITY_SIGNALS, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
 
 export const WORLD = {
   size: 140,
@@ -131,6 +131,23 @@ WORLD.interactables = [
   { id: 'cafeCounter', name: 'Cafe counter', x: 44, z: 23.6, line: 'Nobody has run this counter since The Blackout. The coffee machine still hums. Press F for a cup.' },
   { id: 'cityGate', name: 'City gate', x: 20, z: 44, line: 'Road closed since The Blackout. Barriers only stop cars.' },
 ];
+WORLD.interactables.push({ id: 'shopCounter', name: 'Shop counter', x: SHOP.x + 1.8, z: SHOP.z + 1.4, line: 'The till still has power. The shelves are full and nobody came back to buy anything.' });
+WORLD.shop = { x: SHOP.x, z: SHOP.z };
+// Quest berantai setelah ending: nyalain generator, antar paket, cari bagian tubuh VUZZ
+WORLD.generators = [
+  { id: 'tower', x: 30.5, z: 9.5, label: 'behind the Signal Tower' },
+  { id: 'cafe', x: 51, z: 28, label: 'east of the cafe' },
+  { id: 'skyline', x: 74, z: 106, label: 'at the far end of the city' },
+];
+WORLD.parcel = { x: 44, z: 29.5 };
+{
+  const roof = BUILDINGS.filter((b) => b.z < 60 && b.x >= 64).sort((a, b) => a.h - b.h)[0];
+  WORLD.parts = [
+    { id: 'antenna', x: roof.x + roof.w / 2, z: roof.z + roof.d / 2, y: roof.h, label: 'on a rooftop in the east block' },
+    { id: 'plate', x: -37.8, z: -38.6, label: 'beside the north bridge' },
+    { id: 'core', x: WORLD.lake.x - WORLD.lake.r - 3, z: WORLD.lake.z, label: 'on the west shore of the lake' },
+  ];
+}
 // Titik misi harian, semuanya bisa dicapai jalan kaki
 WORLD.dailySpots = [
   { x: 11, z: 13, label: 'by the park lawn' },
@@ -160,6 +177,7 @@ WORLD.landmarks = [
   { id: 'tower', name: 'Signal Tower', x: 26, z: 6, kind: 'tower' },
   { id: 'notice', name: 'Notice board', x: 24, z: -17, kind: 'board', minor: true },
   { id: 'cafe', name: 'Cafe', x: 44, z: 24, kind: 'cafe' },
+  { id: 'shop', name: 'Shop', x: SHOP.x, z: SHOP.z, kind: 'cafe' },
   { id: 'city', name: 'City', x: 40, z: 72, kind: 'city' },
 ];
 
@@ -842,6 +860,117 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   cafe.position.set(WORLD.cafe.x, 0, WORLD.cafe.z);
   cafe.traverse((m) => { m.castShadow = true; m.receiveShadow = true; });
   group.add(cafe);
+
+  // ---------- Minimarket ----------
+  const shop = new THREE.Group();
+  const { hw, hd } = SHOP;
+  const shopWallMat = new THREE.MeshStandardMaterial({ color: 0xd8dde0, roughness: 0.8, emissive: 0x20282c, emissiveIntensity: 0.5 });
+  const shopBase = 0.14;
+  const addBox = (sx, sy, sz, x, y, z, mat, parent = shop) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
+    m.position.set(x, shopBase + y, z);
+    parent.add(m);
+    return m;
+  };
+  const doorHalf = 0.9, sideW = hw - doorHalf;
+  addBox(hw * 2, 3, 0.14, 0, 1.5, hd, shopWallMat);
+  addBox(0.14, 3, hd * 2, -hw, 1.5, 0, shopWallMat);
+  addBox(0.14, 3, hd * 2, hw, 1.5, 0, shopWallMat);
+  addBox(sideW, 3, 0.14, -(doorHalf + sideW / 2), 1.5, -hd, shopWallMat);
+  addBox(sideW, 3, 0.14, doorHalf + sideW / 2, 1.5, -hd, shopWallMat);
+  addBox(doorHalf * 2, 0.7, 0.14, 0, 2.65, -hd, shopWallMat);
+  for (const [x, z, ohx, ohz] of [[0, hd, hw, 0.1], [-hw, 0, 0.1, hd], [hw, 0, 0.1, hd], [-(doorHalf + sideW / 2), -hd, sideW / 2, 0.1], [doorHalf + sideW / 2, -hd, sideW / 2, 0.1]]) {
+    addObstacle(SHOP.x + x, SHOP.z + z, ohx, ohz, 99);
+  }
+  addBox(hw * 2, 0.04, hd * 2, 0, 0.02, 0, new THREE.MeshStandardMaterial({ color: 0xbfc6c4, roughness: 0.35 }));
+  const neonMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xdff5ff, emissiveIntensity: 2.6, toneMapped: false });
+  for (const x of [-1.8, 1.8]) addBox(0.16, 0.05, hd * 1.5, x, 2.92, 0, neonMat);
+  const shelfMat = new THREE.MeshStandardMaterial({ color: 0x5a6068, roughness: 0.5, metalness: 0.5 });
+  const goodsColors = [0xe0441c, 0xffd166, 0x2d9cdb, 0xb8ff3c, 0xf4f1e6, 0xff8a2a].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.7 }));
+  for (const sx of [-2.4, -0.7]) {
+    addBox(0.5, 1.5, 3, sx, 0.75, 0.3, shelfMat);
+    addObstacle(SHOP.x + sx, SHOP.z + 0.3, 0.25, 1.5, 99);
+    for (const level of [0.45, 0.95, 1.45]) {
+      for (let i = 0; i < 9; i++) {
+        for (const side of [-1, 1]) {
+          const c = goodsColors[(i * 3 + Math.round(level * 2) + (side > 0 ? 1 : 0)) % goodsColors.length];
+          addBox(0.1, 0.26, 0.24, sx + side * 0.3, level, -1.0 + i * 0.32, c);
+        }
+      }
+    }
+  }
+  const till = addBox(2, 1, 0.7, 1.8, 0.5, 1.75, woodMat);
+  till.castShadow = true;
+  addObstacle(SHOP.x + 1.8, SHOP.z + 1.75, 1, 0.35, 1.14);
+  addBox(0.4, 0.3, 0.3, 1.5, 1.15, 1.75, ironMat);
+  const shopRoof = addBox(hw * 2 + 0.3, 0.18, hd * 2 + 0.3, 0, 3.08, 0, new THREE.MeshStandardMaterial({ color: 0x2a2d33, roughness: 0.8 }));
+  const shopSignCanvas = document.createElement('canvas');
+  shopSignCanvas.width = 512; shopSignCanvas.height = 96;
+  {
+    const c = shopSignCanvas.getContext('2d');
+    c.fillStyle = '#10131a'; c.fillRect(0, 0, 512, 96);
+    c.fillStyle = '#b8ff3c'; c.font = '700 58px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText('MINI MART', 256, 50);
+  }
+  const shopSign = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 0.78), new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(shopSignCanvas), emissive: 0xffffff, emissiveMap: null, emissiveIntensity: 0.25 }));
+  shopSign.material.map.colorSpace = THREE.SRGBColorSpace;
+  shopSign.position.set(0, shopBase + 2.68, -hd - 0.1);
+  shopSign.rotation.y = Math.PI;
+  shop.add(shopSign);
+  shop.position.set(SHOP.x, 0, SHOP.z);
+  shop.traverse((m) => { if (m.isMesh && m !== shopSign) { m.castShadow = true; m.receiveShadow = true; } });
+  group.add(shop);
+  WORLD.shopRoof = shopRoof;
+
+  // ---------- Generator ----------
+  const genBody = new THREE.MeshStandardMaterial({ color: 0x4b5058, roughness: 0.6, metalness: 0.6 });
+  const genStripe = new THREE.MeshStandardMaterial({ color: 0xffc83a, roughness: 0.7 });
+  const genGeo = new THREE.BoxGeometry(1.6, 1.8, 1.3), stripeGeo = new THREE.BoxGeometry(1.62, 0.14, 1.32);
+  const leverGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.6, 8), knobGeo = new THREE.SphereGeometry(0.11, 10, 8), lampGeo = new THREE.SphereGeometry(0.15, 12, 8);
+  const genOff = new THREE.MeshStandardMaterial({ color: 0x401010, emissive: 0xff2a1a, emissiveIntensity: 1.6, toneMapped: false });
+  const genOn = new THREE.MeshStandardMaterial({ color: 0x103010, emissive: 0x4dff5a, emissiveIntensity: 3, toneMapped: false });
+  for (const g of WORLD.generators) {
+    const m = new THREE.Group(), y = groundHeight(g.x, g.z);
+    const body = new THREE.Mesh(genGeo, genBody);
+    body.position.y = 0.9;
+    body.castShadow = true;
+    const stripe = new THREE.Mesh(stripeGeo, genStripe);
+    stripe.position.y = 1.5;
+    const lamp = new THREE.Mesh(lampGeo, genOff);
+    lamp.position.y = 1.95;
+    const lever = new THREE.Group();
+    lever.position.set(0.5, 1, 0.68);
+    const stick = new THREE.Mesh(leverGeo, ironMat);
+    stick.position.y = 0.3;
+    const knob = new THREE.Mesh(knobGeo, genStripe);
+    knob.position.y = 0.62;
+    lever.add(stick, knob);
+    lever.rotation.x = -0.7;
+    m.add(body, stripe, lamp, lever);
+    m.position.set(g.x, y, g.z);
+    group.add(m);
+    g.lamp = lamp; g.lever = lever; g.on = false;
+    addObstacle(g.x, g.z, 0.8, 0.65, y + 1.8);
+  }
+
+  // ---------- Paket kiriman + bagian tubuh VUZZ ----------
+  const glowOrange = new THREE.MeshStandardMaterial({ color: 0x5a1a08, emissive: 0xff5a1f, emissiveIntensity: 2.4, toneMapped: false });
+  const parcelMesh = new THREE.Group();
+  const parcelBox = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.42, 0.5), new THREE.MeshStandardMaterial({ color: 0xa97a4a, roughness: 0.9 }));
+  parcelBox.castShadow = true;
+  const parcelTape = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.44, 0.1), new THREE.MeshStandardMaterial({ color: 0xb8ff3c, emissive: 0xb8ff3c, emissiveIntensity: 1.8, toneMapped: false }));
+  parcelMesh.add(parcelBox, parcelTape);
+  parcelMesh.position.set(WORLD.parcel.x, groundHeight(WORLD.parcel.x, WORLD.parcel.z) + 0.25, WORLD.parcel.z);
+  group.add(parcelMesh);
+  const partGeo = { antenna: new THREE.CylinderGeometry(0.06, 0.1, 0.9, 8), plate: new THREE.BoxGeometry(0.7, 0.12, 0.5), core: new THREE.IcosahedronGeometry(0.3, 0) };
+  for (const p of WORLD.parts) {
+    const base = p.y ?? Math.max(groundHeight(p.x, p.z), -0.2);
+    p.y = base;
+    p.mesh = new THREE.Mesh(partGeo[p.id], glowOrange);
+    p.baseY = base + 0.7;
+    p.mesh.position.set(p.x, p.baseY, p.z);
+    group.add(p.mesh);
+  }
   WORLD.cafeSign = sign.material;
 
   // ---------- Papan pengumuman ----------
@@ -985,6 +1114,20 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
       return FINALE_SECONDS;
     },
     setWeather(opts) { weather.set(opts); },
+    // Lampu status + jendela sekota. Aman dipanggil berulang, misal pas muat save.
+    setGenerator(id, on) {
+      const g = WORLD.generators.find((k) => k.id === id);
+      if (!g) return;
+      g.on = on;
+      g.lamp.material = on ? genOn : genOff;
+      g.lever.rotation.x = on ? 0.7 : -0.7;
+      setCityPower(WORLD.generators.filter((k) => k.on).length);
+    },
+    setParcel(visible) { parcelMesh.visible = visible; },
+    setPart(id, visible) {
+      const p = WORLD.parts.find((k) => k.id === id);
+      if (p) p.mesh.visible = visible;
+    },
     get weather() { return weather.state; },
     updateTrees(camera) { for (const t of treeSets) t.update(camera); },
     setSun(dir, color) {
@@ -1011,6 +1154,15 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
           api.finaleDone = true;
           done?.();
         }
+      }
+      for (const p of WORLD.parts) {
+        if (!p.mesh.visible) continue;
+        p.mesh.position.y = p.baseY + Math.sin(t * 2) * 0.1;
+        p.mesh.rotation.y = t;
+      }
+      if (player) {
+        const inShop = Math.abs(player.x - SHOP.x) < SHOP.hw && Math.abs(player.z - SHOP.z) < SHOP.hd;
+        WORLD.shopRoof.visible = !inShop;
       }
       if (WORLD.cafeRoof && player) {
         const inside = Math.abs(player.x - WORLD.cafe.x) < 2.5 && Math.abs(player.z - WORLD.cafe.z) < 2.1;
