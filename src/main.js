@@ -370,13 +370,26 @@ function splash(x, z) {
   audio.play('plunk');
 }
 
-// ---------- Siang / malam ikut jam asli ----------
-const hourParam = new URLSearchParams(location.search).get('hour'); // ?hour=12 buat ngetes siang
-// Jam dalam game: satu hari penuh 12 menit, mulai dari pagi. ?hour=12 buat ngunci jam.
-const DAY_MINUTES = 12, START_HOUR = 7;
+// ---------- Siklus hari sendiri ----------
+// Dunia punya jamnya sendiri: mulai pagi, satu hari penuh = 12 menit nyata (siang agak lebih
+// lama, malam lebih cepat). ?hour=12 ngunci jam (buat tes), ?realtime=1 ngikut jam komputer.
+// Tombol T lompat 3 jam. Pas VUZZ tidur, waktunya jalan 6x lebih cepat.
+const urlParams = new URLSearchParams(location.search);
+const hourParam = urlParams.get('hour');
+const realtime = urlParams.get('realtime') === '1';
+const DAY_SECONDS = 12 * 60;
+const gameClock = { hour: 7.5 };
+function advanceClock(dt, speed = 1) {
+  if (hourParam !== null || realtime) return;
+  const h = gameClock.hour;
+  // 06-19 jalan normal, 19-06 jalan 1,8x biar malam nggak kelamaan
+  const night = h < 6 || h >= 19 ? 1.8 : 1;
+  gameClock.hour = (h + dt * (24 / DAY_SECONDS) * night * speed) % 24;
+}
 function timeOfDay() {
   if (hourParam !== null) return +hourParam;
-  return (START_HOUR + (performance.now() / 60000 / DAY_MINUTES) * 24) % 24;
+  if (realtime) { const d = new Date(); return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600; }
+  return gameClock.hour;
 }
 let lastEnvHour = -1;
 const sunColor = new THREE.Color();
@@ -662,7 +675,7 @@ function tick() {
     else if (onBridge(pos.x, pos.z)) setHint('A bridge over the river. Walk straight across.');
     else if (behavior.nearPier) setHint('Press R to skip a rock across the lake.');
     else if (distToRiver(pos.x, pos.z) < 7) setHint('The river is shallow: wade straight across, or take a bridge or the stepping stones.');
-    else setHint('WASD move · Space jump · B backflip · 1-5 faces · Shift run · right-drag to look · follow the green arrow');
+    else setHint('WASD move · Space jump · B backflip · 1-5 faces · T skip time · Shift run · right-drag to look · follow the green arrow');
   }
 
   // batu terbang
@@ -701,6 +714,12 @@ function tick() {
   if (frameNo++ % 12 === 0) { camera.updateMatrixWorld(); world.updateTrees(camera); }
   gradePass.uniforms.uTime.value = elapsed;
   robot.update(dt, 0, elapsed);
+  if (started) {
+    advanceClock(rawDt, robot.state.name === 'sleep' ? 6 : 1);
+    if (controls.consume('t')) {
+      if (hourParam === null && !realtime) { gameClock.hour = (gameClock.hour + 3) % 24; lastEnvHour = -1; showToast(`Skipped ahead · ${String(Math.floor(gameClock.hour)).padStart(2, '0')}:00`); }
+    }
+  }
   const hourNow = window.__u7?.forceHour ?? timeOfDay();
   applyDaylight(hourNow);
   if (started) {
@@ -800,7 +819,7 @@ window.addEventListener('resize', () => {
   composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-window.__u7 = { robot, behavior, controls, audio, scene, camera, renderer, blockedByBuilding, isWater, wadeable, onBridge, groundHeight };
+window.__u7 = { gameClock, robot, behavior, controls, audio, scene, camera, renderer, blockedByBuilding, isWater, wadeable, onBridge, groundHeight };
 
 // kamera awal: dari depan robot
 controls.setYaw(Math.PI);
