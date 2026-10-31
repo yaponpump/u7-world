@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight, distToRiver, onBridge, onPier, deckHeight, blockedByRail } from './world.js';
-import { BUILDINGS, blockedByBuilding, cameraBlocked, nearestFree, obstacleTop, rooftopHeight, touchingWall } from './city.js';
+import { BUILDINGS, blockedByBuilding, cameraBlocked, nearestFree, obstacleSlip, obstacleTop, rooftopHeight, touchingWall } from './city.js';
 import { createRobot, STATES } from './robot.js';
 import { createAudio } from './audio.js';
 import { createWallet } from './wallet.js';
@@ -779,7 +779,15 @@ function tick() {
     behavior.onRoof = roofY > 1 && pos.y - roofY < 0.3;
     // atap mobil / pembatas: napak di atasnya kalau kakinya udah setinggi itu
     const oTop = obstacleTop(pos.x, pos.z);
-    if (oTop > 0 && pos.y > oTop - 0.35) gy = Math.max(gy, oTop);
+    if (oTop > 0 && pos.y > oTop - 0.35) {
+      gy = Math.max(gy, oTop);
+      // bibir pijakan di luar bodi mobil: tergelincir turun, jangan berdiri ngambang
+      const slip = behavior.grounded && !behavior.sitting ? obstacleSlip(pos.x, pos.z) : null;
+      if (slip && !blockedByBuilding(pos.x + slip[0] * 0.5, pos.z + slip[1] * 0.5, 0)) {
+        pos.x += slip[0] * 3 * dt;
+        pos.z += slip[1] * 3 * dt;
+      }
+    }
     // jalan keluar dari atap: jatuh beneran, bukan meluncur turun
     if (behavior.grounded && pos.y > gy + 0.6) { behavior.grounded = false; behavior.vy = 0; }
     if (behavior.wading) {

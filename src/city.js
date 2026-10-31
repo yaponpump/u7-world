@@ -54,6 +54,7 @@ export const ROOF = {
 const inStair = (x, z) => x > ROOF.x0 - 0.2 && x < ROOF.x1 + 0.2 && z > ROOF.zA && z < ROOF.zB;
 const stairY = (x) => 0.14 + Math.min(1, Math.max(0, (x - ROOF.x0) / (ROOF.x1 - ROOF.x0))) * (roofB.h - 0.14);
 const PAD = 0.55;
+const OB_PAD = 0.35, OB_STAND = 0.4; // pijakan rintangan harus lebih lebar dari zona tabrakannya, biar nggak kejepit
 const nearB = (b, x, z) => x > b.x - PAD && x < b.x + b.w + PAD && z > b.z - PAD && z < b.z + b.d + PAD;
 // Pijakan tangga atau atap tertinggi yang nggak lebih tinggi dari kaki (y), 0 kalau nggak ada.
 // Atap selebar zona tabrakan gedung, jadi yang jatuh dari atap nggak pernah kejepit di dinding.
@@ -72,8 +73,16 @@ export const addObstacle = (x, z, hx, hz, top = 1.0) => OBSTACLES.push({ x, z, h
 // Puncak rintangan rendah di titik ini (0 kalau nggak ada), buat napak di atas mobil
 export function obstacleTop(x, z) {
   let top = 0;
-  for (const o of OBSTACLES) if (Math.abs(x - o.x) < o.hx + 0.6 && Math.abs(z - o.z) < o.hz + 0.6) top = Math.max(top, o.top);
+  for (const o of OBSTACLES) if (Math.abs(x - o.x) < o.hx + OB_STAND && Math.abs(z - o.z) < o.hz + OB_STAND) top = Math.max(top, o.top);
   return top;
+}
+// Arah tergelincir kalau kaki ada di bibir pijakan, di luar bodi rintangan. null kalau bukan di sana.
+export function obstacleSlip(x, z) {
+  for (const o of OBSTACLES) {
+    const dx = Math.abs(x - o.x) - o.hx, dz = Math.abs(z - o.z) - o.hz;
+    if (Math.max(dx, dz) > 0 && Math.max(dx, dz) < OB_STAND) return [dx > 0 ? Math.sign(x - o.x) : 0, dz > 0 ? Math.sign(z - o.z) : 0];
+  }
+  return null;
 }
 // y = tinggi kaki: rintangan rendah nggak ngeblok kalau kakinya udah di atas puncaknya
 export function blockedByBuilding(x, z, y = 0) {
@@ -81,7 +90,7 @@ export function blockedByBuilding(x, z, y = 0) {
   // Nggak bisa masuk ke tengah tangga dari bawah
   if (inStair(x, z) && y < stairY(x) - 0.8) return true;
   return BUILDINGS.some(inside) || SKYLINE.some((b) => nearB(b, x, z))
-    || OBSTACLES.some((o) => y < o.top - 0.2 && Math.abs(x - o.x) < o.hx + PAD && Math.abs(z - o.z) < o.hz + PAD);
+    || OBSTACLES.some((o) => y < o.top - 0.2 && Math.abs(x - o.x) < o.hx + OB_PAD && Math.abs(z - o.z) < o.hz + OB_PAD);
 }
 // Titik bebas terdekat, buat ngeluarin robot yang terlanjur kejepit (misal dari save lama)
 export function nearestFree(x, z) {
