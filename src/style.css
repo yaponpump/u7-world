@@ -87,7 +87,7 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
   .panel.quest { max-width: 58vw; }
   .panel.quest .small { font-size: 11px; }
   .lights .small { font-size: 11px; }
-  .objective { top: auto; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); font-size: 11px; padding: 6px 10px; }
+  .objective { top: auto; bottom: calc(212px + env(safe-area-inset-bottom, 0px)); font-size: 11px; padding: 6px 10px; }
   .toast { bottom: calc(196px + env(safe-area-inset-bottom, 0px)); font-size: 12px; max-width: 86vw; text-align: center; }
   .bubble { top: 34%; max-width: 70vw; font-size: 12px; }
   .actions { gap: 6px; }

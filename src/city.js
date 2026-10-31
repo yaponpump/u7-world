@@ -54,9 +54,13 @@ export const ROOF = {
 // Satu lot di blok depan dikosongin buat minimarket, pintunya ngadep jalan di utara
 const shopLot = BUILDINGS.filter((b) => b.z < 60 && b.x >= 38 && b.x < 56 && b !== roofB).sort((a, b) => b.w - a.w)[0];
 BUILDINGS.splice(BUILDINGS.indexOf(shopLot), 1);
-export const SHOP = { x: 51.7, z: shopLot.z + 4, hw: 4.5, hd: 4 };
-export const CAFE = { x: 44, z: 24, hw: 5, hd: 4 };
+// door: sisi pintu, -1 utara, 1 selatan
+export const SHOP = { x: 51.7, z: shopLot.z + 4, hw: 4.5, hd: 4, door: -1 };
+export const CAFE = { x: 44, z: 24, hw: 5, hd: 4, door: 1 };
 const ROOM_H = 3.5;
+// Ruangan tempat pemain berada: kamera bebas keluar, tembok yang ngalangin disembunyiin world.js
+let insideRoom = null;
+export const setInsideRoom = (r) => { insideRoom = r; };
 const inStair = (x, z) => x > ROOF.x0 - 0.2 && x < ROOF.x1 + 0.2 && z > ROOF.zA && z < ROOF.zB;
 const stairY = (x) => 0.14 + Math.min(1, Math.max(0, (x - ROOF.x0) / (ROOF.x1 - ROOF.x0))) * (roofB.h - 0.14);
 const PAD = 0.55;
@@ -131,7 +135,10 @@ export function cameraBlocked(x, y, z) {
   const pad = 0.25;
   const hit = (b) => y < b.h + 0.4 && x > b.x - pad && x < b.x + b.w + pad && z > b.z - pad && z < b.z + b.d + pad;
   const roomWall = (r) => {
+    if (r === insideRoom) return false;
     const sx = Math.abs(x - r.x), sz = Math.abs(z - r.z);
+    // Kamera boleh lewat pintu, biar nggak mepet pas robot di ambang pintu
+    if (sx < 1.3 && y < 2.6 && (z - r.z) * r.door > 0) return false;
     return y < ROOM_H + 0.2 && sx < r.hw + pad && sz < r.hd + pad && (sx > r.hw - pad || sz > r.hd - pad);
   };
   return roomWall(SHOP) || roomWall(CAFE) || BUILDINGS.some(hit) || SKYLINE.some(hit);
