@@ -101,8 +101,10 @@ export function createEcosystem(group, { hi, groundHeight, isWater, blocked, cen
   flock.frustumCulled = false;
   group.add(flock);
 
+  let burstT = 0;
   return {
     rabbits, butterflies, ducks, fishMesh, flock,
+    burst(seconds = 6) { burstT = seconds; },
     update(dt, t, night, player) {
       for (const r of rabbits) {
         const near = player && Math.hypot(player.x - r.root.position.x, player.z - r.root.position.z) < 4.5;
@@ -158,7 +160,9 @@ export function createEcosystem(group, { hi, groundHeight, isWater, blocked, cen
         const flap = Math.sin(t * 16 + b.ph) * 0.9;
         b.l.rotation.y = flap; b.r.rotation.y = -flap;
       }
-      fireMat.opacity = Math.max(0, night - 0.3) * 1.2;
+      burstT = Math.max(0, burstT - dt);
+      fireMat.opacity = Math.max(Math.max(0, night - 0.3) * 1.2, Math.min(1, burstT));
+      fireMat.size = burstT > 0 ? 0.2 : 0.09;
       fireflies.visible = fireMat.opacity > 0.01;
       if (fireflies.visible) {
         fireSeed.forEach((f, i) => {

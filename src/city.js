@@ -43,6 +43,23 @@ export const inCity = (x, z) => x > CITY.x0 && z > CITY.z0;
 export function onSidewalk(x, z) {
   return COLS.some((c) => ROWS.some((r) => inRect(x, z, c, r)));
 }
+// Satu gedung pendek di blok depan punya tangga besi ke atapnya
+const roofB = BUILDINGS.find((b) => b.z < 60 && b.seed <= 0.45 && b.h < 15 && b.x > 10 && b.x < 34)
+  || BUILDINGS.find((b) => b.z < 60 && b.seed <= 0.45);
+const stairLen = roofB.h * 1.15;
+export const ROOF = {
+  b: roofB, cx: roofB.x + roofB.w / 2, cz: roofB.z + roofB.d / 2,
+  x1: roofB.x + roofB.w - 0.5, x0: roofB.x + roofB.w - 0.5 - stairLen, zA: roofB.z - 1.3, zB: roofB.z,
+};
+const inStair = (x, z) => x > ROOF.x0 - 0.2 && x < ROOF.x1 + 0.2 && z > ROOF.zA && z < ROOF.zB;
+const stairY = (x) => 0.14 + Math.min(1, Math.max(0, (x - ROOF.x0) / (ROOF.x1 - ROOF.x0))) * (roofB.h - 0.14);
+// Tinggi tangga atau atap di titik ini, 0 kalau bukan di sana
+export function rooftopHeight(x, z) {
+  if (inStair(x, z)) return stairY(x);
+  if (x > roofB.x && x < roofB.x + roofB.w && z > roofB.z && z < roofB.z + roofB.d) return roofB.h;
+  return 0;
+}
+
 // Mobil dan pembatas jalan, diisi pas kota dibangun
 // Rintangan rendah punya tinggi (top): bisa dilompatin dan diinjek atapnya.
 const OBSTACLES = [];
@@ -56,7 +73,12 @@ export function obstacleTop(x, z) {
 // y = tinggi kaki: rintangan rendah nggak ngeblok kalau kakinya udah di atas puncaknya
 export function blockedByBuilding(x, z, y = 0) {
   const pad = 0.55;
-  const inside = (b) => x > b.x - pad && x < b.x + b.w + pad && z > b.z - pad && z < b.z + b.d + pad;
+  const inside = (b) => {
+    if (b === roofB && (y >= b.h - 0.2 || inStair(x, z))) return false;
+    return x > b.x - pad && x < b.x + b.w + pad && z > b.z - pad && z < b.z + b.d + pad;
+  };
+  // Nggak bisa masuk ke tengah tangga dari bawah
+  if (inStair(x, z) && y < stairY(x) - 0.8) return true;
   return BUILDINGS.some(inside) || SKYLINE.some(inside)
     || OBSTACLES.some((o) => y < o.top - 0.2 && Math.abs(x - o.x) < o.hx + pad && Math.abs(z - o.z) < o.hz + pad);
 }
@@ -77,7 +99,7 @@ export const CITY_SIGNALS = [alleySpot(), [60, 103]];
 // Buat kamera: cuma tembok asli yang lebih tinggi dari kamera, mobil dan pagar nggak dihitung
 export function cameraBlocked(x, y, z) {
   const pad = 0.25;
-  const hit = (b) => y < b.h + 3 && x > b.x - pad && x < b.x + b.w + pad && z > b.z - pad && z < b.z + b.d + pad;
+  const hit = (b) => y < b.h + 0.4 && x > b.x - pad && x < b.x + b.w + pad && z > b.z - pad && z < b.z + b.d + pad;
   return BUILDINGS.some(hit) || SKYLINE.some(hit);
 }
 
@@ -89,7 +111,7 @@ export function cityFlat(x, z) {
 }
 
 export const cityUniforms = { uLit: { value: 0.27 }, uGlow: { value: 0 }, uFill: { value: 0 } };
-const pools = { mesh: null, heads: null, total: 0, lit: 3, night: 0 };
+const pools = { mesh: null, heads: null, total: 0, lit: 3, night: 0, finale: 0 };
 const updateFill = () => { cityUniforms.uFill.value = pools.night * (0.08 + 0.14 * pools.lit / 5); };
 
 // Cahaya pantul kota: sekadar biar gang gelap tapi masih kebaca
@@ -105,13 +127,19 @@ function addFill(mat, inner) {
 
 // Dipanggil pas lampu kota nambah dan tiap ganti waktu
 export function setCityLit(n) {
-  cityUniforms.uLit.value = n * 0.09;
+  cityUniforms.uLit.value = Math.max(n * 0.09, pools.finale);
   pools.lit = n;
   updateFill();
   const on = Math.round(pools.total * n / 5);
   if (pools.mesh) { pools.mesh.count = on; pools.heads.count = on; }
 }
-export function setCityNight(night) {
+// Momen akhir: v 0..1 nambah jendela yang nyala, nggak turun lagi setelahnya
+export function setCityFinale(v) {
+  pools.finale = Math.max(pools.finale, v);
+  cityUniforms.uLit.value = Math.max(pools.lit * 0.09, pools.finale);
+}
+export function setCityNight(realNight) {
+  const night = Math.max(realNight, pools.finale * 0.75);
   cityUniforms.uGlow.value = night * 1.15;
   pools.night = night;
   updateFill();
@@ -268,6 +296,7 @@ export function buildCity(group, { hi, A = {}, props = {}, fallback }) {
   const roofMat = pbrMaterial(A.rust, fallback, { roughness: 0.8 });
   const roofs = [];
   for (const b of BUILDINGS) {
+    if (b === roofB) continue;
     const n = 1 + Math.floor(b.seed * 3);
     for (let i = 0; i < n; i++) {
       const g = i === 0 && b.seed > 0.3 ? new THREE.CylinderGeometry(0.9, 0.9, 1.8, 12) : new THREE.BoxGeometry(1.4, 1, 1.1);
@@ -278,6 +307,28 @@ export function buildCity(group, { hi, A = {}, props = {}, fallback }) {
   const roof = new THREE.Mesh(mergeGeometries(roofs), roofMat);
   roof.castShadow = true;
   group.add(roof);
+
+  // Tangga besi ke atap
+  const steps = [], stepN = Math.round(roofB.h / 0.3), stepW = (ROOF.x1 - ROOF.x0) / stepN;
+  for (let i = 0; i < stepN; i++) {
+    const g = new THREE.BoxGeometry(stepW + 0.04, 0.07, ROOF.zB - ROOF.zA);
+    g.translate(ROOF.x0 + stepW * (i + 0.5), 0.14 + (i + 1) * (roofB.h - 0.14) / stepN - 0.04, (ROOF.zA + ROOF.zB) / 2);
+    steps.push(g.toNonIndexed());
+  }
+  const railLen = Math.hypot(ROOF.x1 - ROOF.x0, roofB.h);
+  const railGeo = new THREE.BoxGeometry(railLen, 0.06, 0.06);
+  railGeo.rotateZ(Math.atan2(roofB.h, ROOF.x1 - ROOF.x0));
+  railGeo.translate((ROOF.x0 + ROOF.x1) / 2, roofB.h / 2 + 1, ROOF.zA + 0.03);
+  steps.push(railGeo.toNonIndexed());
+  for (let i = 0; i <= 6; i++) {
+    const t = i / 6, h = 0.14 + t * roofB.h;
+    const post = new THREE.BoxGeometry(0.06, h + 0.9, 0.06);
+    post.translate(ROOF.x0 + t * (ROOF.x1 - ROOF.x0), (h + 0.9) / 2, ROOF.zA + 0.03);
+    steps.push(post.toNonIndexed());
+  }
+  const stairs = new THREE.Mesh(mergeGeometries(steps), roofMat);
+  stairs.castShadow = stairs.receiveShadow = true;
+  group.add(stairs);
 
   // Isi jalan
   const cars = [], lamps = [], barriers = [], boxes = [], hydrants = [], power = [];
