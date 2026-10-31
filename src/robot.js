@@ -64,7 +64,7 @@ export function createRobot() {
   const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.2, 0.06), orange);
   chestPlate.position.set(0, 1.18, 0.37);
   // decal "U-7" pakai canvas
-  const decal = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.14), new THREE.MeshBasicMaterial({ map: makeLabelTexture('U-7'), transparent: true }));
+  const decal = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.14), new THREE.MeshBasicMaterial({ map: makeLabelTexture('CXD'), transparent: true }));
   decal.position.set(0, 1.18, 0.405);
   torso.add(chest, belly, stripe, chestPlate, decal);
   body.add(torso);
