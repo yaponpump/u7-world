@@ -4,9 +4,6 @@
 
   document.querySelectorAll('[data-play]').forEach((a) => { if (cfg.playUrl) a.href = cfg.playUrl; });
 
-  // Nav jadi solid setelah lewat hero
-  const nav = $('nav');
-  addEventListener('scroll', () => nav.classList.toggle('solid', scrollY > innerHeight * 0.6), { passive: true });
 
   // Satu momen utama: kota nyala pelan-pelan sepanjang bagian cerita
   const story = $('story'), lit = $('lit'), lamps = [...$('lamps').children];

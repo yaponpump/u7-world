@@ -9,7 +9,7 @@ import { Scatter, partsOf } from './scatter.js';
 import { createWeather } from './weather.js';
 import { createNpcs } from './npcs.js';
 import { createEcosystem } from './ecosystem.js';
-import { addObstacle, CAFE, CLUB, blockedByBuilding, buildCity, cityFlat, ROOF, SHOP, setCityFinale, setCityPower, CITY_SIGNALS, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
+import { addObstacle, CAFE, CLUB, setInsideRoom, blockedByBuilding, buildCity, cityFlat, ROOF, SHOP, setCityFinale, setCityPower, CITY_SIGNALS, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
 
 export const WORLD = {
   size: 140,
@@ -827,6 +827,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   plaster.emissive = new THREE.Color(0x4a3220);
   plaster.emissiveIntensity = 0.35;
   const ROOM_H = 3.5, DOOR_HALF = 1.3;
+  const rooms = [];
   // Empat tembok + pintu lebar di tengah satu sisi. doorZ: -1 pintu di utara, 1 di selatan.
   function buildRoom(parent, r, doorZ, mat, base = 0) {
     const side = r.hw - DOOR_HALF, mid = DOOR_HALF + side / 2;
@@ -838,11 +839,13 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
       [side, ROOM_H, 0.14, mid, ROOM_H / 2, doorZ * r.hd],
       [DOOR_HALF * 2, 0.8, 0.14, 0, ROOM_H - 0.4, doorZ * r.hd],
     ];
-    for (const [sx, sy, sz, x, y, z] of panels) {
+    const meshes = panels.map(([sx, sy, sz, x, y, z]) => {
       const panel = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
       panel.position.set(x, base + y, z);
       parent.add(panel);
-    }
+      return panel;
+    });
+    rooms.push({ r, back: [meshes[0]], left: [meshes[1]], right: [meshes[2]], front: meshes.slice(3), doorZ });
     for (const [x, z, hx, hz] of [[0, -doorZ * r.hd, r.hw, 0.1], [-r.hw, 0, 0.1, r.hd], [r.hw, 0, 0.1, r.hd], [-mid, doorZ * r.hd, side / 2, 0.1], [mid, doorZ * r.hd, side / 2, 0.1]]) {
       addObstacle(r.x + x, r.z + z, hx, hz, 99);
     }
@@ -890,7 +893,17 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   const awning = new THREE.Mesh(new THREE.BoxGeometry(7.4, 0.06, 1.7), new THREE.MeshStandardMaterial({ color: 0xc2552a, roughness: 0.9 }));
   awning.position.set(0, 2.75, CAFE.hd + 0.65);
   awning.rotation.x = 0.18;
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.56), new THREE.MeshStandardMaterial({ color: 0xb8ff3c, emissive: 0xb8ff3c, emissiveIntensity: 0.6 }));
+  const cafeSignCanvas = document.createElement('canvas');
+  cafeSignCanvas.width = 512; cafeSignCanvas.height = 90;
+  {
+    const c = cafeSignCanvas.getContext('2d');
+    c.fillStyle = '#231a12'; c.fillRect(0, 0, 512, 90);
+    c.fillStyle = '#ffc98a'; c.font = '700 60px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText('CAFE', 256, 48);
+  }
+  const cafeSignTex = new THREE.CanvasTexture(cafeSignCanvas);
+  cafeSignTex.colorSpace = THREE.SRGBColorSpace;
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.56), new THREE.MeshStandardMaterial({ map: cafeSignTex, emissive: 0xffffff, emissiveMap: cafeSignTex, emissiveIntensity: 0.3 }));
   sign.position.set(0, 3.16, CAFE.hd + 0.09);
   cafe.add(roof, awning, sign);
   WORLD.cafeAwning = awning;
@@ -1225,6 +1238,23 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     },
     get weather() { return weather.state; },
     updateTrees(camera) { for (const t of treeSets) t.update(camera); },
+    // Pemain di dalam ruangan: kamera boleh di luar, tembok yang ngalangin ilang
+    updateRooms(camera) {
+      if (!player) return;
+      let inside = null;
+      const c = camera.position;
+      for (const room of rooms) {
+        const { r, back, left, right, front, doorZ } = room;
+        const isIn = Math.abs(player.x - r.x) < r.hw && Math.abs(player.z - r.z) < r.hd;
+        if (isIn) inside = r;
+        const show = (list, hide) => { for (const m of list) m.visible = !(isIn && hide); };
+        show(left, c.x < r.x - r.hw);
+        show(right, c.x > r.x + r.hw);
+        show(back, (c.z - r.z) * -doorZ > r.hd);
+        show(front, (c.z - r.z) * doorZ > r.hd);
+      }
+      setInsideRoom(inside);
+    },
     setSun(dir, color) {
       weather.apply();
       for (const w of waters) {
@@ -1340,5 +1370,5 @@ export function applyNight(nightAmount) {
     l.headMat.emissiveIntensity = k * 4;
     l.light.intensity = k * 40;
   }
-  if (WORLD.cafeSign) WORLD.cafeSign.emissiveIntensity = 0.3 + nightAmount * 2.5;
+  if (WORLD.cafeSign) WORLD.cafeSign.emissiveIntensity = 0.3 + nightAmount * 0.7;
 }

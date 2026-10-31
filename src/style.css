@@ -87,7 +87,7 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
   .panel.quest { max-width: 58vw; }
   .panel.quest .small { font-size: 11px; }
   .lights .small { font-size: 11px; }
-  .objective { top: auto; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); font-size: 11px; padding: 6px 10px; }
+  .objective { top: auto; bottom: calc(212px + env(safe-area-inset-bottom, 0px)); font-size: 11px; padding: 6px 10px; }
   .toast { bottom: calc(196px + env(safe-area-inset-bottom, 0px)); font-size: 12px; max-width: 86vw; text-align: center; }
   .bubble { top: 34%; max-width: 70vw; font-size: 12px; }
   .actions { gap: 6px; }
@@ -106,3 +106,39 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
 .shop-item.owned { opacity: 0.6; }
 .shop-item .btn { padding: 6px 10px; font-size: 11px; white-space: nowrap; }
 .shop-item .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ---- Tombol aksi ala Astro Bot: pill tebal, kotak tombol keyboard yang jelas ---- */
+.hud-bl { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.actions { gap: 10px; }
+.btn.action { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px 6px 6px; border-radius: 999px;
+  background: #ffffff; color: var(--ink); border: 0; box-shadow: 0 4px 0 rgba(0,0,0,0.35), 0 8px 18px rgba(0,0,0,0.25);
+  font-size: 13px; transition: transform 0.08s, box-shadow 0.08s; }
+.btn.action:hover { transform: translateY(-2px); box-shadow: 0 6px 0 rgba(0,0,0,0.35), 0 10px 20px rgba(0,0,0,0.3); border: 0; }
+.btn.action:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.35); }
+.btn.action kbd { display: inline-grid; place-items: center; min-width: 28px; height: 28px; padding: 0 8px; border-radius: 999px;
+  background: var(--violet); color: #fff; font: 800 12px var(--display); letter-spacing: 0.02em; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.28); }
+.btn.action.quiet { background: rgba(255,255,255,0.86); }
+.btn.action.quiet kbd { background: #2a2f3a; }
+#act-jump kbd, #act-flip kbd { background: var(--orange); }
+#act-sit kbd, #act-drink kbd, #act-throw kbd { background: var(--lime); color: var(--ink); }
+#face-btn { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px 6px 6px; }
+#face-btn kbd { display: inline-grid; place-items: center; min-width: 28px; height: 28px; padding: 0 8px; border-radius: 999px; background: #fff; color: var(--ink); font: 800 12px var(--display); box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2); }
+/* legenda gerak */
+.legend { display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+.legend-row { display: flex; align-items: center; gap: 10px; font: 600 12px var(--body); color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.7); }
+.legend kbd { display: inline-grid; place-items: center; min-width: 30px; height: 30px; padding: 0 9px; border-radius: 10px; background: #fff; color: var(--ink);
+  font: 800 12px var(--display); box-shadow: 0 3px 0 rgba(0,0,0,0.35); }
+.legend kbd.wasd { grid-template-columns: repeat(3, 14px); grid-template-rows: repeat(2, 14px); gap: 2px; padding: 4px; height: auto; min-width: 0; }
+.legend kbd.wasd i { font-style: normal; display: grid; place-items: center; font-size: 9px; background: #e9e6ff; border-radius: 4px; }
+.legend kbd.wasd i:nth-child(1) { grid-column: 2; }
+.legend kbd.wasd i:nth-child(2) { grid-column: 1; grid-row: 2; }
+.legend kbd.wasd i:nth-child(3) { grid-column: 2; grid-row: 2; }
+.legend kbd.wasd i:nth-child(4) { grid-column: 3; grid-row: 2; }
+.legend kbd.mouse { font-size: 15px; }
+.hint.generic { display: none; }
+.hint { background: rgba(255,255,255,0.92); color: var(--ink); border: 0; border-radius: 999px; padding: 8px 14px; font-weight: 600; box-shadow: 0 4px 0 rgba(0,0,0,0.3); }
+@media (pointer: coarse) {
+  .legend { display: none; }
+  .btn.action kbd, #face-btn kbd { display: none; }
+  .btn.action, #face-btn { padding: 9px 14px; }
+}

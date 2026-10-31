@@ -132,6 +132,14 @@ export function createControls(canvas) {
     document.getElementById(id)?.addEventListener('click', () => input.pressed.add(key));
   }
 
+  // Tombol lompat di HP bisa ditahan buat manjat tembok, sama kayak nahan Space
+  const jumpBtn = document.getElementById('act-jump');
+  jumpBtn?.addEventListener('pointerdown', (e) => {
+    keys.add(' ');
+    jumpBtn.setPointerCapture?.(e.pointerId);
+  });
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) jumpBtn?.addEventListener(ev, () => keys.delete(' '));
+
   const damp = (k, dt) => 1 - Math.exp(-k * dt);
 
   return {
