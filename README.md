@@ -21,7 +21,7 @@ Open `http://localhost:5173`.
 | Space (hold to keep jumping) | Jump |
 | Shift | Run |
 | B | Backflip |
-| 1 to 5 or the Faces button | Choose a face. It stays until you change it |
+| G or the face button | Next face. It stays until you change it. Keys 1 to 5 pick one directly |
 | T | Skip 3 hours |
 | Right-drag or left-drag / drag on screen | Look around |
 | Scroll / I and O / pinch | Zoom |

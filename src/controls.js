@@ -24,7 +24,7 @@ export function createControls(canvas) {
 
   window.addEventListener('keydown', (e) => {
     const k = e.key.toLowerCase();
-    if (!keys.has(k) && ['e', 'f', 'r', 'q', 'm', 'b', 't', '1', '2', '3', '4', '5', ' '].includes(k)) input.pressed.add(k);
+    if (!keys.has(k) && ['e', 'f', 'r', 'q', 'm', 'b', 't', 'g', '1', '2', '3', '4', '5', ' '].includes(k)) input.pressed.add(k);
     keys.add(k);
     // Roblox: I / O zoom in / out
     if (k === 'i') cam.dist = Math.max(DIST_MIN, cam.dist - 1);
