@@ -25,7 +25,7 @@ Buka `http://localhost:5173`.
 | R | Lempar batu (dekat danau / dermaga) |
 | Q | Foto |
 
-Diemin U-7 sekitar 15 detik, dia nguap. 30 detik, dia ketiduran.
+Diemin VUZZ sekitar 15 detik, dia nguap. 30 detik, dia ketiduran.
 
 ## Kualitas grafis
 
@@ -43,7 +43,7 @@ Otomatis: `high` di desktop, `low` di HP. Paksa lewat URL: `?q=low` atau `?q=hig
 ## Struktur
 
 - `src/world.js` – tanah, bukit, sungai, danau, taman, dermaga, jembatan, pohon, lampu kota, kafe, sinyal quest
-- `src/robot.js` – U-7 (mesh prosedural + animasi per state: idle, walk, run, sit, drink, yawn, sleep, throw, curious, wave)
+- `src/robot.js` – VUZZ (mesh prosedural + animasi per state: idle, walk, run, sit, drink, yawn, sleep, throw, curious, wave)
 - `src/controls.js` – keyboard, mouse, joystick sentuh
 - `src/main.js` – loop, siang/malam ikut jam asli, perilaku, HUD, quest
 
@@ -54,6 +54,6 @@ Push ke `main` otomatis deploy ke GitHub Pages lewat `.github/workflows/pages.ym
 ## Roadmap
 
 1. Prototype (ini)
-2. Model 3D U-7 asli (GLB + rig + animasi)
+2. Model 3D VUZZ asli (GLB + rig + animasi)
 3. Dunia hidup: cuaca ikut market, NPC, pemain lain
 4. Wallet, skin holder, event "sync"

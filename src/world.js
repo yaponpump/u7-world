@@ -326,7 +326,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   const sprayCount = 600;
   const spray = new THREE.Points(
     new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(new Array(sprayCount * 3).fill(0), 3)),
-    new THREE.PointsMaterial({ color: 0xe8f6ff, size: 0.05, map: dropTexture(), transparent: true, opacity: 0.7, depthWrite: false }),
+    new THREE.PointsMaterial({ color: 0xe8f6ff, size: 0.02, map: dropTexture(), transparent: true, opacity: 0.55, depthWrite: false }),
   );
   spray.position.set(WORLD.fountain.x, 2.4, WORLD.fountain.z);
   group.add(spray);
