@@ -53,7 +53,7 @@ async function loadSequence(name, count) {
 const stage = $('stage');
 const canvas = $('gl');
 let renderer = null, scene, camera, robot, dust, shadowMesh, env;
-const view = { x: 1.4, y: 0, z: 0, ry: -0.5, s: 1, cx: 0, cy: 1.1, cz: 4.6, look: 1.0, on: 1 };
+const view = { x: 2.3, y: 0, z: 0, ry: -0.45, s: 0.92, cx: 0.3, cy: 1.3, cz: 7.2, lx: 0.3, look: 1.35, on: 1 };
 let webgl = false;
 try { webgl = !reduced && !!document.createElement('canvas').getContext('webgl2'); } catch { webgl = false; }
 
@@ -117,13 +117,14 @@ function frame(now) {
     const t = now / 1000;
     const r = robot.root;
     // skala layar sempit: robot lebih kecil dan ke tengah
-    const k = narrow() ? 0.72 : 1;
-    r.position.set(view.x * k, view.y, view.z);
+    const nw = narrow();
+    const k = nw ? 0.35 : 1;
+    r.position.set(view.x * k, view.y + (nw ? 1.9 : 0), view.z);
     r.rotation.y = view.ry + mouse.x * 0.18;
-    r.scale.setScalar(view.s * view.on);
+    r.scale.setScalar(view.s * view.on * (nw ? 0.82 : 1));
     r.visible = view.on > 0.01;
-    camera.position.set(view.cx + mouse.x * 0.12, view.cy + 0.25 + mouse.y * -0.08, view.cz);
-    camera.lookAt(view.x * k, view.look, view.z);
+    camera.position.set(view.cx * k + mouse.x * 0.12, view.cy + 0.25 + mouse.y * -0.08, view.cz * (nw ? 2.1 : 1));
+    camera.lookAt(view.lx * k, view.look + (nw ? 0.7 : 0), 0);
     robot.update(dt, 0, t);
     dust.rotation.y = t * 0.02;
     dust.position.y = Math.sin(t * 0.3) * 0.1;
@@ -201,13 +202,13 @@ function robotTimeline() {
     ...vals, ease: 'none', scrollTrigger: { trigger, start, end, scrub: 0.6 },
   });
   // hero: pelan muter waktu mulai scroll, lalu mundur keluar ke kanan
-  gsap.to(view, { ry: 0.9, s: 0.9, y: -0.3, cz: 5.6, on: 0, ease: 'none', scrollTrigger: { trigger: at('hero'), start: 'top top', end: 'bottom top', scrub: 0.6 } });
+  gsap.to(view, { ry: 0.9, s: 0.8, y: -0.4, cz: 8.4, on: 0, ease: 'none', scrollTrigger: { trigger: at('hero'), start: 'top top', end: 'bottom top', scrub: 0.6 } });
   // moods: VUZZ di tengah kanan, deket, muter pelan
-  pose({ x: 1.1, y: 0, z: 0.4, ry: -0.2, s: 1, cz: 3.9, cy: 1.2, look: 1.05, on: 1 }, at('moods'), 'top bottom', 'top top');
+  pose({ x: 2.0, y: 0, z: 0, ry: -0.25, s: 1, cz: 6.8, cy: 1.4, cx: 0.4, lx: 0.4, look: 1.4, on: 1 }, at('moods'), 'top bottom', 'top top');
   gsap.to(view, { ry: 0.35, ease: 'none', scrollTrigger: { trigger: at('moods'), start: 'top top', end: 'bottom bottom', scrub: 0.6 } });
   pose({ on: 0, y: -0.4 }, at('moods'), 'bottom 60%', 'bottom top');
   // end: VUZZ di tengah, dadah
-  pose({ x: 0, y: 0, z: 0, ry: 0.15, s: 1.05, cz: 4.4, cy: 1.1, look: 1.0, on: 1 }, at('end'), 'top bottom', 'top 30%');
+  pose({ x: 0, y: 0, z: 0, ry: 0.1, s: 1, cz: 8.6, cy: 1.2, cx: 0, lx: 0, look: 1.6, on: 1 }, at('end'), 'top bottom', 'top 30%');
   ScrollTrigger.create({ trigger: at('end'), start: 'top 60%', onEnter() { robot.setState('wave'); robot.setExpression('happy', 6); }, onLeaveBack() { robot.setState('idle'); } });
   // hero: dadah sekali waktu loading selesai
 }
