@@ -45,12 +45,13 @@ export function onSidewalk(x, z) {
 }
 // Mobil dan pembatas jalan, diisi pas kota dibangun
 const OBSTACLES = [];
-export const addObstacle = (x, z, hx, hz) => OBSTACLES.push({ x, z, hx, hz });
-export function blockedByBuilding(x, z) {
+export const addObstacle = (x, z, hx, hz, h = 1.4) => OBSTACLES.push({ x, z, hx, hz, h });
+// y: tinggi kaki robot. Yang lagi di atas mobil atau pembatas nggak keblokir.
+export function blockedByBuilding(x, z, y = 0) {
   const pad = 0.55;
   const inside = (b) => x > b.x - pad && x < b.x + b.w + pad && z > b.z - pad && z < b.z + b.d + pad;
   return BUILDINGS.some(inside) || SKYLINE.some(inside)
-    || OBSTACLES.some((o) => Math.abs(x - o.x) < o.hx + pad && Math.abs(z - o.z) < o.hz + pad);
+    || OBSTACLES.some((o) => y < o.h - 0.25 && Math.abs(x - o.x) < o.hx + pad && Math.abs(z - o.z) < o.hz + pad);
 }
 // Dua sinyal quest di kota: gang paling lebar di blok tengah, dan ujung jalan dekat skyline
 function alleySpot() {
@@ -67,6 +68,15 @@ function alleySpot() {
 export const CITY_SIGNALS = [alleySpot(), [60, 103]];
 
 // Buat kamera: cuma tembok asli yang lebih tinggi dari kamera, mobil dan pagar nggak dihitung
+// Atap mobil atau pembatas di bawah kaki robot, kalau ada
+export function obstacleTop(x, z, y) {
+  let top = -Infinity;
+  for (const o of OBSTACLES) {
+    if (y >= o.h - 0.25 && Math.abs(x - o.x) < o.hx && Math.abs(z - o.z) < o.hz) top = Math.max(top, o.h);
+  }
+  return top;
+}
+
 export function cameraBlocked(x, y, z) {
   const pad = 0.25;
   const hit = (b) => y < b.h + 3 && x > b.x - pad && x < b.x + b.w + pad && z > b.z - pad && z < b.z + b.d + pad;
@@ -319,7 +329,7 @@ export function buildCity(group, { hi, A = {}, props = {}, fallback }) {
     const alongX = Math.abs(Math.sin(o.ry)) > 0.7;
     const isCar = shownCars.includes(o);
     const long = isCar ? 2.15 : 1.05, wide = isCar ? 0.95 : 0.3;
-    OBSTACLES.push({ x: o.x, z: o.z, hx: alongX ? long : wide, hz: alongX ? wide : long });
+    OBSTACLES.push({ x: o.x, z: o.z, hx: alongX ? long : wide, hz: alongX ? wide : long, h: isCar ? 1.45 : 0.85 });
   }
   placeModel(group, props.car, shownCars, 4.3);
   placeModel(group, props.lamp, shown, 7, true);

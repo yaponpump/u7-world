@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight, distToRiver, onBridge, onPier, deckHeight, blockedByRail } from './world.js';
-import { blockedByBuilding, cameraBlocked } from './city.js';
+import { blockedByBuilding, cameraBlocked, obstacleTop } from './city.js';
 import { createRobot, STATES } from './robot.js';
 import { createAudio } from './audio.js';
 import { createWallet } from './wallet.js';
@@ -458,7 +458,7 @@ let elapsed = 0;
 let frameNo = 0;
 const SPEED_WALK = 4.2;
 const SPEED_RUN = 8.5;
-const JUMP_SPEED = 6.4;
+const JUMP_SPEED = 7.5;
 const GRAVITY = 16;
 const BOUNDS = { min: -126, max: 126 }; // tepi tanah yang bisa diinjak, kota sampai ~126
 
@@ -567,7 +567,7 @@ function tick() {
       const nz = pos.z + dz * speed * dt;
       // seluruh map bisa dijelajahi: batasnya tepi tanah, termasuk kota di tenggara.
       // Sungai dan pinggir danau dangkal, bisa diseberangi jalan kaki; tengah danau tetap dalam.
-      const free = (x, z) => (!isWater(x, z) || wadeable(x, z)) && !blockedByBuilding(x, z) && !blockedByRail(x, z) && x > BOUNDS.min && x < BOUNDS.max && z > BOUNDS.min && z < BOUNDS.max;
+      const free = (x, z) => (!isWater(x, z) || wadeable(x, z)) && !blockedByBuilding(x, z, pos.y) && !blockedByRail(x, z) && x > BOUNDS.min && x < BOUNDS.max && z > BOUNDS.min && z < BOUNDS.max;
       if (free(nx, nz)) {
         pos.x = nx; pos.z = nz;
       } else if (free(nx, pos.z)) {
@@ -619,6 +619,7 @@ function tick() {
     if (deck) gy = deckHeight(deck, pos.x, pos.z);
     else if (onStone(pos.x, pos.z)) gy = 0.1;
     if (onPier(pos.x, pos.z)) gy = 0.34;
+    gy = Math.max(gy, obstacleTop(pos.x, pos.z, pos.y));
     if (behavior.wading) {
       gy = Math.min(gy, -0.2 - wadeDepth(pos.x, pos.z)); // kaki nyemplung di bawah permukaan air (y -0.2)
       if (!behavior.wasWading) { audio.play('plunk'); splash(pos.x, pos.z); express('surprised', 1.5); behavior.wadeTime = 0; if (Math.random() < 0.5) say('Cold. Fine. I can do this.', 1600); }
