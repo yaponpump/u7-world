@@ -264,7 +264,25 @@ function renderSkins() {
     grid.appendChild(el);
   }
 }
-$('skin-btn').addEventListener('click', () => { const p = $('skins-panel'); p.hidden = !p.hidden; });
+$('skin-btn').addEventListener('click', () => { const p = $('skins-panel'); p.hidden = !p.hidden; $('faces-panel').hidden = true; });
+$('face-btn').addEventListener('click', () => { const p = $('faces-panel'); p.hidden = !p.hidden; $('skins-panel').hidden = true; });
+
+// Panel wajah: pilihan pemain bertahan sampai diganti
+const FACE_OPTIONS = [['neutral', 'Normal'], ['happy', 'Happy'], ['sad', 'Sad'], ['angry', 'Angry'], ['surprised', 'Surprised'], ['disgust', 'Disgust']];
+function pickFace(name) {
+  robot.setFace(name);
+  document.querySelectorAll('#face-grid button').forEach((b) => b.classList.toggle('active', b.dataset.face === name));
+  const lines = faceLines[name];
+  if (lines) say(lines[Math.floor(Math.random() * lines.length)], 2200);
+}
+for (const [id, label] of FACE_OPTIONS) {
+  const b = document.createElement('button');
+  b.className = 'face-option' + (id === 'neutral' ? ' active' : '');
+  b.dataset.face = id;
+  b.textContent = label;
+  b.addEventListener('click', () => pickFace(id));
+  $('face-grid').appendChild(b);
+}
 renderSkins();
 {
   let saved = null;
@@ -572,7 +590,7 @@ function tick() {
 
     // --- ekspresi manual: 1-5 (seneng, sedih, marah, terkejut, jijik) ---
     for (const [k, name] of [['1', 'happy'], ['2', 'sad'], ['3', 'angry'], ['4', 'surprised'], ['5', 'disgust']]) {
-      if (controls.consume(k)) { express(name, 3); say(faceLines[name][Math.floor(Math.random() * faceLines[name].length)], 2200); }
+      if (controls.consume(k)) { pickFace(robot.state.base === name ? 'neutral' : name); }
     }
 
     // --- backflip (B) ---

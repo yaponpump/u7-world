@@ -249,6 +249,11 @@ export function createRobot({ dormant = false } = {}) {
       api.expression = state.expr || 'neutral';
       if (known) { faceMat.map = faceTexture(name); faceMat.needsUpdate = true; }
     },
+    // Wajah pilihan pemain: bertahan terus, reaksi sementara balik ke sini
+    setFace(name) {
+      state.base = name;
+      api.setExpression(name, Infinity);
+    },
     // Efek ngempis pas napak, numpang di atas animasi apa pun
     land() { state.squash = 1; },
     // Unit mati: satu mata nyala pas kotanya penuh lagi
@@ -377,7 +382,7 @@ export function createRobot({ dormant = false } = {}) {
       }
       if (state.exprT > 0) {
         state.exprT -= dt;
-        if (state.exprT <= 0) api.setExpression('neutral');
+        if (state.exprT <= 0) api.setExpression(state.base || 'neutral', Infinity);
       }
       const showFace = !!state.expr && n !== 'sleep';
       face.visible = showFace;
