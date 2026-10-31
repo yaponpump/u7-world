@@ -16,7 +16,7 @@ const COL = {
 
 const shared = {};
 
-export const STATES = ['idle', 'walk', 'run', 'sit', 'drink', 'yawn', 'sleep', 'throw', 'curious', 'wave'];
+export const STATES = ['idle', 'walk', 'run', 'sit', 'drink', 'yawn', 'sleep', 'throw', 'curious', 'wave', 'jump'];
 
 export function createRobot({ dormant = false } = {}) {
   const root = new THREE.Group();
@@ -212,7 +212,7 @@ export function createRobot({ dormant = false } = {}) {
   root.traverse((m) => { if (m.isMesh) m.castShadow = true; });
 
   // ---- state & animasi ----
-  const state = { name: 'idle', t: 0, blink: 0, eyeMode: 'normal' };
+  const state = { name: 'idle', t: 0, blink: 0, eyeMode: 'normal', squash: 0 };
   const api = {
     root, head, state,
     setState(name) {
@@ -234,6 +234,8 @@ export function createRobot({ dormant = false } = {}) {
       eyeMat.emissive.set(emissive);
       glow.color.set(emissive);
     },
+    // Efek ngempis pas napak, numpang di atas animasi apa pun
+    land() { state.squash = 1; },
     // Unit mati: satu mata nyala pas kotanya penuh lagi
     setEyeSignal(on) {
       eyeR.material = on ? signalEye : eyeL.material;
@@ -253,6 +255,7 @@ export function createRobot({ dormant = false } = {}) {
 
       // reset pose default lalu tambahin per state
       body.position.y = 0;
+      body.scale.set(1, 1, 1);
       body.rotation.set(0, 0, 0);
       head.rotation.set(0, 0, 0);
       legL.rotation.set(0, 0, 0);
@@ -336,9 +339,22 @@ export function createRobot({ dormant = false } = {}) {
         armR.pivot.rotation.x = -1.2;
         legL.rotation.x = -0.4;
         legR.rotation.x = -0.4;
+      } else if (n === 'jump') {
+        legL.rotation.x = -0.75;
+        legR.rotation.x = 0.35;
+        legs.position.set(0, 0.08, 0.04);
+        armL.pivot.rotation.set(-0.5, 0, -0.75);
+        armR.pivot.rotation.set(0.35, 0, 0.75);
+        head.rotation.x = -0.1;
+        body.rotation.x = 0.08;
       } else if (n === 'wave') {
         armR.pivot.rotation.z = 2.3 + Math.sin(time * 10) * 0.3;
         head.rotation.z = -0.15;
+      }
+      if (state.squash > 0) {
+        state.squash = Math.max(0, state.squash - dt / 0.22);
+        const k = state.squash * state.squash;
+        body.scale.set(1 + k * 0.1, 1 - k * 0.16, 1 + k * 0.1);
       }
     },
   };

@@ -1,6 +1,6 @@
-// Input: keyboard (WASD/arrow), mouse drag + scroll buat kamera, joystick sentuh di HP.
-// Semua gerakan kamera dan input jalan dihaluskan di poll(dt): drag punya inersia,
-// yaw/pitch ngejar target dengan damping, dan arah jalan nggak loncat.
+// Input ala Roblox: WASD jalan, Space loncat, Shift lari, drag mouse (kanan/kiri) muter kamera,
+// scroll atau I/O zoom, panah kiri/kanan muter kamera. Joystick sentuh di HP.
+// Kamera nggak auto-follow: arahnya cuma berubah kalau user yang muter.
 export function createControls(canvas) {
   const keys = new Set();
   const input = {
@@ -12,6 +12,7 @@ export function createControls(canvas) {
     camDist: 6.5,
     pressed: new Set(),         // aksi sekali tekan (e, f, r, q, m)
     anyInput: false,
+    jumpHeld: false,            // Space ditahan = loncat terus (Roblox)
     dragging: false,
     sinceDrag: 99,              // detik sejak terakhir user muter kamera (buat auto-follow)
   };
@@ -23,8 +24,11 @@ export function createControls(canvas) {
 
   window.addEventListener('keydown', (e) => {
     const k = e.key.toLowerCase();
+    if (!keys.has(k) && ['e', 'f', 'r', 'q', 'm', ' '].includes(k)) input.pressed.add(k);
     keys.add(k);
-    if (['e', 'f', 'r', 'q', 'm', ' '].includes(k)) input.pressed.add(k);
+    // Roblox: I / O zoom in / out
+    if (k === 'i') cam.dist = Math.max(DIST_MIN, cam.dist - 1);
+    if (k === 'o') cam.dist = Math.min(DIST_MAX, cam.dist + 1);
     if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
   });
   window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
@@ -124,7 +128,7 @@ export function createControls(canvas) {
   canvas.addEventListener('pointercancel', camEnd);
 
   // Tombol aksi di HUD → sama kayak tombol keyboard
-  for (const [id, key] of [['act-sit', 'e'], ['act-drink', 'f'], ['act-throw', 'r'], ['act-photo', 'q']]) {
+  for (const [id, key] of [['act-sit', 'e'], ['act-drink', 'f'], ['act-throw', 'r'], ['act-photo', 'q'], ['act-jump', ' ']]) {
     document.getElementById(id)?.addEventListener('click', () => input.pressed.add(key));
   }
 
@@ -133,11 +137,15 @@ export function createControls(canvas) {
   return {
     input,
     poll(dt = 1 / 60) {
+      dt = Math.min(dt, 0.05); // frame lambat jangan bikin kamera loncat
       let x = 0, y = 0;
       if (keys.has('w') || keys.has('arrowup')) y -= 1;
       if (keys.has('s') || keys.has('arrowdown')) y += 1;
-      if (keys.has('a') || keys.has('arrowleft')) x -= 1;
-      if (keys.has('d') || keys.has('arrowright')) x += 1;
+      if (keys.has('a')) x -= 1;
+      if (keys.has('d')) x += 1;
+      // Roblox: panah kiri/kanan muter kamera
+      if (keys.has('arrowleft')) { cam.yaw += 2.2 * dt; input.sinceDrag = 0; }
+      if (keys.has('arrowright')) { cam.yaw -= 2.2 * dt; input.sinceDrag = 0; }
       x += joyVec.x; y += joyVec.y;
       const len = Math.hypot(x, y);
       if (len > 1) { x /= len; y /= len; }
@@ -152,15 +160,11 @@ export function createControls(canvas) {
       input.anyInput = len > 0.05 || input.dragging || input.pressed.size > 0;
       input.sinceDrag += dt;
 
-      // inersia kamera setelah drag dilepas
-      if (!input.dragging) {
-        cam.yaw += cam.yawVel;
-        cam.pitch = Math.min(PITCH_MAX, Math.max(PITCH_MIN, cam.pitch + cam.pitchVel));
-        const f = Math.exp(-dt * 7);
-        cam.yawVel *= f; cam.pitchVel *= f;
-      }
-      // nilai halus ngejar target
-      const kc = damp(input.dragging ? 22 : 12, dt);
+      input.jumpHeld = keys.has(' ');
+      // Roblox: nggak ada inersia kamera, berhenti begitu drag dilepas
+      cam.yawVel = cam.pitchVel = 0;
+      // nilai halus ngejar target (responsif ala Roblox, cuma dihalusin tipis)
+      const kc = damp(input.dragging ? 30 : 18, dt);
       let dy = cam.yaw - input.camYaw;
       dy = Math.atan2(Math.sin(dy), Math.cos(dy));
       input.camYaw += dy * kc;

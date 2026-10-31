@@ -48,7 +48,8 @@ const OBSTACLES = [];
 export const addObstacle = (x, z, hx, hz) => OBSTACLES.push({ x, z, hx, hz });
 export function blockedByBuilding(x, z) {
   const pad = 0.55;
-  return BUILDINGS.some((b) => x > b.x - pad && x < b.x + b.w + pad && z > b.z - pad && z < b.z + b.d + pad)
+  const inside = (b) => x > b.x - pad && x < b.x + b.w + pad && z > b.z - pad && z < b.z + b.d + pad;
+  return BUILDINGS.some(inside) || SKYLINE.some(inside)
     || OBSTACLES.some((o) => Math.abs(x - o.x) < o.hx + pad && Math.abs(z - o.z) < o.hz + pad);
 }
 // Dua sinyal quest di kota: gang paling lebar di blok tengah, dan ujung jalan dekat skyline

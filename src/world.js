@@ -84,14 +84,14 @@ WORLD.routes = [
   { id: 'bridge', points: [[13.2, 0], [3, 0], [3, -16]] },
 ];
 WORLD.landmarks = [
-  { id: 'park', name: 'Taman', x: 20, z: 0, kind: 'park' },
-  { id: 'fountain', name: 'Air mancur', x: 20, z: 0, kind: 'fountain', minor: true },
-  { id: 'lake', name: 'Danau', x: -34, z: 30, kind: 'lake' },
-  { id: 'pier', name: 'Dermaga', x: -14, z: 22, kind: 'pier' },
-  { id: 'bridge', name: 'Jembatan', x: -4, z: -16, kind: 'bridge' },
-  { id: 'hill', name: 'Bukit', x: 44, z: -40, kind: 'hill' },
-  { id: 'cafe', name: 'Kafe', x: 44, z: 24, kind: 'cafe' },
-  { id: 'city', name: 'Kota', x: 40, z: 72, kind: 'city' },
+  { id: 'park', name: 'Park', x: 20, z: 0, kind: 'park' },
+  { id: 'fountain', name: 'Fountain', x: 20, z: 0, kind: 'fountain', minor: true },
+  { id: 'lake', name: 'Lake', x: -34, z: 30, kind: 'lake' },
+  { id: 'pier', name: 'Pier', x: -14, z: 22, kind: 'pier' },
+  { id: 'bridge', name: 'Bridge', x: -4, z: -16, kind: 'bridge' },
+  { id: 'hill', name: 'Hill', x: 44, z: -40, kind: 'hill' },
+  { id: 'cafe', name: 'Cafe', x: 44, z: 24, kind: 'cafe' },
+  { id: 'city', name: 'City', x: 40, z: 72, kind: 'city' },
 ];
 
 function segDist(x, z, a, b) {
@@ -727,9 +727,9 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     const s = new THREE.Mesh(sigGeo, m);
     s.position.set(x, groundHeight(x, z) + 1.2, z);
     const l = new THREE.PointLight(0xb8ff3c, 4, 6, 2);
-    s.add(l);
-    group.add(s);
-    WORLD.signals.push({ mesh: s, x, z, taken: false });
+    l.position.set(x, groundHeight(x, z) + 1.2, z);
+    group.add(s, l);
+    WORLD.signals.push({ mesh: s, light: l, x, z, taken: false });
   }
 
   buildCity(group, { hi, A, props: assets.props, fallback: texStone });
@@ -858,7 +858,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
       }
       // sinyal
       for (const s of WORLD.signals) {
-        if (s.taken) continue;
+        if (s.taken) { s.light.intensity = 0; continue; }
         s.mesh.rotation.y = t * 1.5;
         s.mesh.position.y = groundHeight(s.x, s.z) + 1.2 + Math.sin(t * 2 + s.x) * 0.2;
       }

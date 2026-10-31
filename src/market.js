@@ -47,7 +47,7 @@ export function createMarket({ onChange = () => {} } = {}) {
     if (!r.ok) throw new Error('coingecko ' + r.status);
     const j = await r.json();
     const d = j[id];
-    if (!d) throw new Error('coingecko: id nggak ketemu');
+    if (!d) throw new Error('coingecko: id not found');
     state.price = d.usd;
     setFromChange(d.usd_24h_change ?? 0, 'coingecko');
   }
@@ -56,7 +56,7 @@ export function createMarket({ onChange = () => {} } = {}) {
     if (!r.ok) throw new Error('dexscreener ' + r.status);
     const j = await r.json();
     const p = j.pair || j.pairs?.[0];
-    if (!p) throw new Error('dexscreener: pair nggak ketemu');
+    if (!p) throw new Error('dexscreener: pair not found');
     state.price = Number(p.priceUsd);
     state.change1h = p.priceChange?.h1 ?? null;
     setFromChange(p.priceChange?.h24 ?? 0, 'dexscreener');
@@ -100,9 +100,9 @@ export function createMarket({ onChange = () => {} } = {}) {
 }
 
 export const MOOD_LABEL = {
-  storm: 'Badai · market lagi dump',
-  rain: 'Hujan · market merah',
-  cloudy: 'Mendung · market datar',
-  clear: 'Cerah · market hijau',
-  golden: 'Golden hour · market pump',
+  storm: 'Storm · market dumping',
+  rain: 'Rain · market red',
+  cloudy: 'Overcast · flat market',
+  clear: 'Clear · market green',
+  golden: 'Golden hour · market pumping',
 };
