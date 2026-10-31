@@ -95,7 +95,7 @@ export function createRobot({ dormant = false } = {}) {
   const chestPlate = box(0.42, 0.2, 0.05, orange, 0.02);
   torso.add(place(chestPlate, 0, 1.2, 0.255));
   bolts(torso, [[-0.19, 1.28, 0.283], [0.19, 1.28, 0.283], [-0.19, 1.12, 0.283], [0.19, 1.12, 0.283]]);
-  const decal = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.13), new THREE.MeshBasicMaterial({ map: makeLabelTexture('VUZZ'), transparent: true }));
+  const decal = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.13), new THREE.MeshBasicMaterial({ map: makeLabelTexture('7POD'), transparent: true }));
   torso.add(place(decal, 0, 1.2, 0.282));
   for (const s of [-1, 1]) {
     for (let i = 0; i < 3; i++) torso.add(place(box(0.13, 0.014, 0.012, rubber, 0.004), s * 0.31, 1.25 - i * 0.04, 0.25));
