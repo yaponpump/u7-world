@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight, distToRiver, onBridge, onPier, deckHeight, blockedByRail } from './world.js';
-import { blockedByBuilding, cameraBlocked } from './city.js';
+import { blockedByBuilding, cameraBlocked, obstacleTop } from './city.js';
 import { createRobot, STATES } from './robot.js';
 import { createAudio } from './audio.js';
 import { createWallet } from './wallet.js';
@@ -264,7 +264,25 @@ function renderSkins() {
     grid.appendChild(el);
   }
 }
-$('skin-btn').addEventListener('click', () => { const p = $('skins-panel'); p.hidden = !p.hidden; });
+$('skin-btn').addEventListener('click', () => { const p = $('skins-panel'); p.hidden = !p.hidden; $('faces-panel').hidden = true; });
+$('face-btn').addEventListener('click', () => { const p = $('faces-panel'); p.hidden = !p.hidden; $('skins-panel').hidden = true; });
+
+// Panel wajah: pilihan pemain bertahan sampai diganti
+const FACE_OPTIONS = [['neutral', 'Normal'], ['happy', 'Happy'], ['sad', 'Sad'], ['angry', 'Angry'], ['surprised', 'Surprised'], ['disgust', 'Disgust']];
+function pickFace(name) {
+  robot.setFace(name);
+  document.querySelectorAll('#face-grid button').forEach((b) => b.classList.toggle('active', b.dataset.face === name));
+  const lines = faceLines[name];
+  if (lines) say(lines[Math.floor(Math.random() * lines.length)], 2200);
+}
+for (const [id, label] of FACE_OPTIONS) {
+  const b = document.createElement('button');
+  b.className = 'face-option' + (id === 'neutral' ? ' active' : '');
+  b.dataset.face = id;
+  b.textContent = label;
+  b.addEventListener('click', () => pickFace(id));
+  $('face-grid').appendChild(b);
+}
 renderSkins();
 {
   let saved = null;
@@ -440,7 +458,7 @@ let elapsed = 0;
 let frameNo = 0;
 const SPEED_WALK = 4.2;
 const SPEED_RUN = 8.5;
-const JUMP_SPEED = 6.4;
+const JUMP_SPEED = 7.3; // cukup buat lompatin mobil (puncak 1,45)
 const GRAVITY = 16;
 const BOUNDS = { min: -126, max: 126 }; // tepi tanah yang bisa diinjak, kota sampai ~126
 
@@ -549,7 +567,7 @@ function tick() {
       const nz = pos.z + dz * speed * dt;
       // seluruh map bisa dijelajahi: batasnya tepi tanah, termasuk kota di tenggara.
       // Sungai dan pinggir danau dangkal, bisa diseberangi jalan kaki; tengah danau tetap dalam.
-      const free = (x, z) => (!isWater(x, z) || wadeable(x, z)) && !blockedByBuilding(x, z) && !blockedByRail(x, z) && x > BOUNDS.min && x < BOUNDS.max && z > BOUNDS.min && z < BOUNDS.max;
+      const free = (x, z) => (!isWater(x, z) || wadeable(x, z)) && !blockedByBuilding(x, z, pos.y) && !blockedByRail(x, z) && x > BOUNDS.min && x < BOUNDS.max && z > BOUNDS.min && z < BOUNDS.max;
       if (free(nx, nz)) {
         pos.x = nx; pos.z = nz;
       } else if (free(nx, pos.z)) {
@@ -572,7 +590,7 @@ function tick() {
 
     // --- ekspresi manual: 1-5 (seneng, sedih, marah, terkejut, jijik) ---
     for (const [k, name] of [['1', 'happy'], ['2', 'sad'], ['3', 'angry'], ['4', 'surprised'], ['5', 'disgust']]) {
-      if (controls.consume(k)) { express(name, 3); say(faceLines[name][Math.floor(Math.random() * faceLines[name].length)], 2200); }
+      if (controls.consume(k)) { pickFace(robot.state.base === name ? 'neutral' : name); }
     }
 
     // --- backflip (B) ---
@@ -601,6 +619,11 @@ function tick() {
     if (deck) gy = deckHeight(deck, pos.x, pos.z);
     else if (onStone(pos.x, pos.z)) gy = 0.1;
     if (onPier(pos.x, pos.z)) gy = 0.34;
+    // atap mobil / pembatas: napak di atasnya kalau kakinya udah setinggi itu
+    const oTop = obstacleTop(pos.x, pos.z);
+    if (oTop > 0 && pos.y > oTop - 0.35) gy = Math.max(gy, oTop);
+    // jalan keluar dari atap: jatuh beneran, bukan meluncur turun
+    if (behavior.grounded && pos.y > gy + 0.6) { behavior.grounded = false; behavior.vy = 0; }
     if (behavior.wading) {
       gy = Math.min(gy, -0.2 - wadeDepth(pos.x, pos.z)); // kaki nyemplung di bawah permukaan air (y -0.2)
       if (!behavior.wasWading) { audio.play('plunk'); splash(pos.x, pos.z); express('surprised', 1.5); behavior.wadeTime = 0; if (Math.random() < 0.5) say('Cold. Fine. I can do this.', 1600); }
@@ -675,7 +698,7 @@ function tick() {
     else if (onBridge(pos.x, pos.z)) setHint('A bridge over the river. Walk straight across.');
     else if (behavior.nearPier) setHint('Press R to skip a rock across the lake.');
     else if (distToRiver(pos.x, pos.z) < 7) setHint('The river is shallow: wade straight across, or take a bridge or the stepping stones.');
-    else setHint('WASD move · Space jump · B backflip · 1-5 faces · T skip time · Shift run · right-drag to look · follow the green arrow');
+    else setHint('WASD move · Space jump (clears cars) · B backflip · 1-5 faces · T skip time · Shift run · right-drag to look · follow the green arrow');
   }
 
   // batu terbang
@@ -819,7 +842,7 @@ window.addEventListener('resize', () => {
   composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-window.__u7 = { gameClock, robot, behavior, controls, audio, scene, camera, renderer, blockedByBuilding, isWater, wadeable, onBridge, groundHeight };
+window.__u7 = { gameClock, obstacleTop, robot, behavior, controls, audio, scene, camera, renderer, blockedByBuilding, isWater, wadeable, onBridge, groundHeight };
 
 // kamera awal: dari depan robot
 controls.setYaw(Math.PI);

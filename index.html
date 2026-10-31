@@ -27,11 +27,17 @@
       <div class="hud-right">
         <div class="wallet-row">
           <button class="btn primary" id="wallet-btn">Connect wallet</button>
+          <button class="btn action" id="face-btn">Faces</button>
           <button class="btn action" id="skin-btn">Skins</button>
         </div>
         <div class="panel quest">
           <div class="label">Quest</div>
           <div class="small" id="quest-text">Find the 5 lost signals · <b id="quest-count">0</b>/5</div>
+        </div>
+        <div class="panel skins" id="faces-panel" hidden>
+          <div class="label">Faces</div>
+          <div class="face-grid" id="face-grid"></div>
+          <div class="small muted">Keys 1 to 5 work too. Press the same key again for normal.</div>
         </div>
         <div class="panel skins" id="skins-panel" hidden>
           <div class="label">Holder skins</div>
