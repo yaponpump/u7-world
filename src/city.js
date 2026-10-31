@@ -57,7 +57,7 @@ BUILDINGS.splice(BUILDINGS.indexOf(shopLot), 1);
 // door: sisi pintu, -1 utara, 1 selatan
 export const SHOP = { x: 51.7, z: shopLot.z + 4, hw: 4.5, hd: 4, door: -1 };
 export const CAFE = { x: 44, z: 24, hw: 5, hd: 4, door: 1 };
-const ROOM_H = 3.5;
+export const ROOM_H = 5, DOOR_H = 3.4;
 // Ruangan tempat pemain berada: kamera bebas keluar, tembok yang ngalangin disembunyiin world.js
 let insideRoom = null;
 export const setInsideRoom = (r) => { insideRoom = r; };
@@ -138,7 +138,7 @@ export function cameraBlocked(x, y, z) {
     if (r === insideRoom) return false;
     const sx = Math.abs(x - r.x), sz = Math.abs(z - r.z);
     // Kamera boleh lewat pintu, biar nggak mepet pas robot di ambang pintu
-    if (sx < 1.3 && y < 2.6 && (z - r.z) * r.door > 0) return false;
+    if (sx < 1.3 && y < DOOR_H && (z - r.z) * r.door > 0) return false;
     return y < ROOM_H + 0.2 && sx < r.hw + pad && sz < r.hd + pad && (sx > r.hw - pad || sz > r.hd - pad);
   };
   return roomWall(SHOP) || roomWall(CAFE) || BUILDINGS.some(hit) || SKYLINE.some(hit);
