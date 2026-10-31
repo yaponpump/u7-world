@@ -244,6 +244,16 @@ function showToast(msg, ms = 2600) {
   toastTimer = setTimeout(() => { toast.hidden = true; }, ms);
 }
 let bubbleTimer;
+// Bubble omongan NPC, nempel di atas kepala NPC-nya (posisi live dari WORLD.npcs)
+const npcBubble = $('npc-bubble');
+let npcBubbleTimer = null, npcSpeaker = null;
+function npcSay(npc, text, ms = 4800) {
+  npcSpeaker = npc;
+  npcBubble.innerHTML = `<b>${npc.name}</b>${text}`;
+  npcBubble.hidden = false;
+  clearTimeout(npcBubbleTimer);
+  npcBubbleTimer = setTimeout(() => { npcBubble.hidden = true; npcSpeaker = null; }, ms);
+}
 function say(text, ms = 3200) {
   bubble.textContent = text;
   bubble.hidden = false;
@@ -475,7 +485,7 @@ function onChain(event, value) {
   if (event === 'delivered') {
     world.npcTalk?.(value.id, 5);
     earnBolts(3, 'delivery');
-    showToast(`${value.name}: That's your old parts list. Three pieces of you were scattered in The Blackout.`, 5600);
+    npcSay(value, "That's your old parts list. Three pieces of you were scattered in The Blackout.", 5600);
     say('Pieces of me? Then I know what we are doing next.', 3400);
   }
   if (event === 'part') { earnBolts(3, 'lost part'); showToast(value === 3 ? 'All parts found' : `Lost part found · ${value}/3`, 3200); if (value < 3) say(['That one is definitely mine.', 'I knew I felt lighter.'][value - 1], 2800); }
@@ -623,7 +633,7 @@ function npcLine(npc) {
 function talkTo(npc) {
   world.npcTalk?.(npc.id, 4.5);
   robot.root.rotation.y = Math.atan2(npc.x - robot.root.position.x, npc.z - robot.root.position.z);
-  showToast(`${npc.name}: ${npcLine(npc)}`, 4800);
+  npcSay(npc, npcLine(npc), 4800);
   express('happy', 2);
   behavior.idleTime = 0;
   behavior.lock = 0.6;
@@ -1123,6 +1133,15 @@ function tick() {
   minimap.update({ pos, rotY: robot.root.rotation.y, camYaw: yaw, camera, signals: chainGoals.length ? chainGoals : daily && !daily.done ? daily.items : (daily ? [] : WORLD.signals), objectiveLabel: chainGoals.length ? chain.label : daily ? 'crate' : 'signal', started: started && !finale });
   sun.target.position.copy(pos);
 
+  // posisi bubble NPC di atas kepala NPC yang lagi ngomong
+  if (!npcBubble.hidden && npcSpeaker) {
+    const sp = (WORLD.npcs || []).find((n) => n.id === npcSpeaker.id) || npcSpeaker;
+    const v = new THREE.Vector3(sp.x, (sp.y ?? groundHeight(sp.x, sp.z)) + (sp.kind === 'robot' ? 2.6 : 2.2), sp.z).project(camera);
+    const onScreen = v.z < 1 && Math.abs(v.x) < 1.2 && Math.abs(v.y) < 1.2;
+    npcBubble.style.opacity = onScreen ? 1 : 0;
+    npcBubble.style.left = `${(v.x * 0.5 + 0.5) * window.innerWidth}px`;
+    npcBubble.style.top = `${(-v.y * 0.5 + 0.5) * window.innerHeight}px`;
+  }
   // posisi bubble di atas kepala
   if (!bubble.hidden) {
     const v = new THREE.Vector3(pos.x, pos.y + 2.9, pos.z).project(camera);
