@@ -9,7 +9,7 @@ import { Scatter, partsOf } from './scatter.js';
 import { createWeather } from './weather.js';
 import { createNpcs } from './npcs.js';
 import { createEcosystem } from './ecosystem.js';
-import { addObstacle, CAFE, CLUB, setInsideRoom, blockedByBuilding, buildCity, cityFlat, ROOF, SHOP, setCityFinale, setCityPower, CITY_SIGNALS, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
+import { addObstacle, CAFE, CLUB, DOOR_H, ROOM_H, setInsideRoom, blockedByBuilding, buildCity, cityFlat, ROOF, SHOP, setCityFinale, setCityPower, CITY_SIGNALS, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
 
 export const WORLD = {
   size: 140,
@@ -826,7 +826,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   const plaster = new THREE.MeshStandardMaterial({ color: 0xe8ddc8, roughness: 0.95 });
   plaster.emissive = new THREE.Color(0x4a3220);
   plaster.emissiveIntensity = 0.35;
-  const ROOM_H = 3.5, DOOR_HALF = 1.3;
+  const DOOR_HALF = 1.3;
   const rooms = [];
   // Empat tembok + pintu lebar di tengah satu sisi. doorZ: -1 pintu di utara, 1 di selatan.
   function buildRoom(parent, r, doorZ, mat, base = 0) {
@@ -837,7 +837,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
       [0.14, ROOM_H, r.hd * 2, r.hw, ROOM_H / 2, 0],
       [side, ROOM_H, 0.14, -mid, ROOM_H / 2, doorZ * r.hd],
       [side, ROOM_H, 0.14, mid, ROOM_H / 2, doorZ * r.hd],
-      [DOOR_HALF * 2, 0.8, 0.14, 0, ROOM_H - 0.4, doorZ * r.hd],
+      [DOOR_HALF * 2, ROOM_H - DOOR_H, 0.14, 0, (ROOM_H + DOOR_H) / 2, doorZ * r.hd],
     ];
     const meshes = panels.map(([sx, sy, sz, x, y, z]) => {
       const panel = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
@@ -855,17 +855,19 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   floor.position.y = CAFE_FLOOR - 0.01;
   const lampMat = new THREE.MeshStandardMaterial({ color: 0x332a1c, emissive: 0xffc98a, emissiveIntensity: 2.4, toneMapped: false });
   for (const x of [-3, 0, 3]) {
-    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 8), lampMat);
-    lamp.position.set(x, 3.05, 0);
-    cafe.add(lamp);
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 8), lampMat);
+    lamp.position.set(x, ROOM_H - 1.1, 0);
+    const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1, 6), ironMat);
+    cord.position.set(x, ROOM_H - 0.5, 0);
+    cafe.add(lamp, cord);
   }
   const counter = new THREE.Mesh(new THREE.BoxGeometry(5, 1.0, 0.7), woodMat);
   counter.position.set(0, 0.5, -2.6);
   addObstacle(CAFE.x, CAFE.z - 2.6, 2.5, 0.35, 1.0);
-  const coffee = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.6, 0.45), ironMat);
-  coffee.position.set(-1.4, 1.3, -2.6);
+  const coffee = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.5), ironMat);
+  coffee.position.set(-1.4, 1.45, -2.6);
   const coffeeLight = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), new THREE.MeshStandardMaterial({ color: 0x223018, emissive: 0xb8ff3c, emissiveIntensity: 2.4, toneMapped: false }));
-  coffeeLight.position.set(-1.2, 1.42, -2.36);
+  coffeeLight.position.set(-1.2, 1.6, -2.33);
   cafe.add(coffee, coffeeLight);
   const stool = (x, z) => {
     const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.08, 14), woodMat);
@@ -891,7 +893,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   roof.rotation.y = Math.PI / 4;
   roof.scale.z = 0.8;
   const awning = new THREE.Mesh(new THREE.BoxGeometry(7.4, 0.06, 1.7), new THREE.MeshStandardMaterial({ color: 0xc2552a, roughness: 0.9 }));
-  awning.position.set(0, 2.75, CAFE.hd + 0.65);
+  awning.position.set(0, DOOR_H + 0.3, CAFE.hd + 0.65);
   awning.rotation.x = 0.18;
   const cafeSignCanvas = document.createElement('canvas');
   cafeSignCanvas.width = 512; cafeSignCanvas.height = 90;
@@ -903,8 +905,8 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   }
   const cafeSignTex = new THREE.CanvasTexture(cafeSignCanvas);
   cafeSignTex.colorSpace = THREE.SRGBColorSpace;
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.56), new THREE.MeshStandardMaterial({ map: cafeSignTex, emissive: 0xffffff, emissiveMap: cafeSignTex, emissiveIntensity: 0.3 }));
-  sign.position.set(0, 3.16, CAFE.hd + 0.09);
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 0.74), new THREE.MeshStandardMaterial({ map: cafeSignTex, emissive: 0xffffff, emissiveMap: cafeSignTex, emissiveIntensity: 0.3 }));
+  sign.position.set(0, ROOM_H - 0.62, CAFE.hd + 0.09);
   cafe.add(roof, awning, sign);
   WORLD.cafeAwning = awning;
   WORLD.cafeRoof = roof;
@@ -926,16 +928,16 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   buildRoom(shop, SHOP, -1, shopWallMat, shopBase);
   addBox(hw * 2, 0.04, hd * 2, 0, 0.02, 0, new THREE.MeshStandardMaterial({ color: 0xbfc6c4, roughness: 0.35 }));
   const neonMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xdff5ff, emissiveIntensity: 2.6, toneMapped: false });
-  for (const x of [-2.6, 0, 2.6]) addBox(0.16, 0.05, hd * 1.5, x, 3.4, 0, neonMat);
+  for (const x of [-2.6, 0, 2.6]) addBox(0.16, 0.05, hd * 1.5, x, ROOM_H - 0.1, 0, neonMat);
   const shelfMat = new THREE.MeshStandardMaterial({ color: 0x5a6068, roughness: 0.5, metalness: 0.5 });
   // Barang di rak satu InstancedMesh, biar ratusan kotak tetep satu draw call
   const goodsColors = [0xe0441c, 0xffd166, 0x2d9cdb, 0xb8ff3c, 0xf4f1e6, 0xff8a2a].map((v) => new THREE.Color(v));
-  const shelfX = [-3.3, -1], levels = [0.45, 1.0, 1.55], perRow = 12;
+  const shelfX = [-3.3, -1], levels = [0.45, 1.0, 1.55, 2.1, 2.65], perRow = 12;
   const goods = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 0.3, 0.24), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7 }), shelfX.length * levels.length * perRow * 2);
   const goodsM = new THREE.Matrix4();
   let goodsN = 0;
   for (const sx of shelfX) {
-    addBox(0.5, 1.8, 4, sx, 0.9, -0.2, shelfMat);
+    addBox(0.5, 3, 4, sx, 1.5, -0.2, shelfMat);
     addObstacle(SHOP.x + sx, SHOP.z - 0.2, 0.25, 2, 99);
     for (const level of levels) {
       for (let i = 0; i < perRow; i++) {
@@ -950,7 +952,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   }
   shop.add(goods);
   const fridgeMat = new THREE.MeshStandardMaterial({ color: 0x8fd4ff, emissive: 0x4fb4ff, emissiveIntensity: 0.9, roughness: 0.2 });
-  addBox(3.4, 2.3, 0.5, -2.2, 1.15, hd - 0.35, fridgeMat);
+  addBox(3.4, 3, 0.5, -2.2, 1.5, hd - 0.35, fridgeMat);
   addObstacle(SHOP.x - 2.2, SHOP.z + hd - 0.35, 1.7, 0.25, 99);
   const till = addBox(2.6, 1, 0.7, 2.4, 0.5, 1.9, woodMat);
   till.castShadow = true;
@@ -967,7 +969,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   }
   const shopSign = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 0.74), new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(shopSignCanvas), emissive: 0xffffff, emissiveMap: null, emissiveIntensity: 0.25 }));
   shopSign.material.map.colorSpace = THREE.SRGBColorSpace;
-  shopSign.position.set(0, shopBase + ROOM_H - 0.4, -hd - 0.1);
+  shopSign.position.set(0, shopBase + ROOM_H - 0.8, -hd - 0.1);
   shopSign.rotation.y = Math.PI;
   shop.add(shopSign);
   shop.position.set(SHOP.x, 0, SHOP.z);
