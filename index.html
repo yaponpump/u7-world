@@ -51,7 +51,14 @@
     </div>
 
     <div class="hud-bottom">
-      <div class="panel hint" id="hint">WASD move · Space jump · Shift run · drag mouse to look · scroll to zoom</div>
+      <div class="hud-bl">
+        <div class="legend" id="legend">
+          <div class="legend-row"><kbd class="wasd"><i>W</i><i>A</i><i>S</i><i>D</i></kbd><span>Move</span></div>
+          <div class="legend-row"><kbd>Shift</kbd><span>Run</span></div>
+          <div class="legend-row"><kbd class="mouse">🖱</kbd><span>Drag to look · scroll to zoom</span></div>
+        </div>
+        <div class="panel hint" id="hint">WASD move · Space jump · Shift run · drag mouse to look · scroll to zoom</div>
+      </div>
       <div class="actions">
         <button class="btn action" id="act-sit" hidden>E · Sit</button>
         <button class="btn action" id="act-drink" hidden>F · Drink</button>
@@ -85,5 +92,6 @@
   </div>
 
   <script type="module" src="/src/main.js"></script>
+  <script type="module" src="/src/hud.js"></script>
 </body>
 </html>
