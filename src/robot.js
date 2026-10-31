@@ -16,7 +16,7 @@ const COL = {
 
 const shared = {};
 
-export const STATES = ['idle', 'walk', 'run', 'sit', 'drink', 'yawn', 'sleep', 'throw', 'curious', 'wave'];
+export const STATES = ['idle', 'walk', 'run', 'sit', 'drink', 'yawn', 'sleep', 'throw', 'curious', 'wave', 'jump', 'land'];
 
 export function createRobot({ dormant = false } = {}) {
   const root = new THREE.Group();
@@ -253,6 +253,7 @@ export function createRobot({ dormant = false } = {}) {
 
       // reset pose default lalu tambahin per state
       body.position.y = 0;
+      body.scale.set(1, 1, 1);
       body.rotation.set(0, 0, 0);
       head.rotation.set(0, 0, 0);
       legL.rotation.set(0, 0, 0);
@@ -336,6 +337,20 @@ export function createRobot({ dormant = false } = {}) {
         armR.pivot.rotation.x = -1.2;
         legL.rotation.x = -0.4;
         legR.rotation.x = -0.4;
+      } else if (n === 'jump') {
+        legL.rotation.x = -0.75;
+        legR.rotation.x = 0.35;
+        legs.position.set(0, 0.08, 0.04);
+        armL.pivot.rotation.set(-0.5, 0, -0.75);
+        armR.pivot.rotation.set(0.35, 0, 0.75);
+        head.rotation.x = -0.1;
+        body.rotation.x = 0.08;
+      } else if (n === 'land') {
+        // Ngempis sebentar pas napak
+        const k = 1 - Math.min(1, t / 0.2);
+        body.scale.set(1 + k * 0.1, 1 - k * 0.16, 1 + k * 0.1);
+        armL.pivot.rotation.z = -0.12 - k * 0.5;
+        armR.pivot.rotation.z = 0.12 + k * 0.5;
       } else if (n === 'wave') {
         armR.pivot.rotation.z = 2.3 + Math.sin(time * 10) * 0.3;
         head.rotation.z = -0.15;
