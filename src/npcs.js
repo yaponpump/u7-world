@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { createRobot } from './robot.js';
 import { addObstacle, BUILDINGS } from './city.js';
 
@@ -22,6 +23,30 @@ function glowTexture() {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 64, 64);
   return new THREE.CanvasTexture(c);
+}
+
+// Unit mati nggak gerak, jadi bagiannya digabung per material biar hemat draw call.
+// Mata tetep terpisah karena salah satunya nyala belakangan.
+function freeze(robot) {
+  const { root } = robot;
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const byMat = new Map();
+  root.traverseVisible((m) => {
+    if (!m.isMesh || m.geometry.type === 'CircleGeometry' || m.material.transparent) return;
+    const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+    for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(k)) g.deleteAttribute(k);
+    g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld));
+    if (!byMat.has(m.material)) byMat.set(m.material, []);
+    byMat.get(m.material).push(g);
+    m.userData.frozen = true;
+  });
+  root.traverse((m) => { if (m.userData.frozen) m.visible = false; });
+  for (const [mat, list] of byMat) {
+    const mesh = new THREE.Mesh(mergeGeometries(list), mat);
+    mesh.castShadow = mesh.receiveShadow = true;
+    root.add(mesh);
+  }
 }
 
 function createDrone(shared, route, phase) {
@@ -83,6 +108,7 @@ export function createNpcs(group, { hi }) {
       s.root.rotation.y = Math.PI;
       s.update(0.016, 0, 0);
       group.add(s.root);
+      freeze(s);
       addObstacle(s.root.position.x, s.root.position.z, 0.6, 0.45);
       return s;
     });
