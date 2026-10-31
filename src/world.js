@@ -1048,6 +1048,18 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   }
   group.add(club);
 
+  // ---------- Jendela holder: jendela wallet pemain plus sorot lime biar gampang dicari ----------
+  const holderGlow = new THREE.MeshBasicMaterial({ color: 0xb8ff3c, toneMapped: false });
+  const holderBeamMat = new THREE.MeshBasicMaterial({ color: 0xb8ff3c, transparent: true, opacity: 0.28, depthWrite: false, toneMapped: false });
+  const holderWindow = new THREE.Group();
+  const holderPane = new THREE.Mesh(new THREE.PlaneGeometry(1.95, 1.87), holderGlow);
+  holderPane.rotation.y = Math.PI;
+  const holderBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 70, 8, 1, true), holderBeamMat);
+  holderBeam.position.set(0, 35, -0.4);
+  holderWindow.add(holderPane, holderBeam);
+  holderWindow.visible = false;
+  group.add(holderWindow);
+
   // ---------- Paket kiriman + bagian tubuh VUZZ ----------
   const glowOrange = new THREE.MeshStandardMaterial({ color: 0x5a1a08, emissive: 0xff5a1f, emissiveIntensity: 2.4, toneMapped: false });
   const parcelMesh = new THREE.Group();
@@ -1219,6 +1231,10 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
       setCityPower(WORLD.generators.filter((k) => k.on).length);
     },
     setParcel(visible) { parcelMesh.visible = visible; },
+    setHolderWindow(spot) {
+      holderWindow.visible = !!spot;
+      if (spot) holderWindow.position.set(spot.x, spot.y, spot.z);
+    },
     // tag: LIVE atau DEMO, biar nggak ada angka palsu yang keliatan asli
     setBillboard({ tag, price, note }) {
       const c = boardCanvas.getContext('2d');

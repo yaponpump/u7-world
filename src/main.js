@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight, distToRiver, onBridge, onPier, deckHeight, blockedByRail } from './world.js';
-import { BUILDINGS, blockedByBuilding, cameraBlocked, inCity, onClubRoof, nearestFree, obstacleSlip, obstacleTop, rooftopHeight, touchingWall } from './city.js';
+import { BUILDINGS, setCityHolders, blockedByBuilding, cameraBlocked, inCity, onClubRoof, nearestFree, obstacleSlip, obstacleTop, rooftopHeight, touchingWall } from './city.js';
 import { createRobot, STATES } from './robot.js';
 import { createAudio } from './audio.js';
 import { createWallet } from './wallet.js';
@@ -14,6 +14,7 @@ import { loadSave, saveScore, writeSave } from './save.js';
 import { createDaily, defaultSpots, dayKey } from './daily.js';
 import { createChain } from './quests.js';
 import { pollHolders } from './holders.js';
+import { windowFor } from './holderWindow.js';
 
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
@@ -208,10 +209,10 @@ function refreshLampHud(n = cityLights) {
   [...lampsEl.children].forEach((d, i) => d.classList.toggle('on', i < n));
   $('lamps-text').textContent = liveHolders != null
     ? `${n}/5 · ${liveHolders.toLocaleString('en-US')} holders`
-    : `${n}/5 · ${(n * 333).toLocaleString('en-US')} signals`;
+    : `${n}/5 lamps`;
 }
 // Holder count live (kalau CONFIG.token.holdersUrl diisi), di-poll tiap 5 menit
-if (CONFIG.token.holdersUrl) pollHolders((count) => { if (typeof count === 'number') { liveHolders = count; refreshLampHud(); } });
+if (CONFIG.token.holdersUrl) pollHolders((count) => { if (typeof count === 'number') { liveHolders = count; setCityHolders(count); refreshLampHud(); } });
 function refreshLamps() {
   refreshLampHud();
   setCityLights(cityLights);
@@ -261,11 +262,25 @@ function say(text, ms = 3200) {
   bubbleTimer = setTimeout(() => { bubble.hidden = true; }, ms);
 }
 
+// ---------- Jendela holder ----------
+// Di mainnet butuh saldo token. Sebelum itu semua wallet dapet jendela demo.
+let holderSpot = null;
+function refreshHolderWindow(s) {
+  const onMainnet = CONFIG.token.network === 'mainnet' && !!CONFIG.token.address;
+  const holds = s.status === 'connected' && !!s.address && (!onMainnet || s.balance > 0);
+  const next = holds ? windowFor(s.address, BUILDINGS) : null;
+  const fresh = next && !holderSpot;
+  holderSpot = next;
+  world.setHolderWindow(next);
+  if (fresh) setTimeout(() => showToast(onMainnet ? 'Your window is lit · follow the arrow' : 'Demo · your window is lit, follow the arrow', 4200), 2800);
+}
+
 // ---------- Wallet + skin holder ----------
 let walletState = { isHolder: false };
 const wallet = createWallet({
   onChange(s) {
     walletState = s;
+    refreshHolderWindow(s);
     const btn = $('wallet-btn');
     if (s.status === 'connected') {
       // Progres per wallet: kalau wallet ini pernah lebih jauh di browser ini, lanjut dari situ
@@ -1018,6 +1033,11 @@ function tick() {
       }
     }
     chain.update(pos);
+    if (holderSpot && !holderSpot.seen && Math.hypot(pos.x - holderSpot.x, pos.z - holderSpot.z) < 9) {
+      holderSpot.seen = true;
+      express('happy', 3);
+      say('That one is yours. It stays on as long as you do.', 4200);
+    }
     // senter nyala sendiri pas gelap
     const dark = gameClock.hour < 6.3 || gameClock.hour >= 18.3;
     if (behavior.lampOn !== (gear.light && dark)) { behavior.lampOn = gear.light && dark; robot.setLight?.(behavior.lampOn); }
@@ -1129,8 +1149,9 @@ function tick() {
   }
   camera.position.copy(camPos);
   camera.lookAt(camTarget);
-  const chainGoals = chain.targets;
-  minimap.update({ pos, rotY: robot.root.rotation.y, camYaw: yaw, camera, signals: chainGoals.length ? chainGoals : daily && !daily.done ? daily.items : (daily ? [] : WORLD.signals), objectiveLabel: chainGoals.length ? chain.label : daily ? 'crate' : 'signal', started: started && !finale });
+  const windowGoal = holderSpot && !holderSpot.seen ? [holderSpot] : [];
+  const chainGoals = windowGoal.length ? windowGoal : chain.targets;
+  minimap.update({ pos, rotY: robot.root.rotation.y, camYaw: yaw, camera, signals: chainGoals.length ? chainGoals : daily && !daily.done ? daily.items : (daily ? [] : WORLD.signals), objectiveLabel: windowGoal.length ? 'window' : chainGoals.length ? chain.label : daily ? 'crate' : 'signal', started: started && !finale });
   sun.target.position.copy(pos);
 
   // posisi bubble NPC di atas kepala NPC yang lagi ngomong
