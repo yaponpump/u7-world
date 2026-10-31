@@ -769,7 +769,8 @@ function tick() {
     if (!$('shop-panel').hidden && (!behavior.nearThing || behavior.nearThing.id !== 'shopCounter')) openShop(false);
     behavior.nearPier = Math.hypot(pos.x - (WORLD.pier.x - WORLD.pier.len / 2 + 1), pos.z - WORLD.pier.z) < 3
       || Math.hypot(pos.x - WORLD.lake.x, pos.z - WORLD.lake.z) < WORLD.lake.r + 2.5;
-    const chainHint = chain.note?.(pos) ?? chain.hint?.(pos);
+    const chainHint = chain.hint?.(pos); // ada yang bisa dipakai pakai E
+    const chainNote = chain.note?.(pos) ?? chainHint; // cuma petunjuk
     $('act-sit').hidden = !chainHint && !behavior.nearBench && !behavior.sitting && !behavior.nearThing && !behavior.nearNpc;
     $('act-sit').textContent = behavior.sitting ? 'E · Stand up' : chainHint ? 'E · Use' : behavior.nearBench ? 'E · Sit' : 'E · Inspect';
     $('act-drink').hidden = !behavior.nearDrink || !!behavior.sitting;
@@ -1015,7 +1016,7 @@ function tick() {
 
     // hint kontekstual
     if (behavior.sitting) setHint('Press E or move to stand up. Leave it alone and it will doze off.');
-    else if (chainHint) setHint(chainHint);
+    else if (chainNote) setHint(chainNote);
     else if (behavior.nearBench) setHint('A bench. Press E to sit.');
     else if (behavior.nearNpc) setHint(`${behavior.nearNpc.name}. Press E to talk.`);
     else if (behavior.nearThing?.id === 'shopCounter') setHint(`Minimarket. Press E to shop. You have ${bolts} bolt${bolts === 1 ? '' : 's'}.`);
