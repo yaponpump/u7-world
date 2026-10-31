@@ -447,12 +447,13 @@ function tick() {
   if (started) {
     // --- deteksi sekitar ---
     behavior.nearBench = nearest(WORLD.benches, pos.x, pos.z, 2.6);
+    behavior.nearThing = nearest(WORLD.interactables, pos.x, pos.z, 3.4);
     const f = WORLD.fountain;
     behavior.nearDrink = Math.hypot(pos.x - f.x, pos.z - f.z) < f.r + 2.2 || Math.hypot(pos.x - WORLD.cafe.x, pos.z - (WORLD.cafe.z + 3.5)) < 3.5;
     behavior.nearPier = Math.hypot(pos.x - (WORLD.pier.x - WORLD.pier.len / 2 + 1), pos.z - WORLD.pier.z) < 3
       || Math.hypot(pos.x - WORLD.lake.x, pos.z - WORLD.lake.z) < WORLD.lake.r + 2.5;
-    $('act-sit').hidden = !behavior.nearBench && !behavior.sitting;
-    $('act-sit').textContent = behavior.sitting ? 'E · Berdiri' : 'E · Duduk';
+    $('act-sit').hidden = !behavior.nearBench && !behavior.sitting && !behavior.nearThing;
+    $('act-sit').textContent = behavior.sitting ? 'E · Stand up' : behavior.nearBench ? 'E · Sit' : 'E · Inspect';
     $('act-drink').hidden = !behavior.nearDrink || !!behavior.sitting;
     $('act-throw').hidden = !behavior.nearPier || !!behavior.sitting;
 
@@ -469,6 +470,10 @@ function tick() {
         robot.setState('sit');
         behavior.idleTime = 0;
         say(sitLines[Math.floor(Math.random() * sitLines.length)]);
+      } else if (behavior.nearThing) {
+        showToast(behavior.nearThing.name, 1800);
+        say(behavior.nearThing.line, 4200);
+        behavior.idleTime = 0;
       }
     }
     if (controls.consume('f') && behavior.nearDrink && !behavior.sitting) {
@@ -601,6 +606,7 @@ function tick() {
     // hint kontekstual
     if (behavior.sitting) setHint('Press E or move to stand up. Leave it alone and it will doze off.');
     else if (behavior.nearBench) setHint('A bench. Press E to sit.');
+    else if (behavior.nearThing) setHint(`${behavior.nearThing.name}. Press E to inspect.`);
     else if (behavior.nearDrink) setHint('Press F to "drink". Does nothing for its systems, but it likes it.');
     else if (behavior.wading) setHint('Shallow water. Slow going, but you can wade anywhere in the river and the lake.');
     else if (onBridge(pos.x, pos.z)) setHint('A bridge over the river. Walk straight across.');
