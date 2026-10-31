@@ -127,7 +127,10 @@ export function createAudio() {
     step(surface, run) {
       const v = run ? 1.4 : 1;
       tone({ type: 'sawtooth', f0: 240, f1: 420, dur: 0.06, gain: 0.025 * v, filter: { type: 'lowpass', freq: 1800 } });
-      if (surface === 'wood') {
+      if (surface === 'water') {
+        burst({ dur: 0.18, gain: 0.12 * v, f0: 1600, f1: 400, q: 0.7 });
+        tone({ type: 'sine', f0: 380, f1: 120, dur: 0.1, gain: 0.06 * v });
+      } else if (surface === 'wood') {
         tone({ type: 'sine', f0: 160, f1: 70, dur: 0.12, gain: 0.16 * v });
         burst({ dur: 0.05, gain: 0.05 * v, f0: 900, q: 2 });
       } else if (surface === 'stone') {
