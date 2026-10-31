@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight, distToRiver, onBridge, onPier, deckHeight, blockedByRail } from './world.js';
-import { BUILDINGS, blockedByBuilding, cameraBlocked, nearestFree, obstacleSlip, obstacleTop, rooftopHeight, touchingWall } from './city.js';
+import { BUILDINGS, blockedByBuilding, cameraBlocked, inCity, nearestFree, obstacleSlip, obstacleTop, rooftopHeight, touchingWall } from './city.js';
 import { createRobot, STATES } from './robot.js';
 import { createAudio } from './audio.js';
 import { createWallet } from './wallet.js';
@@ -972,7 +972,8 @@ function tick() {
       moving: Math.hypot(inp.move.x, inp.move.y) > 0.05 && behavior.lock <= 0, run: inp.run,
       waterDist: Math.min(lakeDist, distToRiver(pos.x, pos.z) - 3, nearFountain ? 2 : 99),
       mood: marketState?.mood || 'cloudy', musicLevel: finale ? 1.4 : 1,
-      surface: behavior.wading ? 'water' : onWood ? 'wood' : nearFountain ? 'stone' : 'grass',
+      surface: behavior.wading ? 'water' : onWood ? 'wood' : nearFountain || inCity(pos.x, pos.z) ? 'stone' : 'grass',
+      cityK: pos.x > -20 ? Math.min(1, Math.max(0, (pos.z - 36) / 14)) : 0,
     });
   }
 
