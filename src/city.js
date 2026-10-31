@@ -44,13 +44,21 @@ export function onSidewalk(x, z) {
   return COLS.some((c) => ROWS.some((r) => inRect(x, z, c, r)));
 }
 // Mobil dan pembatas jalan, diisi pas kota dibangun
+// Rintangan rendah punya tinggi (top): bisa dilompatin dan diinjek atapnya.
 const OBSTACLES = [];
-export const addObstacle = (x, z, hx, hz) => OBSTACLES.push({ x, z, hx, hz });
-export function blockedByBuilding(x, z) {
+export const addObstacle = (x, z, hx, hz, top = 1.0) => OBSTACLES.push({ x, z, hx, hz, top });
+// Puncak rintangan rendah di titik ini (0 kalau nggak ada), buat napak di atas mobil
+export function obstacleTop(x, z) {
+  let top = 0;
+  for (const o of OBSTACLES) if (Math.abs(x - o.x) < o.hx + 0.2 && Math.abs(z - o.z) < o.hz + 0.2) top = Math.max(top, o.top);
+  return top;
+}
+// y = tinggi kaki: rintangan rendah nggak ngeblok kalau kakinya udah di atas puncaknya
+export function blockedByBuilding(x, z, y = 0) {
   const pad = 0.55;
   const inside = (b) => x > b.x - pad && x < b.x + b.w + pad && z > b.z - pad && z < b.z + b.d + pad;
   return BUILDINGS.some(inside) || SKYLINE.some(inside)
-    || OBSTACLES.some((o) => Math.abs(x - o.x) < o.hx + pad && Math.abs(z - o.z) < o.hz + pad);
+    || OBSTACLES.some((o) => y < o.top - 0.2 && Math.abs(x - o.x) < o.hx + pad && Math.abs(z - o.z) < o.hz + pad);
 }
 // Dua sinyal quest di kota: gang paling lebar di blok tengah, dan ujung jalan dekat skyline
 function alleySpot() {
@@ -319,7 +327,7 @@ export function buildCity(group, { hi, A = {}, props = {}, fallback }) {
     const alongX = Math.abs(Math.sin(o.ry)) > 0.7;
     const isCar = shownCars.includes(o);
     const long = isCar ? 2.15 : 1.05, wide = isCar ? 0.95 : 0.3;
-    OBSTACLES.push({ x: o.x, z: o.z, hx: alongX ? long : wide, hz: alongX ? wide : long });
+    OBSTACLES.push({ x: o.x, z: o.z, hx: alongX ? long : wide, hz: alongX ? wide : long, top: isCar ? 1.45 : 0.9 });
   }
   placeModel(group, props.car, shownCars, 4.3);
   placeModel(group, props.lamp, shown, 7, true);
