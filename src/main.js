@@ -457,8 +457,8 @@ function tick() {
       const speed = inp.run ? SPEED_RUN : SPEED_WALK;
       // arah relatif kamera
       const yaw = inp.camYaw;
-      const dx = inp.move.x * Math.cos(yaw) - inp.move.y * Math.sin(yaw);
-      const dz = inp.move.x * Math.sin(yaw) + inp.move.y * Math.cos(yaw);
+      const dx = inp.move.x * Math.cos(yaw) + inp.move.y * Math.sin(yaw);
+      const dz = -inp.move.x * Math.sin(yaw) + inp.move.y * Math.cos(yaw);
       const nx = pos.x + dx * speed * dt;
       const nz = pos.z + dz * speed * dt;
       const half = WORLD.size * 0.75;
