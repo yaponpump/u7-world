@@ -458,7 +458,7 @@ let elapsed = 0;
 let frameNo = 0;
 const SPEED_WALK = 4.2;
 const SPEED_RUN = 8.5;
-const JUMP_SPEED = 7.5;
+const JUMP_SPEED = 7.3; // cukup buat lompatin mobil (puncak 1,45)
 const GRAVITY = 16;
 const BOUNDS = { min: -126, max: 126 }; // tepi tanah yang bisa diinjak, kota sampai ~126
 
@@ -619,7 +619,11 @@ function tick() {
     if (deck) gy = deckHeight(deck, pos.x, pos.z);
     else if (onStone(pos.x, pos.z)) gy = 0.1;
     if (onPier(pos.x, pos.z)) gy = 0.34;
-    gy = Math.max(gy, obstacleTop(pos.x, pos.z, pos.y));
+    // atap mobil / pembatas: napak di atasnya kalau kakinya udah setinggi itu
+    const oTop = obstacleTop(pos.x, pos.z);
+    if (oTop > 0 && pos.y > oTop - 0.35) gy = Math.max(gy, oTop);
+    // jalan keluar dari atap: jatuh beneran, bukan meluncur turun
+    if (behavior.grounded && pos.y > gy + 0.6) { behavior.grounded = false; behavior.vy = 0; }
     if (behavior.wading) {
       gy = Math.min(gy, -0.2 - wadeDepth(pos.x, pos.z)); // kaki nyemplung di bawah permukaan air (y -0.2)
       if (!behavior.wasWading) { audio.play('plunk'); splash(pos.x, pos.z); express('surprised', 1.5); behavior.wadeTime = 0; if (Math.random() < 0.5) say('Cold. Fine. I can do this.', 1600); }
@@ -694,7 +698,7 @@ function tick() {
     else if (onBridge(pos.x, pos.z)) setHint('A bridge over the river. Walk straight across.');
     else if (behavior.nearPier) setHint('Press R to skip a rock across the lake.');
     else if (distToRiver(pos.x, pos.z) < 7) setHint('The river is shallow: wade straight across, or take a bridge or the stepping stones.');
-    else setHint('WASD move · Space jump · B backflip · 1-5 faces · T skip time · Shift run · right-drag to look · follow the green arrow');
+    else setHint('WASD move · Space jump (clears cars) · B backflip · 1-5 faces · T skip time · Shift run · right-drag to look · follow the green arrow');
   }
 
   // batu terbang
@@ -838,7 +842,7 @@ window.addEventListener('resize', () => {
   composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-window.__u7 = { gameClock, robot, behavior, controls, audio, scene, camera, renderer, blockedByBuilding, isWater, wadeable, onBridge, groundHeight };
+window.__u7 = { gameClock, obstacleTop, robot, behavior, controls, audio, scene, camera, renderer, blockedByBuilding, isWater, wadeable, onBridge, groundHeight };
 
 // kamera awal: dari depan robot
 controls.setYaw(Math.PI);
