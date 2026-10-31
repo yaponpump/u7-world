@@ -17,11 +17,23 @@
         <div class="lamps" id="lamps"></div>
         <div class="small" id="lamps-text">3/5 · 1.000 sinyal</div>
       </div>
+      <div class="panel market" id="market-panel">
+        <div class="label">Market · cuaca</div>
+        <div class="small" id="market-text">Nyambung ke market...</div>
+      </div>
       <div class="hud-right">
-        <button class="btn primary" id="wallet-btn">Connect wallet</button>
+        <div class="wallet-row">
+          <button class="btn primary" id="wallet-btn">Connect wallet</button>
+          <button class="btn action" id="skin-btn">Skin</button>
+        </div>
         <div class="panel quest">
           <div class="label">Quest</div>
           <div class="small" id="quest-text">Temuin 5 sinyal yang hilang · <b id="quest-count">0</b>/5</div>
+        </div>
+        <div class="panel skins" id="skins-panel" hidden>
+          <div class="label">Skin holder</div>
+          <div class="skin-grid" id="skin-grid"></div>
+          <div class="small muted" id="skin-hint">Connect wallet buat buka skin lain.</div>
         </div>
       </div>
     </div>

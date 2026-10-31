@@ -32,6 +32,21 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
 .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .btn.action { background: rgba(109, 61, 245, 0.75); }
 .btn.action.quiet { background: var(--panel); opacity: 0.85; }
+.wallet-row { display: flex; gap: 8px; }
+.btn.connected { background: var(--panel); color: var(--lime); border-color: rgba(184,255,60,0.5); }
+.market { min-width: 180px; }
+.market .small { display: flex; flex-direction: column; gap: 2px; }
+.market .chg.up { color: var(--lime); }
+.market .chg.down { color: #ff6b6b; }
+.skins { min-width: 220px; }
+.skin-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+.skin { border: 2px solid transparent; border-radius: 10px; padding: 4px; cursor: pointer; background: rgba(255,255,255,0.04); display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 10px; opacity: 0.95; }
+.skin .sw { width: 36px; height: 36px; border-radius: 50%; position: relative; box-shadow: inset 0 0 0 2px rgba(0,0,0,0.25); }
+.skin .sw::after { content: ""; position: absolute; right: -2px; bottom: -2px; width: 14px; height: 14px; border-radius: 50%; background: var(--acc); box-shadow: 0 0 6px var(--emi); }
+.skin.active { border-color: var(--lime); }
+.skin.locked { opacity: 0.4; cursor: not-allowed; }
+.skin.locked .sw::before { content: "🔒"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 14px; }
+@media (max-width: 720px) { .market { display: none; } .skin-grid { grid-template-columns: repeat(4, 1fr); } }
 .hint { font-size: 12px; max-width: 46ch; }
 .clock { position: absolute; top: calc(14px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); font-family: var(--display); font-size: 13px; padding: 6px 12px; }
 .bubble { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -100%); background: #fff; color: var(--ink); border-radius: 14px; padding: 8px 12px; font-size: 13px; max-width: 240px; text-align: center; }
