@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight, distToRiver } from './world.js';
 import { blockedByBuilding } from './city.js';
-import { createRobot } from './robot.js';
+import { createRobot, STATES } from './robot.js';
 import { createAudio } from './audio.js';
 import { createWallet } from './wallet.js';
 import { createMarket, MOOD_LABEL } from './market.js';
@@ -91,7 +91,7 @@ function refreshEnvironment() {
 
 const assets = await loadAssets((msg) => { const el = document.getElementById('load-status'); if (el) el.textContent = msg; });
 const world = buildWorld(scene, renderer, { quality: QUALITY, assets });
-{ const el = document.getElementById('load-status'); if (el) el.textContent = assets.manifest ? 'Asset asli kepasang' : 'Mode prosedural'; }
+{ const el = document.getElementById('load-status'); if (el) el.textContent = assets.manifest ? 'Real assets loaded' : 'Procedural mode'; }
 let hdriRT = null;
 if (assets.hdri) { hdriRT = pmrem.fromEquirectangular(assets.hdri); }
 const robot = createRobot();
@@ -161,17 +161,17 @@ for (let i = 0; i < 5; i++) {
 }
 function refreshLamps() {
   [...lampsEl.children].forEach((d, i) => d.classList.toggle('on', i < cityLights));
-  $('lamps-text').textContent = `${cityLights}/5 · ${(cityLights * 333).toLocaleString('id-ID')} sinyal`;
+  $('lamps-text').textContent = `${cityLights}/5 · ${(cityLights * 333).toLocaleString('en-US')} signals`;
   setCityLights(cityLights);
 }
 refreshLamps();
 
-function refreshMuteBtn() { $('mute-btn').textContent = audio.muted ? 'M · Suara off' : 'M · Suara on'; }
+function refreshMuteBtn() { $('mute-btn').textContent = audio.muted ? 'M · Sound off' : 'M · Sound on'; }
 function toggleMute() {
   audio.unlock();
   const m = audio.toggleMute();
   refreshMuteBtn();
-  showToast(m ? 'Suara dimatiin' : 'Suara nyala', 1400);
+  showToast(m ? 'Sound off' : 'Sound on', 1400);
 }
 $('mute-btn').addEventListener('click', toggleMute);
 refreshMuteBtn();
@@ -198,20 +198,20 @@ const wallet = createWallet({
     walletState = s;
     const btn = $('wallet-btn');
     if (s.status === 'connected') {
-      btn.textContent = `${s.short} · ${s.tier?.label || 'Sinyal'}`;
+      btn.textContent = `${s.short} · ${s.tier?.label || 'Signal'}`;
       btn.classList.add('connected');
       $('skin-hint').textContent = CONFIG.token.address
-        ? `Saldo ${s.balance == null ? '?' : s.balance.toLocaleString('id-ID')} ${CONFIG.ticker} · tier ${s.tier?.label}`
-        : 'Wallet nyambung. Skin tier lain kebuka pas token launch.';
+        ? `Balance ${s.balance == null ? '?' : s.balance.toLocaleString('en-US')} ${CONFIG.ticker} · tier ${s.tier?.label}`
+        : 'Wallet connected. Tier skins unlock once the token launches.';
     } else if (s.status === 'connecting') {
-      btn.textContent = 'Nyambungin...';
+      btn.textContent = 'Connecting...';
     } else {
       btn.textContent = 'Connect wallet';
       btn.classList.remove('connected');
-      $('skin-hint').textContent = 'Connect wallet buat buka skin lain.';
+      $('skin-hint').textContent = 'Connect a wallet to unlock more skins.';
       if (s.status === 'error') {
-        showToast(s.error === 'no-wallet' ? 'Nggak ada wallet di browser ini. Pasang Phantom atau MetaMask dulu.'
-          : s.error === 'rejected' ? 'Yaudah, kapan-kapan aja.' : `Wallet gagal: ${s.error}`);
+        showToast(s.error === 'no-wallet' ? 'No wallet found in this browser. Install Phantom or MetaMask first.'
+          : s.error === 'rejected' ? 'Alright, maybe later.' : `Wallet error: ${s.error}`);
       }
     }
     renderSkins();
@@ -220,20 +220,20 @@ const wallet = createWallet({
 $('wallet-btn').addEventListener('click', async () => {
   if (walletState.status === 'connected') {
     await wallet.disconnect();
-    showToast('Wallet dilepas');
+    showToast('Wallet disconnected');
     return;
   }
   const ok = await wallet.connect();
   if (ok) {
-    showToast(`Sinyal baru dari ${walletState.providerName}. Selamat datang.`);
-    say('Lu beneran masuk. Lampu di sini nyala karena orang kayak lu.', 3600);
+    showToast(`New signal from ${walletState.providerName}. Welcome.`);
+    say("You're really here. The lights in this place stay on because of people like you.", 3600);
   }
 });
 wallet.eager();
 
 let currentSkin = SKINS[0];
 function pickSkin(skin, { silent = false } = {}) {
-  if (!isUnlocked(skin, walletState, CONFIG.tiers)) { showToast('Skin ini kekunci. Connect wallet atau naik tier dulu.'); return; }
+  if (!isUnlocked(skin, walletState, CONFIG.tiers)) { showToast('This skin is locked. Connect a wallet or reach a higher tier.'); return; }
   currentSkin = skin;
   applySkin(robot, skin);
   document.documentElement.style.setProperty('--violet', skin.primary);
@@ -248,7 +248,7 @@ function renderSkins() {
     const unlocked = isUnlocked(s, walletState, CONFIG.tiers);
     const el = document.createElement('button');
     el.className = 'skin' + (s.id === currentSkin.id ? ' active' : '') + (unlocked ? '' : ' locked');
-    el.title = unlocked ? s.name : `${s.name} · butuh ${s.unlock === 'wallet' ? 'wallet' : 'tier ' + (CONFIG.tiers.find((t) => t.id === s.unlock)?.label || s.unlock)}`;
+    el.title = unlocked ? s.name : `${s.name} · needs ${s.unlock === 'wallet' ? 'a wallet' : 'tier ' + (CONFIG.tiers.find((t) => t.id === s.unlock)?.label || s.unlock)}`;
     el.innerHTML = `<span class="sw" style="background:linear-gradient(135deg,${s.primary} 55%,${s.secondary} 55%);--acc:${s.accent};--emi:${s.emissive}"></span><span>${s.name}</span>`;
     el.addEventListener('click', () => pickSkin(s));
     grid.appendChild(el);
@@ -270,17 +270,17 @@ const market = createMarket({
     const first = !marketState;
     const prevMood = marketState?.mood;
     marketState = s;
-    const chg = s.change24 == null ? '' : `${s.change24 >= 0 ? '+' : ''}${s.change24.toFixed(1)}% 24j`;
-    const price = s.price == null ? (s.source === 'demo' ? 'Demo · token belum launch' : '') : `$${s.price < 1 ? s.price.toPrecision(3) : s.price.toFixed(2)}`;
+    const chg = s.change24 == null ? '' : `${s.change24 >= 0 ? '+' : ''}${s.change24.toFixed(1)}% 24h`;
+    const price = s.price == null ? (s.source === 'demo' ? 'Demo · token not launched yet' : '') : `$${s.price < 1 ? s.price.toPrecision(3) : s.price.toFixed(2)}`;
     $('market-text').innerHTML = `<span>${MOOD_LABEL[s.mood]}</span><span class="chg ${s.change24 >= 0 ? 'up' : 'down'}">${[price, chg].filter(Boolean).join(' · ')}</span>`;
     world.setWeather?.({ kind: s.mood, intensity: s.intensity });
     if (!first && prevMood !== s.mood && started) {
       const lines = {
-        storm: 'Badai. Sistem gua bilang market lagi dump. Gua tunggu di bawah atap.',
-        rain: 'Hujan. Market merah. Nggak apa-apa, lampunya masih nyala.',
-        cloudy: 'Mendung. Market datar. Hari biasa di kota ini.',
-        clear: 'Cerah. Market hijau. Enak buat jalan-jalan.',
-        golden: 'Lu liat langitnya? Market lagi pump. Semua sinyal lagi nyala.',
+        storm: "Storm. My sensors say the market is dumping. I'll wait under a roof.",
+        rain: "Rain. Market's red. It's fine, the lamps are still on.",
+        cloudy: 'Overcast. Flat market. Just another day in this city.',
+        clear: "Clear sky. Market's green. Good day for a walk.",
+        golden: 'Look at that sky. The market is pumping. Every signal is lit.',
       };
       say(lines[s.mood], 4200);
     }
@@ -296,7 +296,7 @@ $('start-btn').addEventListener('click', () => {
   audio.play('boot');
   robot.setState('yawn');
   behavior.lock = 1.8;
-  setTimeout(() => say('...oh. Ada sinyal baru. Lu beneran dateng?'), 1900);
+  setTimeout(() => say("...oh. A new signal. You actually came?"), 1900);
 });
 let started = false;
 
@@ -306,6 +306,8 @@ const behavior = {
   lock: 0,            // lama state dikunci (animasi sekali jalan)
   speed: 0,           // kecepatan jalan sekarang (ramp)
   camDist: null,      // jarak kamera halus
+  grounded: true,     // lagi napak atau lagi di udara (loncat)
+  vy: 0,              // kecepatan vertikal
   sitting: null,      // bangku yang diduduki
   nearBench: null,
   nearDrink: false,
@@ -315,13 +317,13 @@ const behavior = {
 };
 
 const idleLines = [
-  'Dulu kota ini rame banget.',
-  'Gua masih nunggu enam unit lainnya.',
-  'Kopi ini nggak ngaruh ke sistem gua. Tapi enak aja.',
-  'Lampu ke-4 kapan nyala ya...',
-  'Sunset di bukit itu, lu harus liat.',
+  'This city used to be so loud.',
+  "I'm still waiting for the other six units.",
+  "This coffee does nothing for my systems. It's just nice.",
+  'When does the fourth lamp come on...',
+  'The sunset from that hill. You have to see it.',
 ];
-const sitLines = ['Bangku ini tempat favorit gua.', 'Duduk bentar. Sistem gua butuh... nggak sih. Pengen aja.', 'Dari sini kelihatan danau sama dermaga.'];
+const sitLines = ['This bench is my favorite spot.', "Sitting for a bit. My systems need it... no they don't. I just want to.", 'You can see the lake and the pier from here.'];
 
 // batu lemparan
 const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.15, 0), new THREE.MeshStandardMaterial({ color: 0x777 }));
@@ -391,6 +393,9 @@ let elapsed = 0;
 let frameNo = 0;
 const SPEED_WALK = 4.2;
 const SPEED_RUN = 8.5;
+const JUMP_SPEED = 6.4;
+const GRAVITY = 16;
+const BOUNDS = { min: -126, max: 126 }; // tepi tanah yang bisa diinjak, kota sampai ~126
 
 function nearest(list, x, z, maxD) {
   let best = null, bd = maxD;
@@ -441,7 +446,7 @@ function tick() {
     if (controls.consume('f') && behavior.nearDrink && !behavior.sitting) {
       robot.setState('drink');
       behavior.lock = 2.4;
-      setTimeout(() => say('Ahh. Nggak kerasa apa-apa. Tapi enak.'), 1500);
+      setTimeout(() => say("Ahh. Can't taste a thing. Still good."), 1500);
     }
     if (controls.consume('r') && behavior.nearPier && !behavior.sitting) {
       robot.setState('throw');
@@ -469,29 +474,35 @@ function tick() {
       const dz = -mv.x * Math.sin(yaw) + mv.y * Math.cos(yaw);
       const nx = pos.x + dx * speed * dt;
       const nz = pos.z + dz * speed * dt;
-      const half = WORLD.size * 0.75;
-      const free = (x, z) => !isWater(x, z) && !blockedByBuilding(x, z) && Math.abs(x) < half && Math.abs(z) < half;
+      // seluruh map bisa dijelajahi: batasnya tepi tanah, termasuk kota di tenggara
+      const free = (x, z) => !isWater(x, z) && !blockedByBuilding(x, z) && x > BOUNDS.min && x < BOUNDS.max && z > BOUNDS.min && z < BOUNDS.max;
       if (free(nx, nz)) {
         pos.x = nx; pos.z = nz;
-      } else if (blockedByBuilding(nx, nz) && free(nx, pos.z)) {
-        pos.x = nx; // meluncur sepanjang tembok
-      } else if (blockedByBuilding(nx, nz) && free(pos.x, nz)) {
+      } else if (free(nx, pos.z)) {
+        pos.x = nx; // meluncur sepanjang tembok / tepi
+      } else if (free(pos.x, nz)) {
         pos.z = nz;
       } else if (isWater(nx, nz) && Math.random() < 0.02) {
-        say('Air. Nggak dulu, sistem gua belum kedap.', 1600);
+        say("Water. Not yet, my seals aren't rated for that.", 1600);
       }
       const targetRot = Math.atan2(dx, dz);
       let diff = targetRot - robot.root.rotation.y;
       diff = Math.atan2(Math.sin(diff), Math.cos(diff));
       robot.root.rotation.y += diff * Math.min(1, dt * 10);
-      robot.setState(inp.run ? 'run' : 'walk');
+      if (behavior.grounded) robot.setState(inp.run ? 'run' : 'walk');
       behavior.idleTime = 0;
-      // auto-follow: kalau user nggak lagi muter kamera, kamera pelan-pelan ke belakang robot
-      if (inp.sinceDrag > 1.5 && Math.hypot(inp.moveRaw.x, inp.moveRaw.y) > 0.3) {
-        controls.followYaw(robot.root.rotation.y + Math.PI, dt, inp.run ? 1.6 : 1.0);
-      }
-    } else if (behavior.lock <= 0 && !behavior.sitting) {
+    } else if (behavior.lock <= 0 && !behavior.sitting && behavior.grounded) {
       if (['walk', 'run', 'drink', 'throw', 'curious', 'yawn', 'wave'].includes(robot.state.name)) robot.setState('idle');
+    }
+
+    // --- loncat (Space), ala Roblox ---
+    const wantJump = controls.consume(' ') || inp.jumpHeld;
+    if (wantJump && behavior.grounded && !behavior.sitting && behavior.lock <= 0) {
+      if (behavior.sitting) behavior.sitting = null;
+      behavior.grounded = false;
+      behavior.vy = JUMP_SPEED;
+      audio.play('jump');
+      if (STATES.includes('jump')) robot.setState('jump');
     }
 
     // tinggi tanah (bukit, jembatan, dermaga)
@@ -500,7 +511,19 @@ function tick() {
     if (Math.abs(pos.x - b.x) < b.len / 2 + 1 && Math.abs(pos.z - b.z) < b.w / 2) gy = 0.62;
     const p = WORLD.pier;
     if (Math.abs(pos.x - p.x) < p.w / 2 && Math.abs(pos.z - p.z) < p.len / 2) gy = 0.4;
-    if (!behavior.sitting) pos.y += (gy - pos.y) * Math.min(1, dt * 14);
+    if (!behavior.sitting) {
+      if (!behavior.grounded) {
+        behavior.vy -= GRAVITY * dt;
+        pos.y += behavior.vy * dt;
+        if (pos.y <= gy && behavior.vy <= 0) {
+          pos.y = gy; behavior.grounded = true; behavior.vy = 0;
+          audio.play('land');
+          if (robot.state.name === 'jump') robot.setState(moving ? (inp.run ? 'run' : 'walk') : 'idle');
+        }
+      } else {
+        pos.y += (gy - pos.y) * Math.min(1, dt * 14);
+      }
+    }
 
     // --- idle: nguap lalu tidur ---
     if (inp.anyInput) behavior.idleTime = 0; else behavior.idleTime += rawDt;
@@ -511,7 +534,7 @@ function tick() {
       if (behavior.idleTime > 4 && behavior.idleTime < 4.1 && behavior.nearPier) { robot.setState('curious'); behavior.lock = 3; }
     }
     if (behavior.sitting && behavior.idleTime > 40 && robot.state.name !== 'sleep') { robot.setState('sleep'); }
-    if (robot.state.name === 'sleep' && inp.anyInput) { robot.setState(behavior.sitting ? 'sit' : 'idle'); say('Eh! Gua nggak tidur kok.', 1800); }
+    if (robot.state.name === 'sleep' && inp.anyInput) { robot.setState(behavior.sitting ? 'sit' : 'idle'); say("Huh! I wasn't sleeping.", 1800); }
 
     // ngomong sendiri sesekali
     behavior.lastChat += rawDt;
@@ -528,21 +551,21 @@ function tick() {
         s.mesh.visible = false;
         signalsFound++;
         $('quest-count').textContent = signalsFound;
-        showToast(`Sinyal ketemu (${signalsFound}/5)`);
+        showToast(`Signal found (${signalsFound}/5)`);
         audio.play('chime');
         robot.setState('wave');
         behavior.lock = 1.2;
-        if (signalsFound === 3 && cityLights < 4) { cityLights = 4; refreshLamps(); setTimeout(() => audio.play('lamp'), 500); say('Lampu keempat! Kotanya makin terang.'); }
-        if (signalsFound === 5) { cityLights = 5; refreshLamps(); setTimeout(() => audio.play('lamp'), 500); say('Semua lampu nyala. Gua... inget rasanya kayak gini.', 5000); }
+        if (signalsFound === 3 && cityLights < 4) { cityLights = 4; refreshLamps(); setTimeout(() => audio.play('lamp'), 500); say('The fourth lamp! The city is getting brighter.'); }
+        if (signalsFound === 5) { cityLights = 5; refreshLamps(); setTimeout(() => audio.play('lamp'), 500); say('All the lamps are on. I... remember what this felt like.', 5000); }
       }
     }
 
     // hint kontekstual
-    if (behavior.sitting) setHint('Tekan E atau gerak buat berdiri. Diemin aja, dia bakal ketiduran.');
-    else if (behavior.nearBench) setHint('Ada bangku. E buat duduk.');
-    else if (behavior.nearDrink) setHint('F buat "minum". Nggak ngaruh ke sistemnya, tapi dia suka.');
-    else if (behavior.nearPier) setHint('R buat lempar batu ke danau.');
-    else setHint('WASD jalan · Shift lari · drag mouse muter kamera · scroll zoom · ikutin panah hijau ke sinyal');
+    if (behavior.sitting) setHint('Press E or move to stand up. Leave it alone and it will doze off.');
+    else if (behavior.nearBench) setHint('A bench. Press E to sit.');
+    else if (behavior.nearDrink) setHint('Press F to "drink". Does nothing for its systems, but it likes it.');
+    else if (behavior.nearPier) setHint('Press R to skip a rock across the lake.');
+    else setHint('WASD move · Space jump · Shift run · right-drag to look · scroll to zoom · follow the green arrow');
   }
 
   // batu terbang
@@ -563,7 +586,7 @@ function tick() {
         if (isWater(rock.position.x, rock.position.z)) splash(rock.position.x, rock.position.z);
         rock.visible = false;
         behavior.rockFlight = null;
-        if (r.bounces >= 2) say('Tiga kali! Lu liat kan?', 2200);
+        if (r.bounces >= 2) say('Three skips! You saw that, right?', 2200);
       }
     }
   }
@@ -640,9 +663,9 @@ function takePhoto() {
       a.href = url;
       a.download = `u7-world-${Date.now()}.png`;
       a.click();
-      showToast('Foto tersimpan. Share ke X pake #VUZZWorld');
+      showToast('Photo saved. Share it on X with #VUZZWorld');
     } catch (e) {
-      showToast('Foto gagal disimpan di browser ini.');
+      showToast('Could not save the photo in this browser.');
     }
     hud.classList.remove('hidden');
   });

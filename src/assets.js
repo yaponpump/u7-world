@@ -81,16 +81,16 @@ function loadGLB(url) {
 export async function loadAssets(onProgress = () => {}) {
   const manifest = await fetchJSON(`${base}manifest.json`);
   const assets = { manifest, textures: {}, hdri: null, trees: [], treesFar: [], props: {} };
-  if (!manifest) { onProgress('Asset asli nggak ketemu, pake tekstur prosedural'); return assets; }
+  if (!manifest) { onProgress('Real assets not found, using procedural textures'); return assets; }
 
   const texJobs = Object.entries(manifest.textures || {}).map(async ([key, name]) => {
-    onProgress(`Tekstur ${key}`);
+    onProgress(`Texture ${key}`);
     assets.textures[key] = await loadPBR(name, 1);
   });
   const hdriJob = manifest.hdri ? loadHDRI(base + manifest.hdri).then((t) => { assets.hdri = t; }) : null;
   // treesFar opsional: versi ringan, urutannya sama kayak trees
   const treeJobs = (manifest.trees || []).map(async (p, i) => {
-    onProgress(`Pohon ${p.split('/').pop()}`);
+    onProgress(`Tree ${p.split('/').pop()}`);
     const far = manifest.treesFar?.[i];
     const [s, f] = await Promise.all([loadGLB(base + p), far ? loadGLB(base + far) : null]);
     if (s) { assets.trees.push(s); assets.treesFar.push(f || s); }

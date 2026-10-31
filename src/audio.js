@@ -210,6 +210,15 @@ export function createAudio() {
       tone({ type: 'sawtooth', f0: 140, f1: 110, dur: 0.18, gain: 0.03, filter: { type: 'lowpass', freq: 500 }, pan: Math.random() * 1.2 - 0.6 });
       tone({ type: 'sawtooth', f0: 150, f1: 115, dur: 0.18, gain: 0.025, delay: 0.26, filter: { type: 'lowpass', freq: 500 } });
     },
+    jump() {
+      tone({ type: 'sawtooth', f0: 180, f1: 520, dur: 0.16, gain: 0.05, filter: { type: 'lowpass', freq: 1600 } });
+      burst({ dur: 0.14, gain: 0.05, f0: 600, f1: 1800, q: 1 });
+    },
+    land() {
+      tone({ type: 'sine', f0: 120, f1: 50, dur: 0.14, gain: 0.16 });
+      burst({ dur: 0.08, gain: 0.08, f0: 900, f1: 300, q: 0.8 });
+      tone({ type: 'sawtooth', f0: 320, f1: 200, dur: 0.08, gain: 0.02, filter: { type: 'lowpass', freq: 1200 } });
+    },
     boot() {
       // sistem nyala pas intro: hum naik + 3 bip
       tone({ type: 'sawtooth', f0: 60, f1: 140, dur: 1.2, gain: 0.06, attack: 0.2, filter: { type: 'lowpass', freq: 500 } });
