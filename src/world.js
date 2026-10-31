@@ -16,7 +16,7 @@ export const WORLD = {
   park: { x: 20, z: 0, r: 20 },
   hill: { x: 44, z: -40, r: 26, h: 9 },
   cafe: { x: 44, z: 24 },
-  pier: { x: -14, z: 22, w: 3, len: 10 },
+  pier: { x: -17.5, z: 22, w: 3, len: 11 },
   // rotY: sumbu panjang jembatan = (cos rotY, -sin rotY). deckY: tinggi lantainya.
   bridges: [
     { x: -12, z: -14, w: 4, len: 10, rotY: 0, deckY: 0.62 },
@@ -41,6 +41,8 @@ export const riverCurve = new THREE.CatmullRomCurve3([
 ]);
 const riverSamples = riverCurve.getSpacedPoints(100);
 
+const inLake = (p) => Math.hypot(p.x - WORLD.lake.x, p.z - WORLD.lake.z) < WORLD.lake.r - 1;
+
 function ribbonGeometry(curve, width, segments = 140) {
   const pts = curve.getSpacedPoints(segments);
   const pos = [], uv = [], idx = [];
@@ -51,7 +53,7 @@ function ribbonGeometry(curve, width, segments = 140) {
     const n = new THREE.Vector3().crossVectors(up, t).normalize().multiplyScalar(width / 2);
     pos.push(p.x - n.x, 0, p.z - n.z, p.x + n.x, 0, p.z + n.z);
     uv.push(0, (i / segments) * 12, 1, (i / segments) * 12);
-    if (i < pts.length - 1) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+    if (i < pts.length - 1 && !inLake(pts[i + 1])) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
@@ -72,7 +74,7 @@ function shallowGeometry(curve, segments = 140) {
       pos.push(p.x + n.x * d, 0, p.z + n.z * d);
       col.push(0.62, 0.8, 0.74, a);
     }
-    if (i < segments) {
+    if (i < segments && !inLake(pts[i + 1])) {
       const b = i * 4;
       for (const k of [0, 2]) idx.push(b + k, b + k + 4, b + k + 1, b + k + 1, b + k + 4, b + k + 5);
     }
@@ -120,7 +122,7 @@ WORLD.landmarks = [
   { id: 'park', name: 'Park', x: 20, z: 0, kind: 'park' },
   { id: 'fountain', name: 'Fountain', x: 20, z: 0, kind: 'fountain', minor: true },
   { id: 'lake', name: 'Lake', x: -34, z: 30, kind: 'lake' },
-  { id: 'pier', name: 'Pier', x: -14, z: 22, kind: 'pier' },
+  { id: 'pier', name: 'Pier', x: -17.5, z: 22, kind: 'pier' },
   { id: 'bridge', name: 'Bridge', x: -12, z: -14, kind: 'bridge' },
   { id: 'bridge2', name: 'Bridge', x: -22, z: 7, kind: 'bridge' },
   { id: 'bridge3', name: 'Bridge', x: -40, z: -40, kind: 'bridge' },
@@ -183,7 +185,7 @@ function buildPaths(group, mat, hi) {
   road.receiveShadow = true;
   group.add(road);
 
-  const rock = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.11, 0), new THREE.MeshStandardMaterial({ color: 0xbfb9ab, roughness: 0.9 }), stones.length);
+  const rock = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.09, 0), new THREE.MeshStandardMaterial({ color: 0x77726a, roughness: 0.95 }), stones.length);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), s = new THREE.Vector3();
   stones.forEach(([x, y, z, k], i) => {
     q.setFromEuler(new THREE.Euler(i, i * 2.3, i * 1.1));
@@ -270,6 +272,28 @@ function onPath(x, z) {
   return false;
 }
 
+export function onPier(x, z) {
+  const p = WORLD.pier;
+  return Math.abs(x - p.x) < p.len / 2 && Math.abs(z - p.z) < p.w / 2;
+}
+
+const bridgeLocal = (b, x, z) => {
+  const dx = x - b.x, dz = z - b.z, c = Math.cos(b.rotY), s = Math.sin(b.rotY);
+  return { lx: dx * c - dz * s, lz: dx * s + dz * c };
+};
+// Tinggi lantai jembatan di titik ini, ngikutin lengkungannya
+export function deckHeight(b, x, z) {
+  const t = Math.min(1, Math.max(0, (bridgeLocal(b, x, z).lx + 5.7) / 11.4));
+  return 0.55 + Math.sin(t * Math.PI) * 0.35;
+}
+// Pagar jembatan: nggak bisa ditembus dari dalam maupun luar
+export function blockedByRail(x, z) {
+  return WORLD.bridges.some((b) => {
+    const { lx, lz } = bridgeLocal(b, x, z);
+    return Math.abs(lx) < b.len / 2 + 0.2 && Math.abs(Math.abs(lz) - b.w / 2) < 0.28;
+  });
+}
+
 // Jembatan yang lagi diinjek di titik ini, kalau ada
 export function onBridge(x, z) {
   return WORLD.bridges.find((b) => {
@@ -278,17 +302,14 @@ export function onBridge(x, z) {
   }) || null;
 }
 
-export function isWater(x, z) {
+// Air beneran, termasuk yang ada di bawah dermaga dan jembatan
+function overWater(x, z) {
   const l = WORLD.lake;
-  if (Math.hypot(x - l.x, z - l.z) < l.r - 0.5) {
-    const p = WORLD.pier;
-    if (Math.abs(x - p.x) < p.w / 2 && z > p.z - p.len / 2 && z < p.z + p.len / 2) return false;
-    return true;
-  }
-  if (distToRiver(x, z) < 3.2) {
-    return !onBridge(x, z);
-  }
-  return false;
+  return Math.hypot(x - l.x, z - l.z) < l.r - 0.5 || distToRiver(x, z) < 3.2;
+}
+
+export function isWater(x, z) {
+  return overWater(x, z) && !onPier(x, z) && !onBridge(x, z);
 }
 
 // Titik bulat lembut buat cipratan, biar partikel nggak jadi kotak
@@ -353,7 +374,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   for (let i = 0; i < gp.count; i++) {
     const x = gp.getX(i), z = gp.getZ(i);
     let y = groundHeight(x, z);
-    if (isWater(x, z)) y = -1.6 + Math.min(0, -distToRiver(x, z) * 0.1);
+    if (overWater(x, z)) y = -1.6 + Math.min(0, -distToRiver(x, z) * 0.1);
     gp.setY(i, y - 0.02);
     guv.setXY(i, x / 6, z / 6);
     mix.push(onPath(x, z) ? 1 : 0);
@@ -444,7 +465,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     const x = WORLD.park.x * 0.4 + Math.cos(ang) * rad, z = Math.sin(ang) * rad;
     if (isWater(x, z) || onPath(x, z) || distToRiver(x, z) < 3.6) continue;
     if (Math.hypot(x - WORLD.cafe.x, z - WORLD.cafe.z) < 7) continue;
-    if (Math.abs(x - WORLD.pier.x) < WORLD.pier.w / 2 + 0.3 && Math.abs(z - WORLD.pier.z) < WORLD.pier.len / 2 + 0.6) continue;
+    if (Math.abs(x - WORLD.pier.x) < WORLD.pier.len / 2 + 0.6 && Math.abs(z - WORLD.pier.z) < WORLD.pier.w / 2 + 0.3) continue;
     if (onBridge(x, z)) continue;
     const y = groundHeight(x, z);
     v3.set(x, y, z);
@@ -564,14 +585,14 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   bench(20, 9, Math.PI);
   bench(20, -9, 0);
   bench(29, 0, -Math.PI / 2);
-  bench(-16, 36, Math.PI * 0.85);
+  bench(-8.5, 34, -Math.PI / 2);
   bench(44, -40, Math.PI * 0.75);
 
   // ---------- Dermaga ----------
   const pier = new THREE.Group();
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 16; i++) {
     const plank = new THREE.Mesh(new THREE.BoxGeometry(WORLD.pier.w, 0.08, 0.6), woodMat);
-    plank.position.set(0, 0.3, -WORLD.pier.len / 2 + 0.35 + i * 0.7);
+    plank.position.set(0, 0.3, -WORLD.pier.len / 2 + 0.2 + i * 0.7);
     plank.castShadow = plank.receiveShadow = true;
     pier.add(plank);
   }
@@ -581,6 +602,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     pier.add(post);
   }
   pier.position.set(WORLD.pier.x, 0, WORLD.pier.z);
+  pier.rotation.y = Math.PI / 2;
   group.add(pier);
 
   // ---------- Jembatan ----------
@@ -780,7 +802,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
 
   // ---------- Sinyal quest ----------
   const sigGeo = new THREE.OctahedronGeometry(0.35, 0);
-  for (const [x, z] of [[-24, 40], ...CITY_SIGNALS, [44, -38], [-50, -10]]) {
+  for (const [x, z] of [[-22, 22], ...CITY_SIGNALS, [44, -38], [-50, -10]]) {
     const m = new THREE.MeshStandardMaterial({ color: 0xb8ff3c, emissive: 0xb8ff3c, emissiveIntensity: 2.5, roughness: 0.2 });
     const s = new THREE.Mesh(sigGeo, m);
     s.position.set(x, groundHeight(x, z) + 1.2, z);
@@ -807,7 +829,9 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     let x, z;
     if (i < 8) { const p = riverCurve.getPointAt(0.28 + i * 0.025); x = p.x + (i % 2 ? 1 : -1) * 1.4; z = p.z; }
     else { const a = rnd() * Math.PI * 2; const r = WORLD.lake.r + 0.6 + rnd() * 1.5; x = WORLD.lake.x + Math.cos(a) * r; z = WORLD.lake.z + Math.sin(a) * r; }
-    const r = new THREE.Mesh(new THREE.DodecahedronGeometry(0.3 + rnd() * 0.5, 1), rockMat);
+    const rockSize = 0.3 + rnd() * 0.5;
+    if (WORLD.bridges.some((b) => Math.hypot(x - b.x, z - b.z) < 8)) continue;
+    const r = new THREE.Mesh(new THREE.DodecahedronGeometry(rockSize, 1), rockMat);
     r.position.set(x, groundHeight(x, z) - 0.15, z);
     r.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3);
     r.scale.set(1, 0.6 + rnd() * 0.4, 1);
