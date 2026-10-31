@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight, distToRiver, onBridge, onPier, deckHeight, blockedByRail } from './world.js';
-import { blockedByBuilding, cameraBlocked, obstacleTop, rooftopHeight } from './city.js';
+import { blockedByBuilding, cameraBlocked, nearestFree, obstacleTop, rooftopHeight, touchingWall } from './city.js';
 import { createRobot, STATES } from './robot.js';
 import { createAudio } from './audio.js';
 import { createWallet } from './wallet.js';
@@ -597,6 +597,8 @@ const SPEED_WALK = 4.2;
 const SPEED_RUN = 8.5;
 const JUMP_SPEED = 7.3; // cukup buat lompatin mobil (puncak 1,45)
 const GRAVITY = 16;
+const ROOF_JUMP = 11.5; // dari atap: cukup buat nyebrang jalan kalau sambil lari
+const WALL_KICK = 9;    // Space waktu nempel tembok, tahan buat manjat
 const BOUNDS = { min: -126, max: 126 }; // tepi tanah yang bisa diinjak, kota sampai ~126
 
 // Semua air dangkal: sungai dan danau bisa dijalanin, makin ke tengah makin dalam.
@@ -689,7 +691,14 @@ function tick() {
     if (controls.consume('m')) toggleMute();
     if (controls.consume('g')) nextFace();
 
+    // kejepit di dalam gedung atau mobil (misal dari save lama): keluarin ke titik bebas terdekat
+    if (behavior.grounded && blockedByBuilding(pos.x, pos.z, pos.y)) {
+      [pos.x, pos.z] = nearestFree(pos.x, pos.z);
+      pos.y = groundHeight(pos.x, pos.z);
+    }
+
     // --- gerak ---
+    behavior.wall = false;
     behavior.lock = Math.max(0, behavior.lock - rawDt);
     const moving = Math.hypot(inp.moveRaw.x, inp.moveRaw.y) > 0.05 || Math.hypot(inp.move.x, inp.move.y) > 0.08;
     // kecepatan naik-turun halus (ramp), bukan langsung penuh
@@ -719,6 +728,7 @@ function tick() {
         behavior.bump = (behavior.bump || 0) + dt;
         if (behavior.bump > 1.6) { behavior.bump = 0; express('angry', 2); say(['Who put a wall here.', 'Move. Please. I asked nicely.', 'Fine. Other way.'][Math.floor(Math.random() * 3)], 1600); }
       }
+      behavior.wall = !behavior.grounded && touchingWall(nx, nz, pos.y);
       const targetRot = Math.atan2(dx, dz);
       let diff = targetRot - robot.root.rotation.y;
       diff = Math.atan2(Math.sin(diff), Math.cos(diff));
@@ -749,7 +759,11 @@ function tick() {
     if (wantJump && behavior.grounded && !behavior.sitting && behavior.lock <= 0) {
       if (behavior.sitting) behavior.sitting = null;
       behavior.grounded = false;
-      behavior.vy = JUMP_SPEED;
+      behavior.vy = behavior.onRoof ? ROOF_JUMP : JUMP_SPEED;
+      audio.play('jump');
+      if (STATES.includes('jump')) robot.setState('jump');
+    } else if (wantJump && behavior.wall && behavior.vy < 2 && behavior.lock <= 0) {
+      behavior.vy = WALL_KICK;
       audio.play('jump');
       if (STATES.includes('jump')) robot.setState('jump');
     }
@@ -760,7 +774,9 @@ function tick() {
     if (deck) gy = deckHeight(deck, pos.x, pos.z);
     else if (onStone(pos.x, pos.z)) gy = 0.1;
     if (onPier(pos.x, pos.z)) gy = 0.34;
-    gy = Math.max(gy, rooftopHeight(pos.x, pos.z)); // tangga besi + atap gedung di kota
+    const roofY = rooftopHeight(pos.x, pos.z, pos.y); // tangga besi + atap gedung di kota
+    gy = Math.max(gy, roofY);
+    behavior.onRoof = roofY > 1 && pos.y - roofY < 0.3;
     // atap mobil / pembatas: napak di atasnya kalau kakinya udah setinggi itu
     const oTop = obstacleTop(pos.x, pos.z);
     if (oTop > 0 && pos.y > oTop - 0.35) gy = Math.max(gy, oTop);
@@ -860,7 +876,7 @@ function tick() {
     else if (onBridge(pos.x, pos.z)) setHint('A bridge over the river. Walk straight across.');
     else if (behavior.nearPier) setHint('Press R to skip a rock across the lake.');
     else if (distToRiver(pos.x, pos.z) < 7) setHint('The river is shallow: wade straight across, or take a bridge or the stepping stones.');
-    else setHint('WASD move · Space jump (clears cars) · B backflip · G face · T skip time · Shift run · right-drag to look · follow the green arrow');
+    else setHint('WASD move · Space jump · hold Space on a wall to climb · B backflip · G face · T skip time · Shift run · right-drag to look · follow the green arrow');
   }
 
   // batu terbang

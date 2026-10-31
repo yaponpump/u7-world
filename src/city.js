@@ -53,12 +53,17 @@ export const ROOF = {
 };
 const inStair = (x, z) => x > ROOF.x0 - 0.2 && x < ROOF.x1 + 0.2 && z > ROOF.zA && z < ROOF.zB;
 const stairY = (x) => 0.14 + Math.min(1, Math.max(0, (x - ROOF.x0) / (ROOF.x1 - ROOF.x0))) * (roofB.h - 0.14);
-// Tinggi tangga atau atap di titik ini, 0 kalau bukan di sana
-export function rooftopHeight(x, z) {
-  if (inStair(x, z)) return stairY(x);
-  if (x > roofB.x && x < roofB.x + roofB.w && z > roofB.z && z < roofB.z + roofB.d) return roofB.h;
-  return 0;
+const PAD = 0.55;
+const nearB = (b, x, z) => x > b.x - PAD && x < b.x + b.w + PAD && z > b.z - PAD && z < b.z + b.d + PAD;
+// Pijakan tangga atau atap tertinggi yang nggak lebih tinggi dari kaki (y), 0 kalau nggak ada.
+// Atap selebar zona tabrakan gedung, jadi yang jatuh dari atap nggak pernah kejepit di dinding.
+export function rooftopHeight(x, z, y = Infinity) {
+  let top = inStair(x, z) ? stairY(x) : 0;
+  for (const b of BUILDINGS) if (b.h > top && b.h <= y + 0.35 && nearB(b, x, z)) top = b.h;
+  return top;
 }
+// Lagi nempel tembok gedung di titik ini, buat wall jump
+export const touchingWall = (x, z, y) => BUILDINGS.some((b) => y < b.h - 0.2 && nearB(b, x, z));
 
 // Mobil dan pembatas jalan, diisi pas kota dibangun
 // Rintangan rendah punya tinggi (top): bisa dilompatin dan diinjek atapnya.
@@ -67,20 +72,26 @@ export const addObstacle = (x, z, hx, hz, top = 1.0) => OBSTACLES.push({ x, z, h
 // Puncak rintangan rendah di titik ini (0 kalau nggak ada), buat napak di atas mobil
 export function obstacleTop(x, z) {
   let top = 0;
-  for (const o of OBSTACLES) if (Math.abs(x - o.x) < o.hx + 0.2 && Math.abs(z - o.z) < o.hz + 0.2) top = Math.max(top, o.top);
+  for (const o of OBSTACLES) if (Math.abs(x - o.x) < o.hx + 0.6 && Math.abs(z - o.z) < o.hz + 0.6) top = Math.max(top, o.top);
   return top;
 }
 // y = tinggi kaki: rintangan rendah nggak ngeblok kalau kakinya udah di atas puncaknya
 export function blockedByBuilding(x, z, y = 0) {
-  const pad = 0.55;
-  const inside = (b) => {
-    if (b === roofB && (y >= b.h - 0.2 || inStair(x, z))) return false;
-    return x > b.x - pad && x < b.x + b.w + pad && z > b.z - pad && z < b.z + b.d + pad;
-  };
+  const inside = (b) => y < b.h - 0.2 && !(b === roofB && inStair(x, z)) && nearB(b, x, z);
   // Nggak bisa masuk ke tengah tangga dari bawah
   if (inStair(x, z) && y < stairY(x) - 0.8) return true;
-  return BUILDINGS.some(inside) || SKYLINE.some(inside)
-    || OBSTACLES.some((o) => y < o.top - 0.2 && Math.abs(x - o.x) < o.hx + pad && Math.abs(z - o.z) < o.hz + pad);
+  return BUILDINGS.some(inside) || SKYLINE.some((b) => nearB(b, x, z))
+    || OBSTACLES.some((o) => y < o.top - 0.2 && Math.abs(x - o.x) < o.hx + PAD && Math.abs(z - o.z) < o.hz + PAD);
+}
+// Titik bebas terdekat, buat ngeluarin robot yang terlanjur kejepit (misal dari save lama)
+export function nearestFree(x, z) {
+  for (let r = 0.5; r < 30; r += 0.5) {
+    for (let a = 0; a < 24; a++) {
+      const px = x + Math.cos(a * Math.PI / 12) * r, pz = z + Math.sin(a * Math.PI / 12) * r;
+      if (!blockedByBuilding(px, pz)) return [px, pz];
+    }
+  }
+  return [x, z];
 }
 // Dua sinyal quest di kota: gang paling lebar di blok tengah, dan ujung jalan dekat skyline
 function alleySpot() {
