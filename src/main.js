@@ -1063,6 +1063,7 @@ function tick() {
   // update dunia + robot + langit
   world.setPlayer(robot.root.position);
   world.update(elapsed, dt);
+  world.updateRooms(camera);
   if (frameNo++ % 12 === 0) { camera.updateMatrixWorld(); world.updateTrees(camera); }
   gradePass.uniforms.uTime.value = elapsed;
   robot.update(dt, 0, elapsed);
