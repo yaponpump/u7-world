@@ -2,7 +2,7 @@
 
 Open world kecil di browser buat project **SIGNAL ($SGNL)**. Lu ngontrol **Unit-7**, mecha mungil penjaga terakhir kota yang padam sejak *The Blackout*. Tiap sinyal (holder) baru nyalain satu lampu kota.
 
-Dibangun pake [Three.js](https://threejs.org) + [Vite](https://vitejs.dev). Status: **prototype**. Robotnya masih dibikin dari bentuk dasar, model 3D asli nyusul.
+Dibangun pake [Three.js](https://threejs.org) + [Vite](https://vitejs.dev). Status: **prototype** dengan rendering realistis (langit fisik, air reflektif, rumput, PBR). Robotnya masih dibikin dari bentuk dasar, model 3D asli nyusul.
 
 ## Jalanin lokal
 
@@ -26,6 +26,18 @@ Buka `http://localhost:5173`.
 | Q | Foto |
 
 Diemin U-7 sekitar 15 detik, dia nguap. 30 detik, dia ketiduran.
+
+## Kualitas grafis
+
+Otomatis: `high` di desktop, `low` di HP. Paksa lewat URL: `?q=low` atau `?q=high`. Mode `high` pakai rumput 160 ribu helai, shadow 4K, refleksi air 1K, dan SMAA.
+
+## Rendering
+
+- Langit fisik (`Sky`) dengan posisi matahari dari jam asli, bintang pas malam, environment map dari langit buat refleksi
+- Air reflektif (`Water`) di danau dan air mancur, sungai pakai material kaca
+- Rumput instanced bergoyang, daun pohon kartu instanced dengan angin
+- Semua tekstur prosedural (rumput, tanah, kulit kayu, daun, batu, normal air, panel robot), nggak ada asset eksternal
+- Post-processing: bloom, vignette, chromatic aberration tipis, film grain, SMAA
 
 ## Struktur
 

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { panelLineTexture } from './textures.js';
 
 // U-7 sementara: dibangun dari bentuk dasar, warna colorful (ungu, lime, oranye).
 // Nanti diganti model GLB asli, tapi API (setState, update) tetep sama.
@@ -19,13 +20,19 @@ export function createRobot() {
   const body = new THREE.Group(); // bagian yang bob
   root.add(body);
 
-  const violet = new THREE.MeshStandardMaterial({ color: COL.violet, roughness: 0.35, metalness: 0.3 });
-  const violetDark = new THREE.MeshStandardMaterial({ color: COL.violetDark, roughness: 0.4, metalness: 0.3 });
-  const lime = new THREE.MeshStandardMaterial({ color: COL.lime, roughness: 0.4, emissive: COL.lime, emissiveIntensity: 0.25 });
-  const orange = new THREE.MeshStandardMaterial({ color: COL.orange, roughness: 0.5 });
-  const graphite = new THREE.MeshStandardMaterial({ color: COL.graphite, roughness: 0.7, metalness: 0.5 });
-  const visorMat = new THREE.MeshStandardMaterial({ color: COL.visor, roughness: 0.15, metalness: 0.6 });
-  const eyeMat = new THREE.MeshBasicMaterial({ color: COL.lime });
+  // Material PBR: armor glossy ber-clearcoat dengan garis panel, sendi graphite semi-metal
+  const panels = panelLineTexture();
+  const armor = (color) => new THREE.MeshPhysicalMaterial({
+    color, roughness: 0.42, metalness: 0.15, clearcoat: 1, clearcoatRoughness: 0.12,
+    roughnessMap: panels, bumpMap: panels, bumpScale: 0.004, envMapIntensity: 1.1,
+  });
+  const violet = armor(COL.violet);
+  const violetDark = armor(COL.violetDark);
+  const lime = new THREE.MeshPhysicalMaterial({ color: COL.lime, roughness: 0.3, emissive: COL.lime, emissiveIntensity: 0.35, clearcoat: 0.6 });
+  const orange = armor(COL.orange);
+  const graphite = new THREE.MeshStandardMaterial({ color: COL.graphite, roughness: 0.55, metalness: 0.85, envMapIntensity: 1.2 });
+  const visorMat = new THREE.MeshPhysicalMaterial({ color: COL.visor, roughness: 0.04, metalness: 0.3, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 1.6 });
+  const eyeMat = new THREE.MeshStandardMaterial({ color: COL.lime, emissive: COL.lime, emissiveIntensity: 3.5, toneMapped: false });
 
   // Kaki
   const legGeo = new THREE.CapsuleGeometry(0.16, 0.32, 4, 10);
@@ -149,7 +156,7 @@ export function createRobot() {
   root.add(zz);
 
   // Lampu lime di dada biar kelihatan malam
-  const glow = new THREE.PointLight(COL.lime, 0.6, 4, 2);
+  const glow = new THREE.PointLight(COL.lime, 0.8, 4, 2);
   glow.position.set(0, 1.1, 0.5);
   root.add(glow);
 

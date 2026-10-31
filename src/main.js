@@ -3,59 +3,119 @@ import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight } f
 import { createRobot } from './robot.js';
 import { createControls } from './controls.js';
 
+import { Sky } from 'three/examples/jsm/objects/Sky.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+
 // ---------- Setup ----------
+const isMobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && window.innerWidth < 1100);
+const qParam = new URLSearchParams(location.search).get('q');
+const QUALITY = qParam === 'low' || qParam === 'high' ? qParam : (isMobile ? 'low' : 'high');
 const canvas = document.getElementById('scene');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, QUALITY === 'high' ? 2 : 1.5));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 0.75;
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0xcfe6f5, 60, 160);
-const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 400);
+scene.fog = new THREE.FogExp2(0xcfe0ee, 0.0035);
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 600);
 
-const hemi = new THREE.HemisphereLight(0xdfeeff, 0x3f6b3a, 0.9);
+const hemi = new THREE.HemisphereLight(0xbfd8ff, 0x3b5a2e, 0.5);
 scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xfff1dc, 2.2);
+const sun = new THREE.DirectionalLight(0xfff1dc, 3);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.left = -45; sun.shadow.camera.right = 45;
-sun.shadow.camera.top = 45; sun.shadow.camera.bottom = -45;
-sun.shadow.camera.far = 200;
-sun.shadow.bias = -0.0005;
+sun.shadow.mapSize.set(QUALITY === 'high' ? 4096 : 2048, QUALITY === 'high' ? 4096 : 2048);
+sun.shadow.camera.left = -40; sun.shadow.camera.right = 40;
+sun.shadow.camera.top = 40; sun.shadow.camera.bottom = -40;
+sun.shadow.camera.near = 1; sun.shadow.camera.far = 250;
+sun.shadow.bias = -0.0003;
+sun.shadow.normalBias = 0.03;
+sun.shadow.radius = 2;
 scene.add(sun, sun.target);
 
-// Langit: bola besar dengan gradient
-const skyMat = new THREE.ShaderMaterial({
-  side: THREE.BackSide,
-  depthWrite: false,
-  uniforms: {
-    top: { value: new THREE.Color(0x6fb6ff) },
-    bottom: { value: new THREE.Color(0xf4d9b8) },
-    stars: { value: 0 },
-  },
-  vertexShader: `varying vec3 vPos; void main(){ vPos = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
-  fragmentShader: `
-    uniform vec3 top; uniform vec3 bottom; uniform float stars; varying vec3 vPos;
-    float hash(vec3 p){ return fract(sin(dot(p, vec3(12.9898,78.233,37.719))) * 43758.5453); }
-    void main(){
-      float h = normalize(vPos).y;
-      vec3 c = mix(bottom, top, smoothstep(-0.05, 0.6, h));
-      float s = step(0.998, hash(floor(normalize(vPos) * 180.0))) * stars * smoothstep(0.05, 0.4, h);
-      gl_FragColor = vec4(c + s, 1.0);
-    }`,
-});
-const sky = new THREE.Mesh(new THREE.SphereGeometry(300, 24, 16), skyMat);
+// Langit fisik (Preetham) + matahari asli
+const sky = new Sky();
+sky.scale.setScalar(5000);
 scene.add(sky);
+const skyU = sky.material.uniforms;
+skyU.turbidity.value = 4;
+skyU.rayleigh.value = 1.6;
+skyU.mieCoefficient.value = 0.006;
+skyU.mieDirectionalG.value = 0.85;
+const sunDir = new THREE.Vector3();
 
-const world = buildWorld(scene);
+// Bintang buat malam
+const starGeo = new THREE.BufferGeometry();
+{
+  const n = 1800, arr = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const th = Math.random() * Math.PI * 2, ph = Math.acos(Math.random() * 0.9 + 0.05);
+    arr[i * 3] = Math.sin(ph) * Math.cos(th) * 480; arr[i * 3 + 1] = Math.cos(ph) * 480; arr[i * 3 + 2] = Math.sin(ph) * Math.sin(th) * 480;
+  }
+  starGeo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+}
+const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, sizeAttenuation: true, transparent: true, opacity: 0, depthWrite: false, fog: false });
+scene.add(new THREE.Points(starGeo, starMat));
+
+// Environment map dari langit (refleksi di robot, air, kaca)
+const pmrem = new THREE.PMREMGenerator(renderer);
+const envScene = new THREE.Scene();
+const envSky = new Sky();
+envSky.scale.setScalar(5000);
+envScene.add(envSky);
+let envRT = null;
+function refreshEnvironment() {
+  for (const k of ['turbidity', 'rayleigh', 'mieCoefficient', 'mieDirectionalG']) envSky.material.uniforms[k].value = skyU[k].value;
+  envSky.material.uniforms.sunPosition.value.copy(skyU.sunPosition.value);
+  if (envRT) envRT.dispose();
+  envRT = pmrem.fromScene(envScene, 0.02);
+  scene.environment = envRT.texture;
+}
+
+const world = buildWorld(scene, renderer, { quality: QUALITY });
 const robot = createRobot();
 scene.add(robot.root);
 robot.root.position.set(WORLD.park.x, 0, WORLD.park.z + 12);
 robot.root.rotation.y = Math.PI;
+
+// Post-processing: bloom halus + vignette/grain + SMAA
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.25, 0.5, 0.9);
+composer.addPass(bloom);
+const gradePass = new ShaderPass({
+  uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uWarm: { value: 0.5 } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform float uTime; uniform float uWarm; varying vec2 vUv;
+    float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
+    void main(){
+      vec4 c = texture2D(tDiffuse, vUv);
+      // sedikit chromatic aberration di pinggir
+      vec2 d = (vUv - 0.5) * 0.004;
+      c.r = texture2D(tDiffuse, vUv + d).r;
+      c.b = texture2D(tDiffuse, vUv - d).b;
+      // vignette
+      float v = smoothstep(0.95, 0.35, length(vUv - 0.5));
+      c.rgb *= mix(0.72, 1.0, v);
+      // color grade hangat tipis
+      c.rgb = mix(c.rgb, c.rgb * vec3(1.04, 1.0, 0.95), uWarm);
+      // film grain
+      c.rgb += (hash(vUv * 1000.0 + uTime) - 0.5) * 0.025;
+      gl_FragColor = c;
+    }`,
+});
+composer.addPass(gradePass);
+composer.addPass(new OutputPass());
+if (QUALITY === 'high') composer.addPass(new SMAAPass(window.innerWidth, window.innerHeight));
 
 const controls = createControls(canvas);
 
@@ -144,34 +204,42 @@ function splash(x, z) {
 }
 
 // ---------- Siang / malam ikut jam asli ----------
-const dayColors = {
-  top: [new THREE.Color(0x0b1026), new THREE.Color(0xff9a5c), new THREE.Color(0x6fb6ff), new THREE.Color(0xff7a4d), new THREE.Color(0x0b1026)],
-  bottom: [new THREE.Color(0x1a1f3a), new THREE.Color(0xffd7a8), new THREE.Color(0xf4d9b8), new THREE.Color(0xffc38a), new THREE.Color(0x1a1f3a)],
-};
 function timeOfDay() {
   const d = new Date();
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
 }
+let lastEnvHour = -1;
+const sunColor = new THREE.Color();
+const fogDay = new THREE.Color(0xcfe0ee), fogDusk = new THREE.Color(0xe8b48a), fogNight = new THREE.Color(0x0a0f1c);
 function applyDaylight(h) {
-  // 0..24 → fase: malam(0) fajar(6) siang(12) senja(18) malam(24)
-  const keys = [0, 6, 12, 18, 24];
-  let i = 0;
-  while (h >= keys[i + 1]) i++;
-  const k = (h - keys[i]) / (keys[i + 1] - keys[i]);
-  const sm = k * k * (3 - 2 * k);
-  skyMat.uniforms.top.value.copy(dayColors.top[i]).lerp(dayColors.top[i + 1], sm);
-  skyMat.uniforms.bottom.value.copy(dayColors.bottom[i]).lerp(dayColors.bottom[i + 1], sm);
-  const daylight = Math.max(0, Math.sin(((h - 6) / 12) * Math.PI)); // 0 malam, 1 tengah hari
-  const night = 1 - Math.min(1, daylight * 2.2);
-  skyMat.uniforms.stars.value = night;
-  sun.intensity = 0.15 + daylight * 2.2;
-  sun.color.setHSL(0.08, 0.6, 0.6 + daylight * 0.35);
-  hemi.intensity = 0.25 + daylight * 0.7;
+  // elevasi matahari: -1 tengah malam, 1 tengah hari
+  const elev = Math.sin(((h - 6) / 12) * Math.PI);
+  const daylight = Math.max(0, elev);
+  const night = THREE.MathUtils.clamp(1 - (elev + 0.15) * 3, 0, 1);
+  const dusk = Math.exp(-Math.pow(elev / 0.18, 2)); // puncak pas matahari di horizon
   const ang = ((h - 6) / 12) * Math.PI;
-  sun.position.set(Math.cos(ang) * 60, Math.max(8, Math.sin(ang) * 70), 30);
-  scene.fog.color.copy(skyMat.uniforms.bottom.value);
-  renderer.toneMappingExposure = 0.85 + daylight * 0.3;
+  // azimut geser biar bayangan panjang pas sore
+  sunDir.set(Math.cos(ang) * 0.8, Math.max(-0.35, Math.sin(ang)), 0.45 + Math.cos(ang) * 0.3).normalize();
+  skyU.sunPosition.value.copy(sunDir);
+  skyU.turbidity.value = 3 + dusk * 6;
+  skyU.rayleigh.value = 1.2 + dusk * 2.5;
+  skyU.mieCoefficient.value = 0.004 + dusk * 0.02;
+  sunColor.setHSL(0.09 - dusk * 0.03, 0.55 + dusk * 0.35, 0.55 + daylight * 0.4 - dusk * 0.15);
+  sun.color.copy(sunColor);
+  sun.intensity = 0.05 + daylight * 3.4;
+  sun.position.copy(sunDir).multiplyScalar(120).add(robot.root.position);
+  hemi.intensity = 0.06 + daylight * 0.4;
+  hemi.color.setHSL(0.6, 0.4, 0.5 + daylight * 0.3);
+  starMat.opacity = night * 0.9;
+  scene.fog.color.copy(fogDay).lerp(fogDusk, dusk).lerp(fogNight, night);
+  scene.fog.density = 0.0028 + dusk * 0.0025 + night * 0.001;
+  renderer.toneMappingExposure = 0.5 + daylight * 0.22 + dusk * 0.08;
+  gradePass.uniforms.uWarm.value = 0.3 + dusk * 0.7;
+  bloom.strength = 0.2 + night * 0.4;
+  world.setSun(sunDir, sunColor);
   applyNight(night);
+  // refresh env map tiap ~6 menit waktu asli (0.1 jam)
+  if (Math.abs(h - lastEnvHour) > 0.1) { lastEnvHour = h; refreshEnvironment(); }
   $('clock').textContent = `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.floor((h % 1) * 60)).padStart(2, '0')}`;
 }
 
@@ -352,12 +420,13 @@ function tick() {
   }
 
   // update dunia + robot + langit
-  world.update(elapsed);
+  world.update(elapsed, dt);
+  gradePass.uniforms.uTime.value = elapsed;
   robot.update(dt, 0, elapsed);
-  applyDaylight(timeOfDay());
+  applyDaylight(window.__u7?.forceHour ?? timeOfDay());
 
   // kamera orbit ngikutin robot
-  const dist = 7.5;
+  const dist = 6.5;
   const yaw = inp.camYaw;
   const pitch = inp.camPitch;
   camTarget.set(pos.x, pos.y + 1.4, pos.z);
@@ -379,14 +448,14 @@ function tick() {
     bubble.style.top = `${(-v.y * 0.5 + 0.5) * window.innerHeight}px`;
   }
 
-  renderer.render(scene, camera);
+  composer.render();
   requestAnimationFrame(tick);
 }
 
 function takePhoto() {
   hud.classList.add('hidden');
   requestAnimationFrame(() => {
-    renderer.render(scene, camera);
+    composer.render();
     try {
       const url = renderer.domElement.toDataURL('image/png');
       const a = document.createElement('a');
@@ -405,6 +474,7 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
 });
 
 window.__u7 = { robot, behavior, controls };
