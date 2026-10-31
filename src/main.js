@@ -12,6 +12,7 @@ import { createControls } from './controls.js';
 import { loadAssets } from './assets.js';
 import { loadSave, writeSave } from './save.js';
 import { createDaily, defaultSpots, dayKey } from './daily.js';
+import { pollHolders } from './holders.js';
 
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
@@ -190,10 +191,15 @@ for (let i = 0; i < 5; i++) {
   d.className = 'lamp' + (i < cityLights ? ' on' : '');
   lampsEl.appendChild(d);
 }
+let liveHolders = null; // jumlah holder asli dari server/holders, null = belum ada
 function refreshLampHud(n = cityLights) {
   [...lampsEl.children].forEach((d, i) => d.classList.toggle('on', i < n));
-  $('lamps-text').textContent = `${n}/5 · ${(n * 333).toLocaleString('en-US')} signals`;
+  $('lamps-text').textContent = liveHolders != null
+    ? `${n}/5 · ${liveHolders.toLocaleString('en-US')} holders`
+    : `${n}/5 · ${(n * 333).toLocaleString('en-US')} signals`;
 }
+// Holder count live (kalau CONFIG.token.holdersUrl diisi), di-poll tiap 5 menit
+if (CONFIG.token.holdersUrl) pollHolders((count) => { if (typeof count === 'number') { liveHolders = count; refreshLampHud(); } });
 function refreshLamps() {
   refreshLampHud();
   setCityLights(cityLights);
