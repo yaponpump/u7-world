@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight, distToRiver, onBridge, onPier, deckHeight, blockedByRail } from './world.js';
-import { blockedByBuilding, cameraBlocked, obstacleTop } from './city.js';
+import { blockedByBuilding, cameraBlocked, obstacleTop, rooftopHeight } from './city.js';
 import { createRobot, STATES } from './robot.js';
 import { createAudio } from './audio.js';
 import { createWallet } from './wallet.js';
@@ -10,6 +10,8 @@ import { CONFIG } from './config.js';
 import { createMinimap } from './minimap.js';
 import { createControls } from './controls.js';
 import { loadAssets } from './assets.js';
+import { loadSave, writeSave } from './save.js';
+import { createDaily, defaultSpots, dayKey } from './daily.js';
 
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
@@ -119,6 +121,25 @@ const audio = createAudio();
 robot.root.position.set(WORLD.park.x, 0, WORLD.park.z + 12);
 robot.root.rotation.y = Math.PI;
 
+// ---------- Progres tersimpan ----------
+const save = loadSave();
+let finaleDone = !!save.finaleDone;
+let daily = null;
+function persist() {
+  writeSave({
+    v: 1,
+    signals: WORLD.signals.map((s, i) => (s.taken ? i : -1)).filter((i) => i >= 0),
+    lights: cityLights,
+    face: robot.state?.base || 'neutral',
+    hour: gameClock.hour,
+    pos: [+robot.root.position.x.toFixed(1), +robot.root.position.z.toFixed(1)],
+    finaleDone,
+    daily: daily ? { key: daily.key, taken: daily.items.filter((i) => i.taken).map((i) => i.id) } : save.daily || null,
+    savedAt: Date.now(),
+  });
+}
+let persistTimer = 0;
+
 // Post-processing: bloom halus + vignette/grain + SMAA
 const composer = QUALITY === 'high'
   ? new EffectComposer(renderer, new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, { type: THREE.HalfFloatType, samples: 4 }))
@@ -169,12 +190,23 @@ for (let i = 0; i < 5; i++) {
   d.className = 'lamp' + (i < cityLights ? ' on' : '');
   lampsEl.appendChild(d);
 }
+function refreshLampHud(n = cityLights) {
+  [...lampsEl.children].forEach((d, i) => d.classList.toggle('on', i < n));
+  $('lamps-text').textContent = `${n}/5 · ${(n * 333).toLocaleString('en-US')} signals`;
+}
 function refreshLamps() {
-  [...lampsEl.children].forEach((d, i) => d.classList.toggle('on', i < cityLights));
-  $('lamps-text').textContent = `${cityLights}/5 · ${(cityLights * 333).toLocaleString('en-US')} signals`;
+  refreshLampHud();
   setCityLights(cityLights);
 }
 refreshLamps();
+// terapin progres tersimpan (sinyal yang udah ketemu, lampu, posisi)
+if (Array.isArray(save.signals)) {
+  for (const i of save.signals) { const sg = WORLD.signals[i]; if (sg) { sg.taken = true; sg.mesh.visible = false; if (sg.light) sg.light.intensity = 0; } }
+  signalsFound = WORLD.signals.filter((sg) => sg.taken).length;
+  $('quest-count').textContent = signalsFound;
+}
+if (typeof save.lights === 'number') { cityLights = Math.max(3, Math.min(5, save.lights)); refreshLamps(); }
+if (Array.isArray(save.pos) && save.pos.length === 2 && Number.isFinite(save.pos[0])) robot.root.position.set(save.pos[0], 0, save.pos[1]);
 
 function refreshMuteBtn() { $('mute-btn').textContent = audio.muted ? 'M · Sound off' : 'M · Sound on'; }
 function toggleMute() {
@@ -274,6 +306,7 @@ function pickFace(name) {
   const lines = faceLines[name];
   if (lines) say(lines[Math.floor(Math.random() * lines.length)], 2200);
 }
+if (save.face && FACE_OPTIONS.some(([id]) => id === save.face)) { robot.setFace(save.face); $('face-btn').textContent = `G · ${FACE_OPTIONS.find(([id]) => id === save.face)[1]}`; }
 function nextFace() {
   const i = FACE_OPTIONS.findIndex(([id]) => id === (robot.state.base || 'neutral'));
   pickFace(FACE_OPTIONS[(i + 1) % FACE_OPTIONS.length][0]);
@@ -312,6 +345,52 @@ const market = createMarket({
   },
 });
 market.start();
+
+// ---------- Misi harian (kebuka setelah ending) ----------
+function refreshQuestText() {
+  if (daily) {
+    $('quest-text').innerHTML = daily.done
+      ? `Daily done · come back tomorrow`
+      : `Daily · find 3 supply crates · <b id="quest-count">${daily.found}</b>/3`;
+  } else {
+    $('quest-text').innerHTML = `Find the 5 lost signals · <b id="quest-count">${signalsFound}</b>/5`;
+  }
+}
+function setupDaily() {
+  const key = dayKey();
+  const taken = save.daily && save.daily.key === key ? save.daily.taken : [];
+  daily?.dispose();
+  daily = createDaily(scene, { spots: WORLD.dailySpots?.length ? WORLD.dailySpots : defaultSpots(WORLD), key, taken, groundHeight });
+  refreshQuestText();
+}
+if (finaleDone) setupDaily();
+
+// ---------- Ending: semua sinyal ketemu ----------
+let finale = null; // { t, dur }
+function startFinale() {
+  cityLights = 5;
+  finaleDone = true;
+  behavior.lock = 11;
+  robot.setState('idle');
+  express('surprised', 3);
+  let dur = 0;
+  try { dur = world.playFinale?.({ onLamp: (i) => { audio.play('lamp'); refreshLampHud(i + 1); }, onDone: () => {} }) || 0; } catch (e) { console.warn('[finale]', e); }
+  if (!dur) { refreshLamps(); for (let i = 0; i < 5; i++) setTimeout(() => audio.play('lamp'), 600 + i * 800); dur = 9; }
+  else refreshLampHud(0);
+  finale = { t: 0, dur: Math.max(8, dur) };
+  say('All five. Hold on. Look at the city.', 4000);
+  setTimeout(() => say('I remember this. All of it. Thank you.', 4500), 4500);
+  setTimeout(() => {
+    finale = null;
+    behavior.lock = 0;
+    refreshLamps();
+    express('happy', 5);
+    robot.setState('wave');
+    showToast('The city is awake · daily supply runs unlocked', 4500);
+    setupDaily();
+    persist();
+  }, finale.dur * 1000);
+}
 
 // Intro
 $('start-btn').addEventListener('click', () => {
@@ -371,6 +450,36 @@ const faceLines = {
   disgust: ['Ugh. Wet socks. I have no socks.', 'That smell is not in my database.'],
 };
 
+// ---------- Ngobrol sama drone kurir ----------
+// Kalimat mereka ngikutin keadaan: pasar/cuaca, jam dunia, lampu kota, misi harian.
+function npcLine(npc) {
+  const h = gameClock.hour, mood = marketState?.mood || 'cloudy';
+  const pool = [];
+  if (mood === 'storm') pool.push("Storm's bad for deliveries. Market's worse. Hold on to your bolts.", 'Everyone is selling. I just deliver. Rain in my gears.');
+  if (mood === 'rain') pool.push("Red candles, wet streets. Same thing, really.", "Market's down. The lamps still burn, though. That's what matters.");
+  if (mood === 'cloudy') pool.push('Flat market, flat sky. Quiet route today.', "Nothing's moving. Not the charts, not the clouds.");
+  if (mood === 'clear') pool.push("Green day. Even my battery feels fuller.", "Market's up. Someone bought a lamp for the north street.");
+  if (mood === 'golden') pool.push("Look at that sky! Charts look the same. Everything's up!", "Golden hour and a golden chart. I'm flying extra routes today.");
+  if (h < 6 || h >= 20) pool.push('Night shift again. The city hums when the lamps are on.', 'Careful by the river at night. Fish jump. Scares me every time.');
+  else if (h < 11) pool.push("Morning. Coffee machine at the cafe still works. Nobody to drink it.", 'Early route. The park is full of butterflies right now.');
+  else if (h < 17) pool.push("Midday. Hill lookout has the best view if you're not busy.", "Deliveries to the east end today. Watch the cars, they don't move but you might.");
+  else pool.push('Sunset. Best time for a photo. Press Q, I will not look.', 'Evening. The lamps come on one by one. Count them with me.');
+  if (cityLights < 5) pool.push(`${5 - cityLights} lamps still dark. Signals are out there, follow the arrow.`);
+  else pool.push('All five lamps. I never thought I would see that. Thank you, VUZZ.');
+  if (daily && !daily.done) pool.push(`Supply crates dropped today. One is ${daily.items.find((i) => !i.taken)?.label || 'nearby'}.`);
+  if (daily?.done) pool.push('Crates all collected. The city eats tonight. Tomorrow, new drops.');
+  pool.push(`I'm ${npc.name}. Courier drone. I keep the city moving when nobody else does.`);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+function talkTo(npc) {
+  world.npcTalk?.(npc.id, 4.5);
+  robot.root.rotation.y = Math.atan2(npc.x - robot.root.position.x, npc.z - robot.root.position.z);
+  showToast(`${npc.name}: ${npcLine(npc)}`, 4800);
+  express('happy', 2);
+  behavior.idleTime = 0;
+  behavior.lock = 0.6;
+}
+
 // geometri + material dipakai bareng, biar cipratan tiap 0,4 detik nggak bikin alokasi baru
 const splashGeo = new THREE.RingGeometry(0.2, 0.3, 24);
 const splashMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false });
@@ -392,7 +501,7 @@ const urlParams = new URLSearchParams(location.search);
 const hourParam = urlParams.get('hour');
 const realtime = urlParams.get('realtime') === '1';
 const DAY_SECONDS = 12 * 60;
-const gameClock = { hour: 7.5 };
+const gameClock = { hour: Number.isFinite(save.hour) ? save.hour : 7.5 };
 function advanceClock(dt, speed = 1) {
   if (hourParam !== null || realtime) return;
   const h = gameClock.hour;
@@ -501,11 +610,12 @@ function tick() {
     // --- deteksi sekitar ---
     behavior.nearBench = nearest(WORLD.benches, pos.x, pos.z, 2.6);
     behavior.nearThing = nearest(WORLD.interactables, pos.x, pos.z, 3.4);
+    behavior.nearNpc = nearest(WORLD.npcs || [], pos.x, pos.z, 2.8);
     const f = WORLD.fountain;
     behavior.nearDrink = Math.hypot(pos.x - f.x, pos.z - f.z) < f.r + 2.2 || Math.hypot(pos.x - WORLD.cafe.x, pos.z - (WORLD.cafe.z + 3.5)) < 3.5;
     behavior.nearPier = Math.hypot(pos.x - (WORLD.pier.x - WORLD.pier.len / 2 + 1), pos.z - WORLD.pier.z) < 3
       || Math.hypot(pos.x - WORLD.lake.x, pos.z - WORLD.lake.z) < WORLD.lake.r + 2.5;
-    $('act-sit').hidden = !behavior.nearBench && !behavior.sitting && !behavior.nearThing;
+    $('act-sit').hidden = !behavior.nearBench && !behavior.sitting && !behavior.nearThing && !behavior.nearNpc;
     $('act-sit').textContent = behavior.sitting ? 'E · Stand up' : behavior.nearBench ? 'E · Sit' : 'E · Inspect';
     $('act-drink').hidden = !behavior.nearDrink || !!behavior.sitting;
     $('act-throw').hidden = !behavior.nearPier || !!behavior.sitting;
@@ -523,6 +633,8 @@ function tick() {
         robot.setState('sit');
         behavior.idleTime = 0;
         say(sitLines[Math.floor(Math.random() * sitLines.length)]);
+      } else if (behavior.nearNpc) {
+        talkTo(behavior.nearNpc);
       } else if (behavior.nearThing) {
         showToast(behavior.nearThing.name, 1800);
         say(behavior.nearThing.line, 4200);
@@ -616,6 +728,7 @@ function tick() {
     if (deck) gy = deckHeight(deck, pos.x, pos.z);
     else if (onStone(pos.x, pos.z)) gy = 0.1;
     if (onPier(pos.x, pos.z)) gy = 0.34;
+    gy = Math.max(gy, rooftopHeight(pos.x, pos.z)); // tangga besi + atap gedung di kota
     // atap mobil / pembatas: napak di atasnya kalau kakinya udah setinggi itu
     const oTop = obstacleTop(pos.x, pos.z);
     if (oTop > 0 && pos.y > oTop - 0.35) gy = Math.max(gy, oTop);
@@ -675,20 +788,40 @@ function tick() {
         s.taken = true;
         s.mesh.visible = false;
         signalsFound++;
-        $('quest-count').textContent = signalsFound;
+        refreshQuestText();
         showToast(`Signal found (${signalsFound}/5)`);
         audio.play('chime');
         express('happy', 3);
         robot.setState('wave');
         behavior.lock = 1.2;
         if (signalsFound === 3 && cityLights < 4) { cityLights = 4; refreshLamps(); setTimeout(() => audio.play('lamp'), 500); say('The fourth lamp! The city is getting brighter.'); }
-        if (signalsFound === 5) { cityLights = 5; refreshLamps(); setTimeout(() => audio.play('lamp'), 500); say('All the lamps are on. I... remember what this felt like.', 5000); }
+        if (signalsFound === 5) startFinale();
+        persist();
       }
     }
+
+    // --- misi harian: peti suplai ---
+    if (daily && !daily.done) {
+      daily.update(elapsed);
+      const got = daily.collectNear(pos.x, pos.z);
+      if (got) {
+        audio.play('chime');
+        express('happy', 3);
+        robot.setState('wave');
+        behavior.lock = 1.0;
+        refreshQuestText();
+        if (daily.done) { showToast('Daily complete · 3/3 crates. New ones tomorrow.', 4500); say("Three for three. The city eats tonight.", 3500); }
+        else { showToast(`Supply crate ${daily.found}/3 · ${got.label}`, 3000); say(['Got one.', 'Heavy. Worth it.', 'One more for the pile.'][daily.found % 3], 1800); }
+        persist();
+      }
+    }
+    persistTimer += rawDt;
+    if (persistTimer > 5) { persistTimer = 0; persist(); }
 
     // hint kontekstual
     if (behavior.sitting) setHint('Press E or move to stand up. Leave it alone and it will doze off.');
     else if (behavior.nearBench) setHint('A bench. Press E to sit.');
+    else if (behavior.nearNpc) setHint(`${behavior.nearNpc.name}, a courier drone. Press E to talk.`);
     else if (behavior.nearThing) setHint(`${behavior.nearThing.name}. Press E to inspect.`);
     else if (behavior.nearDrink) setHint('Press F to "drink". Does nothing for its systems, but it likes it.');
     else if (behavior.wading) setHint('Shallow water. Slow going, but you can wade anywhere in the river and the lake.');
@@ -750,6 +883,7 @@ function tick() {
       dt: rawDt, hour: hourNow, state: robot.state.name, time: elapsed,
       moving: Math.hypot(inp.move.x, inp.move.y) > 0.05 && behavior.lock <= 0, run: inp.run,
       waterDist: Math.min(lakeDist, distToRiver(pos.x, pos.z) - 3, nearFountain ? 2 : 99),
+      mood: marketState?.mood || 'cloudy', musicLevel: finale ? 1.4 : 1,
       surface: behavior.wading ? 'water' : onWood ? 'wood' : nearFountain ? 'stone' : 'grass',
     });
   }
@@ -771,9 +905,20 @@ function tick() {
   camPos.copy(camTarget).addScaledVector(dir, behavior.camDist);
   const camGround = groundHeight(camPos.x, camPos.z) + 0.6;
   if (camPos.y < camGround) camPos.y = camGround;
+  if (finale) {
+    // sinematik ending: kamera naik pelan di belakang VUZZ, pandangan geser dari dia ke kota
+    finale.t += dt;
+    const p = Math.min(1, finale.t / finale.dur);
+    const ease = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+    const city = new THREE.Vector3(40, 6, 72);
+    const toCity = new THREE.Vector3().subVectors(city, pos).setY(0).normalize();
+    camPos.set(pos.x - toCity.x * (9 + ease * 6), pos.y + 4 + ease * 14, pos.z - toCity.z * (9 + ease * 6));
+    camTarget.lerpVectors(new THREE.Vector3(pos.x, pos.y + 1.6, pos.z), city, Math.min(1, ease * 1.3));
+    behavior.camDist = camPos.distanceTo(camTarget);
+  }
   camera.position.copy(camPos);
   camera.lookAt(camTarget);
-  minimap.update({ pos, rotY: robot.root.rotation.y, camYaw: yaw, camera, signals: WORLD.signals, started });
+  minimap.update({ pos, rotY: robot.root.rotation.y, camYaw: yaw, camera, signals: daily && !daily.done ? daily.items : (daily ? [] : WORLD.signals), objectiveLabel: daily ? 'crate' : 'signal', started: started && !finale });
   sun.target.position.copy(pos);
 
   // posisi bubble di atas kepala
@@ -819,12 +964,24 @@ function takePhoto() {
   requestAnimationFrame(() => {
     composer.render();
     try {
-      const url = renderer.domElement.toDataURL('image/png');
+      // tempel watermark $VUZZ + jam dunia di pojok, lalu simpan
+      const src = renderer.domElement;
+      const c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
+      const g = c.getContext('2d');
+      g.drawImage(src, 0, 0);
+      const k = Math.max(1, src.width / 1280);
+      const h = gameClock.hour;
+      const clock = `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.floor((h % 1) * 60)).padStart(2, '0')}`;
+      g.font = `700 ${Math.round(34 * k)}px Chakra Petch, sans-serif`; g.textBaseline = 'bottom';
+      g.shadowColor = 'rgba(0,0,0,0.8)'; g.shadowBlur = 10 * k;
+      g.fillStyle = '#b8ff3c'; g.fillText(CONFIG.ticker, 28 * k, c.height - 26 * k);
+      g.font = `500 ${Math.round(16 * k)}px Chakra Petch, sans-serif`; g.fillStyle = 'rgba(255,255,255,0.85)';
+      g.fillText(`VUZZ World · ${clock} · ${cityLights}/5 lamps`, 30 * k, c.height - 64 * k);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `u7-world-${Date.now()}.png`;
+      a.href = c.toDataURL('image/png');
+      a.download = `vuzz-world-${Date.now()}.png`;
       a.click();
-      showToast('Photo saved. Share it on X with #VUZZWorld');
+      showToast('Photo saved with the $VUZZ mark. Share it on X with #VUZZWorld');
     } catch (e) {
       showToast('Could not save the photo in this browser.');
     }
@@ -839,7 +996,7 @@ window.addEventListener('resize', () => {
   composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-window.__u7 = { gameClock, obstacleTop, robot, behavior, controls, audio, scene, camera, renderer, blockedByBuilding, isWater, wadeable, onBridge, groundHeight };
+window.__u7 = { gameClock, obstacleTop, WORLD, world, get daily() { return daily; }, signals: WORLD.signals, robot, behavior, controls, audio, scene, camera, renderer, blockedByBuilding, isWater, wadeable, onBridge, groundHeight };
 
 // kamera awal: dari depan robot
 controls.setYaw(Math.PI);

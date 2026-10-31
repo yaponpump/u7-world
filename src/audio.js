@@ -36,6 +36,7 @@ export function createAudio() {
     master.connect(comp).connect(ctx.destination);
     noiseBuf = makeNoise(ctx, 2);
     buildAmbience();
+    buildMusic();
     return true;
   }
 
@@ -70,6 +71,49 @@ export function createAudio() {
     src.start();
     return { src, f, g };
   }
+  // ---- musik ambient: pad pelan 3 nada, akor ganti tiap ~9 detik, skala ikut jam & cuaca ----
+  const music = { voices: [], g: null, next: 0, step: 0, mood: 'cloudy' };
+  function buildMusic() {
+    music.g = ctx.createGain(); music.g.gain.value = 0;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 0.4;
+    const delay = ctx.createDelay(1.5); delay.delayTime.value = 0.42;
+    const fb = ctx.createGain(); fb.gain.value = 0.32;
+    const wet = ctx.createGain(); wet.gain.value = 0.35;
+    music.g.connect(lp).connect(master);
+    lp.connect(delay).connect(fb).connect(delay); delay.connect(wet).connect(master);
+    for (let i = 0; i < 3; i++) {
+      const a = ctx.createOscillator(), b = ctx.createOscillator();
+      a.type = 'triangle'; b.type = 'sine'; b.detune.value = 7 + i * 3;
+      const vg = ctx.createGain(); vg.gain.value = 0;
+      a.connect(vg); b.connect(vg); vg.connect(music.g);
+      a.start(); b.start();
+      music.voices.push({ a, b, g: vg });
+    }
+  }
+  // progresi: siang mayor (I vi IV V), malam minor (i VI iv VII), badai lebih rendah & lambat
+  const CHORDS = {
+    day: [[0, 4, 7], [9, 12, 16], [5, 9, 12], [7, 11, 14]],
+    night: [[0, 3, 7], [8, 12, 15], [5, 8, 12], [10, 14, 17]],
+    storm: [[0, 3, 7], [-2, 2, 5], [0, 3, 7], [-4, 0, 3]],
+  };
+  function musicStep(hour, mood, time) {
+    const elev = Math.sin(((hour - 6) / 12) * Math.PI);
+    const set = mood === 'storm' || mood === 'rain' ? 'storm' : elev > 0.1 ? 'day' : 'night';
+    const root = mood === 'golden' ? 50 : set === 'storm' ? 41 : 45; // D, F, A (MIDI)
+    const chord = CHORDS[set][music.step % 4];
+    music.step++;
+    const t = now();
+    music.voices.forEach((v, i) => {
+      const f = 440 * Math.pow(2, (root + chord[i] - 69) / 12);
+      v.a.frequency.setTargetAtTime(f, t, 0.8);
+      v.b.frequency.setTargetAtTime(f * 2, t, 0.8);
+      v.g.gain.cancelScheduledValues(t);
+      v.g.gain.setTargetAtTime(0.02, t, 0.4);
+      v.g.gain.setTargetAtTime(0.055 - i * 0.008, t + 1.2, 1.6);
+    });
+    music.next = time + (set === 'storm' ? 11 : 9);
+  }
+
   function buildAmbience() {
     amb.wind = ambLoop('lowpass', 260, 0.7);
     amb.leaves = ambLoop('bandpass', 2600, 0.8);
@@ -286,8 +330,14 @@ export function createAudio() {
       }
     },
     // dipanggil tiap frame
-    update({ dt, hour, state, moving, run, waterDist = 99, surface = 'grass', time = 0 }) {
+    update({ dt, hour, state, moving, run, waterDist = 99, surface = 'grass', time = 0, mood = 'cloudy', musicLevel = 1 }) {
       if (!ctx || muted) return;
+      // musik: pelan, lebih kecil pas tidur, ganti akor berkala
+      if (music.g) {
+        if (time > music.next || music.mood !== mood) { music.mood = mood; musicStep(hour, mood, time); }
+        const target = 0.55 * musicLevel * (state === 'sleep' ? 0.5 : 1);
+        music.g.gain.value += (target - music.g.gain.value) * 0.02;
+      }
       const elev = Math.sin(((hour - 6) / 12) * Math.PI);
       const day = Math.max(0, elev);
       const night = Math.min(1, Math.max(0, 1 - (elev + 0.15) * 3));
