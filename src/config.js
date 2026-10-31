@@ -11,6 +11,7 @@ export const CONFIG = {
     decimals: 9,
     evmChainId: '',     // cuma buat EVM: contoh '0x1' mainnet, '0x2105' Base
     rpc: '',            // RPC Solana buat cek saldo. Kosong = public RPC sesuai network.
+    holdersUrl: '',     // endpoint server/holders, kosong = belum ada data live
   },
 
   // Market feed buat cuaca. Kosong = demo mode (cuaca ikut siklus palsu yang pelan).
