@@ -85,7 +85,7 @@ WORLD.routes = [
 ];
 WORLD.landmarks = [
   { id: 'park', name: 'Taman', x: 20, z: 0, kind: 'park' },
-  { id: 'fountain', name: 'Air mancur', x: 20, z: 0, kind: 'fountain' },
+  { id: 'fountain', name: 'Air mancur', x: 20, z: 0, kind: 'fountain', minor: true },
   { id: 'lake', name: 'Danau', x: -34, z: 30, kind: 'lake' },
   { id: 'pier', name: 'Dermaga', x: -14, z: 22, kind: 'pier' },
   { id: 'bridge', name: 'Jembatan', x: -4, z: -16, kind: 'bridge' },
@@ -148,7 +148,7 @@ function buildPaths(group, mat, hi) {
   road.receiveShadow = true;
   group.add(road);
 
-  const rock = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.15, 0), new THREE.MeshStandardMaterial({ color: 0xbfb9ab, roughness: 0.9 }), stones.length);
+  const rock = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.11, 0), new THREE.MeshStandardMaterial({ color: 0xbfb9ab, roughness: 0.9 }), stones.length);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), s = new THREE.Vector3();
   stones.forEach(([x, y, z, k], i) => {
     q.setFromEuler(new THREE.Euler(i, i * 2.3, i * 1.1));
@@ -157,6 +157,9 @@ function buildPaths(group, mat, hi) {
   rock.receiveShadow = true;
   group.add(rock);
 }
+
+// AO bawaan tekstur bikin jalan keliatan gelap dari jauh
+function lightPath(mat) { mat.aoMap = null; mat.needsUpdate = true; return mat; }
 
 function signLabel(text) {
   const c = document.createElement('canvas');
@@ -730,7 +733,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   }
 
   buildCity(group, { hi, A, props: assets.props, fallback: texStone });
-  buildPaths(group, pbrMaterial(A.sidewalk, texStone, { roughness: 0.95, color: 0xd8c8a4 }), hi);
+  buildPaths(group, lightPath(pbrMaterial(A.sidewalk, texStone, { roughness: 0.95, color: 0xfff0cc })), hi);
   buildSignposts(group, woodMat, [
     { x: 27.5, z: 3.2, to: ['lake', 'pier', 'hill', 'cafe', 'city'] },
     { x: 22.6, z: 24.4, to: ['city', 'pier', 'park'] },

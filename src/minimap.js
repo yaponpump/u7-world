@@ -37,7 +37,7 @@ export function createMinimap({ canvas, labelsEl, objectiveEl = null }) {
   stat.width = stat.height = EXT * PPU;
   const sc = stat.getContext('2d');
   const W = (x) => (x - MIN) * PPU;
-  const landmarks = () => WORLD.landmarks?.length ? WORLD.landmarks : defaultLandmarks();
+  const landmarks = () => (WORLD.landmarks?.length ? WORLD.landmarks : defaultLandmarks()).filter((l) => !l.minor);
 
   function drawStatic() {
     sc.fillStyle = COL.ground; sc.fillRect(0, 0, stat.width, stat.height);
