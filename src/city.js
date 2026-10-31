@@ -43,9 +43,12 @@ export const inCity = (x, z) => x > CITY.x0 && z > CITY.z0;
 export function onSidewalk(x, z) {
   return COLS.some((c) => ROWS.some((r) => inRect(x, z, c, r)));
 }
+// Mobil dan pembatas jalan, diisi pas kota dibangun
+const OBSTACLES = [];
 export function blockedByBuilding(x, z) {
   const pad = 0.55;
-  return BUILDINGS.some((b) => x > b.x - pad && x < b.x + b.w + pad && z > b.z - pad && z < b.z + b.d + pad);
+  return BUILDINGS.some((b) => x > b.x - pad && x < b.x + b.w + pad && z > b.z - pad && z < b.z + b.d + pad)
+    || OBSTACLES.some((o) => Math.abs(x - o.x) < o.hx + pad && Math.abs(z - o.z) < o.hz + pad);
 }
 // Dua sinyal quest di kota: gang paling lebar di blok tengah, dan ujung jalan dekat skyline
 function alleySpot() {
@@ -301,7 +304,15 @@ export function buildCity(group, { hi, A = {}, props = {}, fallback }) {
   group.add(heads);
   pools.heads = heads;
 
-  placeModel(group, props.car, hi ? cars : cars.slice(0, 12), 4.3);
+  const shownCars = hi ? cars : cars.slice(0, 12);
+  // Mobil jalan searah sumbu x kalau ry deket 90 derajat
+  for (const o of [...shownCars, ...barriers]) {
+    const alongX = Math.abs(Math.sin(o.ry)) > 0.7;
+    const isCar = shownCars.includes(o);
+    const long = isCar ? 2.15 : 1.05, wide = isCar ? 0.95 : 0.3;
+    OBSTACLES.push({ x: o.x, z: o.z, hx: alongX ? long : wide, hz: alongX ? wide : long });
+  }
+  placeModel(group, props.car, shownCars, 4.3);
   placeModel(group, props.lamp, shown, 7, true);
   placeModel(group, props.barrier, barriers, 2);
   placeModel(group, props.utility, boxes, 1.4, true);
