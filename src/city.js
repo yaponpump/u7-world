@@ -66,6 +66,13 @@ function alleySpot() {
 }
 export const CITY_SIGNALS = [alleySpot(), [60, 103]];
 
+// Buat kamera: cuma tembok asli yang lebih tinggi dari kamera, mobil dan pagar nggak dihitung
+export function cameraBlocked(x, y, z) {
+  const pad = 0.25;
+  const hit = (b) => y < b.h + 3 && x > b.x - pad && x < b.x + b.w + pad && z > b.z - pad && z < b.z + b.d + pad;
+  return BUILDINGS.some(hit) || SKYLINE.some(hit);
+}
+
 // 0 di kota, 1 di luar: buat ngeratain tanah di bawah jalan
 export function cityFlat(x, z) {
   const d = Math.max(CITY.x0 - x, CITY.z0 - z);

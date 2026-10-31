@@ -15,8 +15,10 @@ const COL = {
 };
 
 const shared = {};
+const FLIP_TIME = 0.85;
 
-export const STATES = ['idle', 'walk', 'run', 'sit', 'drink', 'yawn', 'sleep', 'throw', 'curious', 'wave', 'jump'];
+export const STATES = ['idle', 'walk', 'run', 'sit', 'drink', 'yawn', 'sleep', 'throw', 'curious', 'wave', 'jump', 'backflip'];
+export const EXPRESSIONS = ['happy', 'sad', 'angry', 'surprised', 'disgust', 'neutral'];
 
 export function createRobot({ dormant = false } = {}) {
   const root = new THREE.Group();
@@ -185,7 +187,11 @@ export function createRobot({ dormant = false } = {}) {
   const hazard = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.06), new THREE.MeshBasicMaterial({ map: makeHazardTexture(), transparent: true }));
   hazard.position.set(0, 0.87, 0.523);
   bolts(head, [[-0.48, 0.87, 0.522], [0.48, 0.87, 0.522]]);
-  head.add(skull, jaw, brow, visor, eyeL, eyeR, finL, finR, crest, hazard);
+  const faceMat = new THREE.MeshBasicMaterial({ color: COL.lime, transparent: true, depthWrite: false, toneMapped: false });
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(0.74, 0.37), faceMat);
+  face.position.set(0, 0.56, 0.546);
+  face.visible = false;
+  head.add(skull, jaw, brow, visor, eyeL, eyeR, face, finL, finR, crest, hazard);
   body.add(head);
 
   // Cangkir kopi (muncul pas minum / duduk)
@@ -212,9 +218,9 @@ export function createRobot({ dormant = false } = {}) {
   root.traverse((m) => { if (m.isMesh) m.castShadow = true; });
 
   // ---- state & animasi ----
-  const state = { name: 'idle', t: 0, blink: 0, eyeMode: 'normal', squash: 0 };
+  const state = { name: 'idle', t: 0, blink: 0, eyeMode: 'normal', squash: 0, expr: null, exprT: 0 };
   const api = {
-    root, head, state,
+    root, head, state, expression: 'neutral',
     setState(name) {
       if (state.name === name) return;
       state.name = name;
@@ -233,6 +239,15 @@ export function createRobot({ dormant = false } = {}) {
       eyeMat.color.set(emissive);
       eyeMat.emissive.set(emissive);
       glow.color.set(emissive);
+      faceMat.color.set(emissive);
+    },
+    // Ekspresi wajah sementara, nimpa mode mata dari setState. 'neutral' balik ke biasa.
+    setExpression(name, seconds = 2.5) {
+      const known = EXPRESSIONS.includes(name) && name !== 'neutral';
+      state.expr = known ? name : null;
+      state.exprT = known ? seconds : 0;
+      api.expression = state.expr || 'neutral';
+      if (known) { faceMat.map = faceTexture(name); faceMat.needsUpdate = true; }
     },
     // Efek ngempis pas napak, numpang di atas animasi apa pun
     land() { state.squash = 1; },
@@ -254,7 +269,7 @@ export function createRobot({ dormant = false } = {}) {
       const n = state.name;
 
       // reset pose default lalu tambahin per state
-      body.position.y = 0;
+      body.position.set(0, 0, 0);
       body.scale.set(1, 1, 1);
       body.rotation.set(0, 0, 0);
       head.rotation.set(0, 0, 0);
@@ -347,9 +362,33 @@ export function createRobot({ dormant = false } = {}) {
         armR.pivot.rotation.set(0.35, 0, 0.75);
         head.rotation.x = -0.1;
         body.rotation.x = 0.08;
+      } else if (n === 'backflip') {
+        // Salto ke belakang, muter di sekitar pinggang
+        const a = Math.min(1, t / FLIP_TIME), e = a * a * (3 - 2 * a), th = e * Math.PI * 2;
+        body.rotation.x = -th;
+        body.position.y = 1 - Math.cos(th);
+        body.position.z = Math.sin(th);
+        legL.rotation.x = legR.rotation.x = -1.1 * Math.sin(a * Math.PI);
+        armL.pivot.rotation.x = armR.pivot.rotation.x = -2.2 * Math.sin(a * Math.PI);
+        if (a >= 1) api.setState('idle');
       } else if (n === 'wave') {
         armR.pivot.rotation.z = 2.3 + Math.sin(time * 10) * 0.3;
         head.rotation.z = -0.15;
+      }
+      if (state.exprT > 0) {
+        state.exprT -= dt;
+        if (state.exprT <= 0) api.setExpression('neutral');
+      }
+      const showFace = !!state.expr && n !== 'sleep';
+      face.visible = showFace;
+      eyeL.visible = eyeR.visible = !showFace;
+      if (showFace) {
+        const x = state.expr;
+        if (x === 'happy') head.rotation.z += Math.sin(time * 9) * 0.08;
+        if (x === 'sad') head.rotation.x += 0.22;
+        if (x === 'angry') { head.rotation.x += 0.12; head.rotation.y += Math.sin(time * 26) * 0.03; }
+        if (x === 'surprised') { head.rotation.x -= 0.16; body.position.y += 0.05; }
+        if (x === 'disgust') { head.rotation.y -= 0.32; head.rotation.x -= 0.08; }
       }
       if (state.squash > 0) {
         state.squash = Math.max(0, state.squash - dt / 0.22);
@@ -363,6 +402,59 @@ export function createRobot({ dormant = false } = {}) {
   signalEye.emissive.set(COL.lime);
   signalEye.color.set(COL.lime);
   return api;
+}
+
+// Wajah di visor: digambar putih, warnanya ikut warna emissive skin
+const FACES = {
+  happy(c) {
+    c.lineWidth = 16;
+    for (const x of [78, 178]) { c.beginPath(); c.arc(x, 62, 28, Math.PI * 1.1, Math.PI * 1.9); c.stroke(); }
+    c.lineWidth = 10;
+    c.beginPath(); c.arc(128, 74, 34, Math.PI * 0.15, Math.PI * 0.85); c.stroke();
+  },
+  sad(c) {
+    c.lineWidth = 14;
+    c.beginPath(); c.moveTo(48, 54); c.lineTo(102, 72); c.stroke();
+    c.beginPath(); c.moveTo(208, 54); c.lineTo(154, 72); c.stroke();
+    c.lineWidth = 10;
+    c.beginPath(); c.arc(128, 124, 28, Math.PI * 1.2, Math.PI * 1.8); c.stroke();
+    c.beginPath(); c.moveTo(196, 78); c.quadraticCurveTo(212, 102, 196, 108); c.quadraticCurveTo(180, 102, 196, 78); c.fill();
+  },
+  angry(c) {
+    c.lineWidth = 16;
+    c.beginPath(); c.moveTo(44, 36); c.lineTo(108, 66); c.stroke();
+    c.beginPath(); c.moveTo(212, 36); c.lineTo(148, 66); c.stroke();
+    for (const x of [86, 170]) { c.beginPath(); c.arc(x, 78, 14, 0, 6.28); c.fill(); }
+    c.lineWidth = 9;
+    c.beginPath(); c.moveTo(96, 112); c.lineTo(112, 100); c.lineTo(128, 112); c.lineTo(144, 100); c.lineTo(160, 112); c.stroke();
+  },
+  surprised(c) {
+    c.lineWidth = 11;
+    for (const x of [80, 176]) { c.beginPath(); c.arc(x, 54, 30, 0, 6.28); c.stroke(); c.beginPath(); c.arc(x, 54, 11, 0, 6.28); c.fill(); }
+    c.beginPath(); c.ellipse(128, 106, 14, 17, 0, 0, 6.28); c.stroke();
+  },
+  disgust(c) {
+    c.lineWidth = 14;
+    c.beginPath(); c.moveTo(50, 56); c.lineTo(106, 66); c.stroke();
+    c.beginPath(); c.moveTo(150, 46); c.lineTo(208, 38); c.stroke();
+    c.beginPath(); c.arc(178, 70, 15, 0, 6.28); c.fill();
+    c.lineWidth = 9;
+    c.beginPath(); c.moveTo(84, 106);
+    for (let i = 1; i <= 4; i++) c.quadraticCurveTo(84 + (i - 0.5) * 22, 106 + (i % 2 ? -18 : 18), 84 + i * 22, 106);
+    c.stroke();
+  },
+};
+
+function faceTexture(name) {
+  if (shared[name]) return shared[name];
+  const cv = document.createElement('canvas');
+  cv.width = 256; cv.height = 128;
+  const c = cv.getContext('2d');
+  c.strokeStyle = c.fillStyle = '#fff';
+  c.lineCap = c.lineJoin = 'round';
+  FACES[name](c);
+  shared[name] = new THREE.CanvasTexture(cv);
+  return shared[name];
 }
 
 function makeLabelTexture(text, color = '#111', bg = '#ff8a2a') {

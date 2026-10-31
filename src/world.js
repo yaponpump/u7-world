@@ -8,7 +8,8 @@ import { pbrMaterial } from './assets.js';
 import { Scatter, partsOf } from './scatter.js';
 import { createWeather } from './weather.js';
 import { createNpcs } from './npcs.js';
-import { buildCity, cityFlat, CITY_SIGNALS, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
+import { createEcosystem } from './ecosystem.js';
+import { blockedByBuilding, buildCity, cityFlat, CITY_SIGNALS, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
 
 export const WORLD = {
   size: 140,
@@ -922,8 +923,16 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     WORLD.interactables.push({ id: 'unit', name: 'Dormant unit', x: s.root.position.x, z: s.root.position.z, line: 'Another unit like me. Still asleep. Maybe all five lights will wake it.' });
   }
 
+  const ecosystem = createEcosystem(group, {
+    hi, groundHeight, isWater, blocked: blockedByBuilding,
+    centers: [[36, 12], [6, 10], [34, -16], [-30, -6], [10, 30]],
+    lake: WORLD.lake, onPier, river: riverCurve.getSpacedPoints(30), park: WORLD.park,
+  });
+  let player = null;
+
   const api = {
-    group, waters, river, lake, npcs,
+    group, waters, river, lake, npcs, ecosystem,
+    setPlayer(pos) { player = pos; },
     setWeather(opts) { weather.set(opts); },
     get weather() { return weather.state; },
     updateTrees(camera) { for (const t of treeSets) t.update(camera); },
@@ -937,6 +946,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     update(t, dt) {
       weather.update(t, dt);
       npcs.update(dt, t, cityLightCount);
+      ecosystem.update(dt, t, nightNow, player);
       bladeMat.userData.wind.value = t;
       if (leafMat) leafMat.userData.wind.value = t;
       for (const w of waters) w.material.uniforms.time.value = t * 0.6;
@@ -994,6 +1004,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
 }
 
 let cityLightCount = 3;
+let nightNow = 0;
 export function setCityLights(n) {
   cityLightCount = n;
   WORLD.lamps.forEach((l, i) => { l.on = i < n; });
@@ -1002,6 +1013,7 @@ export function setCityLights(n) {
 }
 
 export function applyNight(nightAmount) {
+  nightNow = nightAmount;
   if (WORLD.signGlow) WORLD.signGlow.emissiveIntensity = nightAmount * 2.2;
   setCityNight(nightAmount);
   for (const l of WORLD.lamps) {

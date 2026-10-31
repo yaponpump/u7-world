@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight, distToRiver, onBridge, onPier, deckHeight, blockedByRail } from './world.js';
-import { blockedByBuilding } from './city.js';
+import { blockedByBuilding, cameraBlocked } from './city.js';
 import { createRobot, STATES } from './robot.js';
 import { createAudio } from './audio.js';
 import { createWallet } from './wallet.js';
@@ -674,14 +674,11 @@ function tick() {
   // jarak kamera dipendekin kalau kehalang gedung atau tanah
   let dist = inp.camDist;
   const dir = new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
-  for (let d = 0.6; d < dist; d += 0.3) {
-    const px = camTarget.x + dir.x * d, py = camTarget.y + dir.y * d, pz = camTarget.z + dir.z * d;
-    if (blockedByBuilding(px, pz) || py < groundHeight(px, pz) + 0.5) { dist = Math.max(0.6, d - 0.3); break; }
+  for (let d = 0.8; d < dist; d += 0.25) {
+    if (cameraBlocked(camTarget.x + dir.x * d, camTarget.y + dir.y * d, camTarget.z + dir.z * d)) { dist = Math.max(1.1, d - 0.25); break; }
   }
-  behavior.camDist = behavior.camDist == null ? dist : behavior.camDist + (dist - behavior.camDist) * Math.min(1, dt * (dist < behavior.camDist ? 18 : 4));
+  behavior.camDist = behavior.camDist == null ? dist : behavior.camDist + (dist - behavior.camDist) * Math.min(1, dt * (dist < behavior.camDist ? 12 : 3));
   camPos.copy(camTarget).addScaledVector(dir, behavior.camDist);
-  // Kalau kepepet tembok, kamera naik ke atas kepala biar robot tetep keliatan
-  camPos.y += Math.max(0, 1.8 - behavior.camDist) * 2.6;
   const camGround = groundHeight(camPos.x, camPos.z) + 0.6;
   if (camPos.y < camGround) camPos.y = camGround;
   camera.position.copy(camPos);
