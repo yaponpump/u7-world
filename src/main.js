@@ -478,7 +478,7 @@ function takePhoto() {
       a.href = url;
       a.download = `u7-world-${Date.now()}.png`;
       a.click();
-      showToast('Foto tersimpan. Share ke X pake #YOZWorld');
+      showToast('Foto tersimpan. Share ke X pake #XOYWorld');
     } catch (e) {
       showToast('Foto gagal disimpan di browser ini.');
     }
