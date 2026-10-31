@@ -32,6 +32,23 @@ Diemin VUZZ sekitar 15 detik, dia nguap. 30 detik, dia ketiduran.
 
 Semua suara disintesis di browser pakai Web Audio (`src/audio.js`), nggak ada file audio. Robot: servo tiap langkah (beda di rumput, kayu dermaga, batu), motor pas duduk/berdiri, gulp pas minum, desah nguap, dengung rendah plus bip napas pas tidur, bip-bip penasaran dan dadah, chime pas nemu sinyal, "tung" pas lampu kota nyala, wuss dan plung pas lempar batu. Dunia: angin berhembus, gesekan daun, air kalau dekat danau/sungai/air mancur, burung siang, jangkrik dan katak malam.
 
+## Fitur
+
+- **Wallet:** connect Phantom, Solflare, Backpack, MetaMask, Rabby, atau Coinbase. Nggak ada signing, cuma baca alamat dan saldo token.
+- **Skin holder:** tombol Skin di HUD. Dua skin gratis, sisanya kebuka lewat wallet atau tier saldo.
+- **Cuaca dari market:** naik turun harga jadi cuaca: `storm`, `rain`, `cloudy`, `clear`, `golden`. Tes lewat URL: `?mood=storm`.
+- **NPC kota:** drone perawatan keliling jalan, dan dua unit mati di pinggir tembok yang satu matanya nyala pas lampu kota 5/5.
+
+## Setting token dan market
+
+Semua ada di `src/config.js`:
+
+- `token`: isi `chain` (`solana` atau `evm`), `address`, dan `decimals`. EVM juga perlu `evmChainId`, Solana boleh isi `rpc`. Selama kosong, semua wallet yang connect dihitung sinyal.
+- `market`: isi `coingeckoId` atau `dexscreener`. Selama kosong, cuaca jalan di demo mode.
+- `tiers`: saldo minimal tiap tier skin.
+
+Skin dan tier dicek di browser, jadi ini buat kosmetik aja, bukan buat ngunci sesuatu yang berharga.
+
 ## Kualitas grafis
 
 Otomatis: `high` di desktop, `low` di HP. Paksa lewat URL: `?q=low` atau `?q=high`. Mode `high` pakai rumput 160 ribu helai, shadow 4K, refleksi air 1K, dan SMAA.
