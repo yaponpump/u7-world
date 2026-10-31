@@ -6,6 +6,7 @@ import {
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { pbrMaterial } from './assets.js';
 import { Scatter, partsOf } from './scatter.js';
+import { buildCity, cityFlat, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
 
 export const WORLD = {
   size: 140,
@@ -68,10 +69,12 @@ function microHeight(x, z) {
   return Math.sin(x * 0.11) * Math.cos(z * 0.13) * 0.25 + Math.sin(x * 0.31 + z * 0.17) * 0.1;
 }
 export function groundHeight(x, z) {
-  return hillHeight(x, z) + microHeight(x, z);
+  return (hillHeight(x, z) + microHeight(x, z)) * cityFlat(x, z) + (onSidewalk(x, z) ? 0.14 : 0);
 }
 
 function onPath(x, z) {
+  if (inCity(x, z)) return true;
+  if (Math.abs(x - WORLD.park.x) < 1.4 && z > WORLD.park.r - 1 && z < 46) return true;
   const d = Math.hypot(x - WORLD.park.x, z - WORLD.park.z);
   if (d < 6.8) return true;
   if (d > WORLD.park.r - 2.4 && d < WORLD.park.r + 0.2) return true;
@@ -575,6 +578,8 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     WORLD.signals.push({ mesh: s, x, z, taken: false });
   }
 
+  buildCity(group, { hi, A, props: assets.props, fallback: texStone });
+
   // ---------- Batu ----------
   const rockMat = new THREE.MeshStandardMaterial({ map: texStone, roughness: 0.95 });
   for (let i = 0; i < 28; i++) {
@@ -695,10 +700,12 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
 
 export function setCityLights(n) {
   WORLD.lamps.forEach((l, i) => { l.on = i < n; });
+  setCityLit(n);
   WORLD.towerLights?.forEach((m, i) => { m.emissiveIntensity = i < n ? 2.5 : 0; });
 }
 
 export function applyNight(nightAmount) {
+  setCityNight(nightAmount);
   for (const l of WORLD.lamps) {
     const k = l.on ? nightAmount : 0;
     l.headMat.emissiveIntensity = k * 4;

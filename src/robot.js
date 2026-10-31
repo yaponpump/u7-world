@@ -237,8 +237,8 @@ export function createRobot() {
       head.rotation.set(0, 0, 0);
       legL.rotation.set(0, 0, 0);
       legR.rotation.set(0, 0, 0);
-      armL.pivot.rotation.set(0, 0, 0.12);
-      armR.pivot.rotation.set(0, 0, -0.12);
+      armL.pivot.rotation.set(0, 0, -0.12);
+      armR.pivot.rotation.set(0, 0, 0.12);
       legs.position.set(0, 0, 0);
       torso.position.set(0, 0, 0);
 
@@ -271,27 +271,25 @@ export function createRobot() {
         body.position.y = -0.3;
         torso.position.y = 0;
         armL.pivot.rotation.x = -0.6;
-        armR.pivot.rotation.x = -1.3;
-        armR.pivot.rotation.z = -0.4;
+        armR.pivot.rotation.x = -1.2;
+        armR.pivot.rotation.z = -0.2;
         head.rotation.x = -0.12 + Math.sin(time * 0.8) * 0.04;
         head.rotation.y = Math.sin(time * 0.4) * 0.3;
         // sesekali nyeruput
         const sip = Math.max(0, Math.sin(time * 0.7));
-        if (sip > 0.92) { armR.pivot.rotation.x = -2.3; armR.pivot.rotation.z = -0.1; head.rotation.x = 0.12; }
+        if (sip > 0.92) { armR.pivot.rotation.x = -1.8; armR.pivot.rotation.z = -0.35; head.rotation.x = 0.12; }
       } else if (n === 'drink') {
         const k = Math.min(1, t / 0.6);
-        armR.pivot.rotation.x = -2.2 * k;
-        armR.pivot.rotation.z = -0.15;
+        armR.pivot.rotation.x = -1.8 * k;
+        armR.pivot.rotation.z = 0.12 - 0.47 * k;
         head.rotation.x = 0.18 * k;
         body.position.y = Math.sin(time * 2) * 0.02;
         if (t > 1.6) { head.rotation.x = -0.25; } // puas
       } else if (n === 'yawn') {
         const k = Math.sin(Math.min(1, t / 1.6) * Math.PI);
         head.rotation.x = -0.45 * k;
-        armL.pivot.rotation.x = -2.6 * k;
-        armR.pivot.rotation.x = -2.6 * k;
-        armL.pivot.rotation.z = 0.5 * k;
-        armR.pivot.rotation.z = -0.5 * k;
+        armL.pivot.rotation.z = -0.12 - 2 * k;
+        armR.pivot.rotation.z = 0.12 + 2 * k;
         body.rotation.x = -0.12 * k;
       } else if (n === 'sleep') {
         legs.position.set(0, 0.25, 0.28);
@@ -307,6 +305,7 @@ export function createRobot() {
       } else if (n === 'throw') {
         const k = Math.min(1, t / 0.5);
         armR.pivot.rotation.x = k < 0.5 ? -2.8 * (k * 2) : -2.8 + (k - 0.5) * 2 * 3.6;
+        armR.pivot.rotation.z = 0.45;
         body.rotation.y = k < 0.5 ? -0.5 * k * 2 : -0.5 + (k - 0.5) * 2 * 0.9;
         head.rotation.x = -0.15;
       } else if (n === 'curious') {
@@ -318,8 +317,7 @@ export function createRobot() {
         legL.rotation.x = -0.4;
         legR.rotation.x = -0.4;
       } else if (n === 'wave') {
-        armR.pivot.rotation.x = -2.6;
-        armR.pivot.rotation.z = -0.4 + Math.sin(time * 10) * 0.35;
+        armR.pivot.rotation.z = 2.3 + Math.sin(time * 10) * 0.3;
         head.rotation.z = -0.15;
       }
     },

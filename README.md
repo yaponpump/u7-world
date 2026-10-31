@@ -38,6 +38,7 @@ Otomatis: `high` di desktop, `low` di HP. Paksa lewat URL: `?q=low` atau `?q=hig
 - Rumput instanced bergoyang, daun pohon kartu instanced dengan angin
 - Aset asli CC0 dari Poly Haven di `public/assets` (tekstur PBR, langit HDRI, 4 pohon foto-scan dengan 2 level detail). Kalau `manifest.json` nggak ada, balik ke tekstur prosedural
 - Tes jam tertentu lewat URL: `?hour=11`
+- Kota padam di selatan taman (`src/city.js`): jendela nyala ngikutin lampu kota, jalan, mobil, dan lampu jalan pakai aset CC0 Poly Haven
 - Post-processing: bloom, vignette, chromatic aberration tipis, film grain, SMAA
 
 ## Struktur

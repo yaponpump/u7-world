@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight } from './world.js';
+import { blockedByBuilding } from './city.js';
 import { createRobot } from './robot.js';
 import { createControls } from './controls.js';
 import { loadAssets } from './assets.js';
@@ -339,7 +340,7 @@ function tick() {
       const nx = pos.x + dx * speed * dt;
       const nz = pos.z + dz * speed * dt;
       const half = WORLD.size * 0.75;
-      if (!isWater(nx, nz) && Math.abs(nx) < half && Math.abs(nz) < half) {
+      if (!isWater(nx, nz) && !blockedByBuilding(nx, nz) && Math.abs(nx) < half && Math.abs(nz) < half) {
         pos.x = nx; pos.z = nz;
       } else if (isWater(nx, nz) && Math.random() < 0.02) {
         say('Air. Nggak dulu, sistem gua belum kedap.', 1600);

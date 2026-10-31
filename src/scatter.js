@@ -42,7 +42,7 @@ export class Scatter {
 }
 
 // Ambil mesh GLB jadi bagian instanced, daun jadi cutout biar murah
-export function partsOf(model) {
+export function partsOf(model, { leafTint = true } = {}) {
   model.updateMatrixWorld(true);
   const parts = [];
   model.traverse((o) => {
@@ -53,7 +53,7 @@ export function partsOf(model) {
       side: cut ? THREE.DoubleSide : THREE.FrontSide, alphaTest: cut ? 0.5 : 0,
     });
     // Tekstur daunnya gelap banget, di bawah langit terang jadi kebaca kayak ranting
-    if (cut) material.color.setRGB(3.2, 4.2, 2.1);
+    if (cut && leafTint) material.color.setRGB(3.2, 4.2, 2.1);
     if (material.map) material.map.anisotropy = 8;
     parts.push({ geometry: o.geometry, material, local: o.matrixWorld.clone() });
   });
