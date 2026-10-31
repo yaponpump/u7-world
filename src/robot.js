@@ -215,6 +215,22 @@ export function createRobot({ dormant = false } = {}) {
   glow.position.set(0, 1.1, 0.5);
   if (!dormant) root.add(glow);
 
+  // Barang dari toko, default mati. Senter selalu ada dengan intensitas 0: jumlah lampu nggak boleh berubah.
+  const hat = new THREE.Group();
+  hat.add(new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.44, 16), new THREE.MeshStandardMaterial({ color: 0xff3d7f, roughness: 0.6 })));
+  hat.add(place(new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshStandardMaterial({ color: 0xffd166, roughness: 0.5 })), 0, 0.25, 0));
+  hat.position.set(-0.08, 1.16, 0.02);
+  hat.rotation.z = 0.12;
+  hat.visible = false;
+  head.add(hat);
+  const torchLens = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 8), new THREE.MeshStandardMaterial({ color: 0xfff1c8, emissive: 0xfff1c8, emissiveIntensity: 4, toneMapped: false }));
+  torchLens.position.set(0.3, 1.3, 0.29);
+  torchLens.visible = false;
+  body.add(torchLens);
+  const torch = new THREE.PointLight(0xfff1c8, 0, 6, 1.6);
+  torch.position.set(0.3, 1.3, 0.8);
+  if (!dormant) root.add(torch);
+
   root.traverse((m) => { if (m.isMesh) m.castShadow = true; });
 
   // ---- state & animasi ----
@@ -253,6 +269,11 @@ export function createRobot({ dormant = false } = {}) {
     setFace(name) {
       state.base = name;
       api.setExpression(name, Infinity);
+    },
+    setHat(on) { hat.visible = on; },
+    setLight(on) {
+      torchLens.visible = on;
+      torch.intensity = on ? 3.2 : 0;
     },
     // Efek ngempis pas napak, numpang di atas animasi apa pun
     land() { state.squash = 1; },

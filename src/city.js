@@ -54,7 +54,9 @@ export const ROOF = {
 // Satu lot di blok depan dikosongin buat minimarket, pintunya ngadep jalan di utara
 const shopLot = BUILDINGS.filter((b) => b.z < 60 && b.x >= 38 && b.x < 56 && b !== roofB).sort((a, b) => b.w - a.w)[0];
 BUILDINGS.splice(BUILDINGS.indexOf(shopLot), 1);
-export const SHOP = { x: shopLot.x + shopLot.w / 2, z: shopLot.z + 2.9, hw: 3.6, hd: 2.8 };
+export const SHOP = { x: 51.7, z: shopLot.z + 4, hw: 4.5, hd: 4 };
+export const CAFE = { x: 44, z: 24, hw: 5, hd: 4 };
+const ROOM_H = 3.5;
 const inStair = (x, z) => x > ROOF.x0 - 0.2 && x < ROOF.x1 + 0.2 && z > ROOF.zA && z < ROOF.zB;
 const stairY = (x) => 0.14 + Math.min(1, Math.max(0, (x - ROOF.x0) / (ROOF.x1 - ROOF.x0))) * (roofB.h - 0.14);
 const PAD = 0.55;
@@ -128,9 +130,11 @@ export const CITY_SIGNALS = [alleySpot(), [60, 103]];
 export function cameraBlocked(x, y, z) {
   const pad = 0.25;
   const hit = (b) => y < b.h + 0.4 && x > b.x - pad && x < b.x + b.w + pad && z > b.z - pad && z < b.z + b.d + pad;
-  const sx = Math.abs(x - SHOP.x), sz = Math.abs(z - SHOP.z);
-  const shopWall = y < 3.2 && sx < SHOP.hw + pad && sz < SHOP.hd + pad && (sx > SHOP.hw - pad || sz > SHOP.hd - pad);
-  return shopWall || BUILDINGS.some(hit) || SKYLINE.some(hit);
+  const roomWall = (r) => {
+    const sx = Math.abs(x - r.x), sz = Math.abs(z - r.z);
+    return y < ROOM_H + 0.2 && sx < r.hw + pad && sz < r.hd + pad && (sx > r.hw - pad || sz > r.hd - pad);
+  };
+  return roomWall(SHOP) || roomWall(CAFE) || BUILDINGS.some(hit) || SKYLINE.some(hit);
 }
 
 // 0 di kota, 1 di luar: buat ngeratain tanah di bawah jalan

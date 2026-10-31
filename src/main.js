@@ -126,6 +126,9 @@ robot.root.rotation.y = Math.PI;
 // ---------- Progres tersimpan ----------
 const save = loadSave();
 let finaleDone = !!save.finaleDone;
+// Baut: mata uang kecil dari peti harian dan quest, dibelanjain di minimarket
+let bolts = save.bolts || 0;
+const gear = { light: false, battery: false, hat: false, ...(save.gear || {}) };
 let daily = null;
 let chain = null;
 let restoring = false;
@@ -138,6 +141,8 @@ function currentSave() {
     hour: gameClock.hour,
     pos: [+robot.root.position.x.toFixed(1), +robot.root.position.z.toFixed(1)],
     finaleDone,
+    bolts,
+    gear,
     daily: daily ? { key: daily.key, taken: daily.items.filter((i) => i.taken).map((i) => i.id) } : save.daily || null,
     quest: chain ? chain.data : save.quest || null,
     savedAt: Date.now(),
@@ -403,22 +408,77 @@ function clubNotice(open) {
   else showToast(walletState.status === 'connected' ? 'Holders lounge · needs Spark tier or higher' : `Holders lounge · connect a wallet${demo ? ' (demo until mainnet)' : ''}`, 3600);
 }
 
+// ---------- Baut & minimarket ----------
+const SHOP_ITEMS = [
+  { id: 'light', name: 'Headlamp', cost: 3, desc: 'Lights your way at night.' },
+  { id: 'battery', name: 'Battery pack', cost: 5, desc: '+15% run speed, forever.' },
+  { id: 'hat', name: 'Party hat', cost: 4, desc: 'Looks great. Does nothing.' },
+];
+function refreshBolts() {
+  const el = $('bolts-text');
+  if (el) el.textContent = `${bolts} bolt${bolts === 1 ? '' : 's'} · spend them at the shop`;
+  renderShop();
+}
+function earnBolts(n, why) {
+  bolts += n;
+  showToast(`+${n} bolt${n === 1 ? '' : 's'} · ${why}`, 2600);
+  refreshBolts();
+}
+function applyGear() {
+  robot.setHat?.(!!gear.hat);
+}
+function renderShop() {
+  const list = $('shop-list');
+  if (!list) return;
+  list.innerHTML = '';
+  for (const it of SHOP_ITEMS) {
+    const row = document.createElement('div');
+    row.className = 'shop-item' + (gear[it.id] ? ' owned' : '');
+    const can = !gear[it.id] && bolts >= it.cost;
+    row.innerHTML = `<div><b>${it.name}</b><div class="muted">${it.desc}</div></div><button class="btn action" ${can ? '' : 'disabled'}>${gear[it.id] ? 'Owned' : `${it.cost} bolts`}</button>`;
+    row.querySelector('button').addEventListener('click', () => buyItem(it));
+    list.appendChild(row);
+  }
+  $('shop-bolts').textContent = `You have ${bolts} bolt${bolts === 1 ? '' : 's'}.`;
+}
+function buyItem(it) {
+  if (gear[it.id] || bolts < it.cost) return;
+  bolts -= it.cost;
+  gear[it.id] = true;
+  applyGear();
+  audio.play('chime');
+  express('happy', 3);
+  showToast(`Bought ${it.name}`, 2600);
+  say(it.id === 'hat' ? 'Do I look taller? I feel taller.' : it.id === 'light' ? 'Night shift just got easier.' : 'Faster. I can feel it in my knees.', 2800);
+  refreshBolts();
+  persist();
+}
+function openShop(open = true) {
+  $('shop-panel').hidden = !open;
+  if (open) renderShop();
+}
+$('shop-close')?.addEventListener('click', () => openShop(false));
+applyGear();
+refreshBolts();
+
 // ---------- Quest berantai (kebuka setelah ending) ----------
 function onChain(event, value) {
   audio.play(event === 'generator' ? 'lamp' : 'chime');
   express('happy', 3);
   if (event === 'start') { showToast('New job · restart the 3 city generators', 4500); say('The lamps are back, but the grid is failing. Three generators, three levers.', 4200); }
   if (event === 'generator') {
+    earnBolts(2, 'generator restarted');
     showToast(value === 3 ? 'Grid stable · 3/3 generators' : `Generator back online · ${value}/3`, 3200);
     say(value === 3 ? "Grid's stable. There's a parcel outside the cafe with a courier's name on it." : ['Hear that hum? Good hum.', 'Two down. The windows look brighter already.'][value - 1], 3600);
   }
   if (event === 'parcel') { showToast(`Parcel picked up · bring it to ${value.name}`, 3600); say(`For ${value.name}. Heavier than it looks.`, 2800); }
   if (event === 'delivered') {
     world.npcTalk?.(value.id, 5);
+    earnBolts(3, 'delivery');
     showToast(`${value.name}: That's your old parts list. Three pieces of you were scattered in The Blackout.`, 5600);
     say('Pieces of me? Then I know what we are doing next.', 3400);
   }
-  if (event === 'part') { showToast(value === 3 ? 'All parts found' : `Lost part found · ${value}/3`, 3200); if (value < 3) say(['That one is definitely mine.', 'I knew I felt lighter.'][value - 1], 2800); }
+  if (event === 'part') { earnBolts(3, 'lost part'); showToast(value === 3 ? 'All parts found' : `Lost part found · ${value}/3`, 3200); if (value < 3) say(['That one is definitely mine.', 'I knew I felt lighter.'][value - 1], 2800); }
   if (event === 'done') { robot.setState('wave'); say('All of me, all of the lights. This city has a robot again.', 5000); }
   refreshQuestText();
   persist();
@@ -463,7 +523,7 @@ const INTRO_TIPS = [
   'Hold Shift to run. Space jumps high enough to clear a car.',
   'Press B for a backflip. Press G to change VUZZ\'s face.',
   'The river is shallow. Wade across, or use a bridge or the stepping stones.',
-  'Talk to the courier drones (E). They know what the market is doing.',
+  'Talk to the city robots (E). They know what the market is doing.',
   'Press T to skip three hours. Nights pass faster than days.',
   'Press Q for a photo with the $VUZZ mark. Share it with #VUZZWorld.',
   'Leave VUZZ alone for a while. It gets bored, then sleepy.',
@@ -556,7 +616,8 @@ function npcLine(npc) {
   else pool.push('All five lamps. I never thought I would see that. Thank you, VUZZ.');
   if (daily && !daily.done) pool.push(`Supply crates dropped today. One is ${daily.items.find((i) => !i.taken)?.label || 'nearby'}.`);
   if (daily?.done) pool.push('Crates all collected. The city eats tonight. Tomorrow, new drops.');
-  pool.push(`I'm ${npc.name}. Courier drone. I keep the city moving when nobody else does.`);
+  pool.push(`I'm ${npc.name}. I keep the city moving when nobody else does.`);
+  if (npc.lines?.length) return npc.lines[Math.floor(Math.random() * npc.lines.length)];
   return pool[Math.floor(Math.random() * pool.length)];
 }
 function talkTo(npc) {
@@ -702,13 +763,18 @@ function tick() {
     behavior.nearThing = nearest(WORLD.interactables, pos.x, pos.z, 3.4);
     behavior.nearNpc = nearest(WORLD.npcs || [], pos.x, pos.z, 2.8);
     const f = WORLD.fountain;
-    behavior.nearDrink = Math.hypot(pos.x - f.x, pos.z - f.z) < f.r + 2.2 || Math.hypot(pos.x - WORLD.cafe.x, pos.z - (WORLD.cafe.z + 3.5)) < 3.5;
+    const cc = WORLD.cafe.counter || { x: WORLD.cafe.x, z: WORLD.cafe.z - 0.4 };
+    behavior.nearCafe = Math.hypot(pos.x - cc.x, pos.z - cc.z) < 3.6;
+    behavior.nearDrink = behavior.nearCafe || Math.hypot(pos.x - f.x, pos.z - f.z) < f.r + 2.2 || Math.hypot(pos.x - WORLD.cafe.x, pos.z - (WORLD.cafe.z + 3.5)) < 3.5;
+    if (!$('shop-panel').hidden && (!behavior.nearThing || behavior.nearThing.id !== 'shopCounter')) openShop(false);
     behavior.nearPier = Math.hypot(pos.x - (WORLD.pier.x - WORLD.pier.len / 2 + 1), pos.z - WORLD.pier.z) < 3
       || Math.hypot(pos.x - WORLD.lake.x, pos.z - WORLD.lake.z) < WORLD.lake.r + 2.5;
-    const chainHint = chain.hint(pos);
+    const chainHint = chain.hint?.(pos); // ada yang bisa dipakai pakai E
+    const chainNote = chain.note?.(pos) ?? chainHint; // cuma petunjuk
     $('act-sit').hidden = !chainHint && !behavior.nearBench && !behavior.sitting && !behavior.nearThing && !behavior.nearNpc;
     $('act-sit').textContent = behavior.sitting ? 'E · Stand up' : chainHint ? 'E · Use' : behavior.nearBench ? 'E · Sit' : 'E · Inspect';
     $('act-drink').hidden = !behavior.nearDrink || !!behavior.sitting;
+    $('act-drink').textContent = behavior.nearCafe ? 'F · Coffee' : 'F · Drink';
     $('act-throw').hidden = !behavior.nearPier || !!behavior.sitting;
 
     // --- aksi ---
@@ -728,6 +794,9 @@ function tick() {
         say(sitLines[Math.floor(Math.random() * sitLines.length)]);
       } else if (behavior.nearNpc) {
         talkTo(behavior.nearNpc);
+      } else if (behavior.nearThing?.id === 'shopCounter') {
+        openShop($('shop-panel').hidden);
+        behavior.idleTime = 0;
       } else if (behavior.nearThing) {
         showToast(behavior.nearThing.name, 1800);
         say(behavior.nearThing.line, 4200);
@@ -737,7 +806,10 @@ function tick() {
     if (controls.consume('f') && behavior.nearDrink && !behavior.sitting) {
       robot.setState('drink');
       behavior.lock = 2.4;
-      setTimeout(() => say("Ahh. Can't taste a thing. Still good."), 1500);
+      if (behavior.nearCafe) {
+        behavior.boost = 60;
+        setTimeout(() => { say('Coffee. Legs feel electric.', 2200); showToast('Coffee · +25% speed for 60 s', 3000); express('happy', 4); }, 1500);
+      } else setTimeout(() => say("Ahh. Can't taste a thing. Still good."), 1500);
     }
     if (controls.consume('r') && behavior.nearPier && !behavior.sitting) {
       robot.setState('throw');
@@ -762,7 +834,9 @@ function tick() {
     const moving = Math.hypot(inp.moveRaw.x, inp.moveRaw.y) > 0.05 || Math.hypot(inp.move.x, inp.move.y) > 0.08;
     // kecepatan naik-turun halus (ramp), bukan langsung penuh
     behavior.wading = isWater(pos.x, pos.z) && wadeable(pos.x, pos.z) && !onBridge(pos.x, pos.z) && !onStone(pos.x, pos.z);
-    const targetSpeed = moving && behavior.lock <= 0 ? (inp.run ? SPEED_RUN : SPEED_WALK) * (behavior.wading ? 0.55 : 1) : 0;
+    behavior.boost = Math.max(0, (behavior.boost || 0) - rawDt);
+    const speedMul = (behavior.boost > 0 ? 1.25 : 1) * (gear.battery && inp.run ? 1.15 : 1);
+    const targetSpeed = moving && behavior.lock <= 0 ? (inp.run ? SPEED_RUN : SPEED_WALK) * speedMul * (behavior.wading ? 0.55 : 1) : 0;
     behavior.speed += (targetSpeed - behavior.speed) * Math.min(1, dt * (targetSpeed > behavior.speed ? 6 : 10));
     if (moving && behavior.lock <= 0) {
       if (behavior.sitting) { behavior.sitting = null; }
@@ -927,21 +1001,27 @@ function tick() {
         robot.setState('wave');
         behavior.lock = 1.0;
         refreshQuestText();
+        earnBolts(1, 'supply crate');
         if (daily.done) { showToast('Daily complete · 3/3 crates. New ones tomorrow.', 4500); say("Three for three. The city eats tonight.", 3500); }
         else { showToast(`Supply crate ${daily.found}/3 · ${got.label}`, 3000); say(['Got one.', 'Heavy. Worth it.', 'One more for the pile.'][daily.found % 3], 1800); }
         persist();
       }
     }
     chain.update(pos);
+    // senter nyala sendiri pas gelap
+    const dark = gameClock.hour < 6.3 || gameClock.hour >= 18.3;
+    if (behavior.lampOn !== (gear.light && dark)) { behavior.lampOn = gear.light && dark; robot.setLight?.(behavior.lampOn); }
     persistTimer += rawDt;
     if (persistTimer > 5) { persistTimer = 0; persist(); }
 
     // hint kontekstual
     if (behavior.sitting) setHint('Press E or move to stand up. Leave it alone and it will doze off.');
-    else if (chainHint) setHint(chainHint);
+    else if (chainNote) setHint(chainNote);
     else if (behavior.nearBench) setHint('A bench. Press E to sit.');
-    else if (behavior.nearNpc) setHint(`${behavior.nearNpc.name}, a courier drone. Press E to talk.`);
+    else if (behavior.nearNpc) setHint(`${behavior.nearNpc.name}. Press E to talk.`);
+    else if (behavior.nearThing?.id === 'shopCounter') setHint(`Minimarket. Press E to shop. You have ${bolts} bolt${bolts === 1 ? '' : 's'}.`);
     else if (behavior.nearThing) setHint(`${behavior.nearThing.name}. Press E to inspect.`);
+    else if (behavior.nearCafe) setHint('Cafe counter. Press F for a coffee: +25% speed for a minute.');
     else if (behavior.nearDrink) setHint('Press F to "drink". Does nothing for its systems, but it likes it.');
     else if (behavior.wading) setHint('Shallow water. Slow going, but you can wade anywhere in the river and the lake.');
     else if (onBridge(pos.x, pos.z)) setHint('A bridge over the river. Walk straight across.');
@@ -1117,7 +1197,7 @@ window.addEventListener('resize', () => {
   composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-window.__u7 = { get chain() { return chain; }, gameClock, BUILDINGS, rooftopHeight, obstacleTop, WORLD, world, get daily() { return daily; }, signals: WORLD.signals, robot, behavior, controls, audio, scene, camera, renderer, blockedByBuilding, isWater, wadeable, onBridge, groundHeight };
+window.__u7 = { get chain() { return chain; }, shop: { buy: buyItem, open: openShop, add: earnBolts, get bolts() { return bolts; }, gear, items: SHOP_ITEMS }, gameClock, BUILDINGS, rooftopHeight, obstacleTop, WORLD, world, get daily() { return daily; }, signals: WORLD.signals, robot, behavior, controls, audio, scene, camera, renderer, blockedByBuilding, isWater, wadeable, onBridge, groundHeight };
 
 // kamera awal: dari depan robot
 controls.setYaw(Math.PI);

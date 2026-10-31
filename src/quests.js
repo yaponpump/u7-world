@@ -1,8 +1,8 @@
-// Quest berantai setelah ending: nyalain 3 generator, antar paket ke drone, cari bagian tubuh VUZZ.
+// Quest berantai setelah ending: nyalain 3 generator, antar paket ke robot kurir, cari bagian tubuh VUZZ.
 // Progres disimpen sebagai data polos, event (on) dipakai main.js buat suara dan dialog.
 export function createChain(world, WORLD, saved, on) {
   const data = { stage: 'locked', gens: [], parts: [], ...saved };
-  const recipient = WORLD.npcs.find((n) => n.name === 'Mira') || WORLD.npcs[0];
+  const recipient = WORLD.npcs.find((n) => n.name === 'Bolt');
   const near = (a, b, r) => Math.hypot(a.x - b.x, a.z - b.z) < r;
 
   function sync() {
@@ -23,7 +23,7 @@ export function createChain(world, WORLD, saved, on) {
     get text() {
       if (data.stage === 'power') return `Restart the generators · <b id="quest-count">${data.gens.length}</b>/3`;
       if (data.stage === 'parcel') return 'Pick up the parcel outside the cafe';
-      if (data.stage === 'deliver') return `Deliver the parcel to ${recipient.name}`;
+      if (data.stage === 'deliver') return `Deliver the parcel to ${recipient.name} the mechanic, outside the shop`;
       if (data.stage === 'parts') return `Find VUZZ's lost parts · <b id="quest-count">${data.parts.length}</b>/3`;
       return null;
     },
@@ -35,12 +35,18 @@ export function createChain(world, WORLD, saved, on) {
       return [];
     },
     get label() {
-      return { power: 'generator', parcel: 'parcel', deliver: 'courier', parts: 'lost part' }[data.stage] || '';
+      return { power: 'generator', parcel: 'parcel', deliver: 'mechanic', parts: 'lost part' }[data.stage] || '';
     },
     hint(pos) {
       if (data.stage === 'power' && offGen(pos)) return 'Generator offline. Press E to pull the lever.';
       if (data.stage === 'deliver' && near(recipient, pos, 3.2)) return `Press E to hand ${recipient.name} the parcel.`;
       return null;
+    },
+    // Petunjuk kalau bagian tubuhnya deket tapi ada di atas
+    note(pos) {
+      if (data.stage !== 'parts') return null;
+      const up = WORLD.parts.find((p) => !data.parts.includes(p.id) && near(p, pos, 12) && p.y > pos.y + 2);
+      return up ? 'This one is up on the roof. Take the iron stairs on the building, or hold Space on a wall to climb.' : null;
     },
     // Tombol E. true kalau kepake buat quest.
     use(pos) {

@@ -9,7 +9,7 @@ import { Scatter, partsOf } from './scatter.js';
 import { createWeather } from './weather.js';
 import { createNpcs } from './npcs.js';
 import { createEcosystem } from './ecosystem.js';
-import { addObstacle, BUILDINGS, CLUB, blockedByBuilding, buildCity, cityFlat, ROOF, SHOP, setCityFinale, setCityPower, CITY_SIGNALS, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
+import { addObstacle, CAFE, CLUB, blockedByBuilding, buildCity, cityFlat, ROOF, SHOP, setCityFinale, setCityPower, CITY_SIGNALS, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
 
 export const WORLD = {
   size: 140,
@@ -107,14 +107,17 @@ export function hillHeight(x, z) {
 function microHeight(x, z) {
   return Math.sin(x * 0.11) * Math.cos(z * 0.13) * 0.25 + Math.sin(x * 0.31 + z * 0.17) * 0.1;
 }
+const CAFE_FLOOR = 0.15;
 export function groundHeight(x, z) {
+  // Tanah di bawah kafe diratain, kalau nggak rumputnya nembus lantai
+  if (Math.abs(x - CAFE.x) < CAFE.hw + 0.5 && Math.abs(z - CAFE.z) < CAFE.hd + 0.5) return CAFE_FLOOR;
   return (hillHeight(x, z) + microHeight(x, z)) * cityFlat(x, z) + (onSidewalk(x, z) ? 0.14 : 0);
 }
 
 // ---------- Rute dan papan petunjuk ----------
 // Garis tengah jalan setapak. Dipakai buat mesh jalan, nyisihin rumput/pohon, dan minimap.
 WORLD.routes = [
-  { id: 'cafe', points: [[26.8, 0], [44, 0], [44, 19]] },
+  { id: 'cafe', points: [[26.8, 0], [44, 0], [44, 18], [37.5, 18], [37.5, 30], [44, 30]] },
   { id: 'hill', points: [[20, -6.8], [20, -30], [34, -30]] },
   { id: 'lake', points: [[20, 6.8], [20, 22], [-11, 22]] },
   { id: 'city', points: [[20, 22], [20, 46]] },
@@ -128,23 +131,24 @@ WORLD.interactables = [
   { id: 'notice', name: 'Notice board', x: 24, z: -17, line: 'Five signals got lost in The Blackout. The board says bring them home.' },
   { id: 'hill', name: 'Hill lookout', x: 39.5, z: -35.5, line: 'You can see the whole city from up here. Most of it is still dark.' },
   { id: 'pier', name: 'Pier', x: -19, z: 22, line: 'End of the line. Press R and skip a rock.' },
-  { id: 'cafeCounter', name: 'Cafe counter', x: 44, z: 23.6, line: 'Nobody has run this counter since The Blackout. The coffee machine still hums. Press F for a cup.' },
+  { id: 'cafeCounter', name: 'Cafe counter', x: CAFE.x, z: CAFE.z - 1.5, line: 'Nobody has run this counter since The Blackout. The coffee machine still hums.' },
   { id: 'cityGate', name: 'City gate', x: 20, z: 44, line: 'Road closed since The Blackout. Barriers only stop cars.' },
 ];
-WORLD.interactables.push({ id: 'shopCounter', name: 'Shop counter', x: SHOP.x + 1.8, z: SHOP.z + 1.4, line: 'The till still has power. The shelves are full and nobody came back to buy anything.' });
-WORLD.shop = { x: SHOP.x, z: SHOP.z };
+WORLD.cafe.counter = { x: CAFE.x, z: CAFE.z - 1.5 };
+WORLD.shop = { x: SHOP.x, z: SHOP.z, counter: { x: SHOP.x + 2.4, z: SHOP.z + 0.9 } };
+WORLD.interactables.push({ id: 'shopCounter', name: 'Shop counter', ...WORLD.shop.counter, line: 'The till still has power. The shelves are full and nobody came back to buy anything.' });
 // Quest berantai setelah ending: nyalain generator, antar paket, cari bagian tubuh VUZZ
 WORLD.generators = [
   { id: 'tower', x: 30.5, z: 9.5, label: 'behind the Signal Tower' },
   { id: 'cafe', x: 51, z: 28, label: 'east of the cafe' },
   { id: 'skyline', x: 74, z: 106, label: 'at the far end of the city' },
 ];
-WORLD.parcel = { x: 44, z: 29.5 };
+WORLD.parcel = { x: 41.6, z: 30.2 };
 {
-  const roof = BUILDINGS.filter((b) => b.z < 60 && b.x >= 64).sort((a, b) => a.h - b.h)[0];
+  const roof = ROOF.b;
   WORLD.parts = [
-    { id: 'antenna', x: roof.x + roof.w / 2, z: roof.z + roof.d / 2, y: roof.h, label: 'on a rooftop in the east block' },
-    { id: 'plate', x: -37.8, z: -38.6, label: 'beside the north bridge' },
+    { id: 'antenna', x: roof.x + 1.3, z: roof.z + roof.d - 1.3, y: roof.h, label: 'on the rooftop with the iron stairs' },
+    { id: 'plate', x: -34.5, z: -43, label: 'beside the north bridge' },
     { id: 'core', x: WORLD.lake.x - WORLD.lake.r - 3, z: WORLD.lake.z, label: 'on the west shore of the lake' },
   ];
 }
@@ -152,7 +156,7 @@ WORLD.parcel = { x: 44, z: 29.5 };
 WORLD.dailySpots = [
   { x: 11, z: 13, label: 'by the park lawn' },
   { x: 31, z: -13, label: 'south side of the park' },
-  { x: 48.5, z: 21, label: 'behind the cafe' },
+  { x: 50.5, z: 18, label: 'behind the cafe' },
   { x: 40, z: -37, label: 'top of the hill' },
   { x: -7, z: 38, label: 'on the lake shore' },
   { x: -34, z: 56, label: 'far shore of the lake' },
@@ -822,38 +826,72 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   const plaster = new THREE.MeshStandardMaterial({ color: 0xe8ddc8, roughness: 0.95 });
   plaster.emissive = new THREE.Color(0x4a3220);
   plaster.emissiveIntensity = 0.35;
-  const room = [[0, 1.55, -2.05, 5.2, 3.1, 0.14], [-2.53, 1.55, 0, 0.14, 3.1, 4.2], [2.53, 1.55, 0, 0.14, 3.1, 4.2], [-1.85, 1.55, 2.05, 1.5, 3.1, 0.14], [1.85, 1.55, 2.05, 1.5, 3.1, 0.14], [0, 2.75, 2.05, 2.2, 0.7, 0.14]];
-  for (const [x, y, z, sx, sy, sz] of room) {
-    const panel = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), plaster);
-    panel.position.set(x, y, z);
-    cafe.add(panel);
+  const ROOM_H = 3.5, DOOR_HALF = 1.3;
+  // Empat tembok + pintu lebar di tengah satu sisi. doorZ: -1 pintu di utara, 1 di selatan.
+  function buildRoom(parent, r, doorZ, mat, base = 0) {
+    const side = r.hw - DOOR_HALF, mid = DOOR_HALF + side / 2;
+    const panels = [
+      [r.hw * 2, ROOM_H, 0.14, 0, ROOM_H / 2, -doorZ * r.hd],
+      [0.14, ROOM_H, r.hd * 2, -r.hw, ROOM_H / 2, 0],
+      [0.14, ROOM_H, r.hd * 2, r.hw, ROOM_H / 2, 0],
+      [side, ROOM_H, 0.14, -mid, ROOM_H / 2, doorZ * r.hd],
+      [side, ROOM_H, 0.14, mid, ROOM_H / 2, doorZ * r.hd],
+      [DOOR_HALF * 2, 0.8, 0.14, 0, ROOM_H - 0.4, doorZ * r.hd],
+    ];
+    for (const [sx, sy, sz, x, y, z] of panels) {
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
+      panel.position.set(x, base + y, z);
+      parent.add(panel);
+    }
+    for (const [x, z, hx, hz] of [[0, -doorZ * r.hd, r.hw, 0.1], [-r.hw, 0, 0.1, r.hd], [r.hw, 0, 0.1, r.hd], [-mid, doorZ * r.hd, side / 2, 0.1], [mid, doorZ * r.hd, side / 2, 0.1]]) {
+      addObstacle(r.x + x, r.z + z, hx, hz, 99);
+    }
   }
-  // Tembok jadi penghalang, pintunya di tengah depan
-  const walls = [[0, -2.05, 2.7, 0.1], [-2.53, 0, 0.1, 2.15], [2.53, 0, 0.1, 2.15], [-1.95, 2.05, 0.85, 0.1], [1.95, 2.05, 0.85, 0.1]];
-  for (const [x, z, hx, hz] of walls) addObstacle(WORLD.cafe.x + x, WORLD.cafe.z + z, hx, hz, 99);
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(5, 0.06, 4), woodMat);
-  floor.position.y = 0.03;
-  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 8), new THREE.MeshStandardMaterial({ color: 0x332a1c, emissive: 0xffc98a, emissiveIntensity: 2.4, toneMapped: false }));
-  lamp.position.set(0, 2.75, 0);
-  const counter = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.0, 0.6), woodMat);
-  counter.position.set(0, 0.5, -1.2);
-  addObstacle(WORLD.cafe.x, WORLD.cafe.z - 1.2, 1.7, 0.3, 1.0);
-  for (const sx of [-0.8, 0.8]) {
-    const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.08, 14), woodMat);
-    seat.position.set(sx, 0.62, -0.45);
+  buildRoom(cafe, CAFE, 1, plaster);
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(CAFE.hw * 2 - 0.1, 0.06, CAFE.hd * 2 - 0.1), woodMat);
+  floor.position.y = CAFE_FLOOR - 0.01;
+  const lampMat = new THREE.MeshStandardMaterial({ color: 0x332a1c, emissive: 0xffc98a, emissiveIntensity: 2.4, toneMapped: false });
+  for (const x of [-3, 0, 3]) {
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 8), lampMat);
+    lamp.position.set(x, 3.05, 0);
+    cafe.add(lamp);
+  }
+  const counter = new THREE.Mesh(new THREE.BoxGeometry(5, 1.0, 0.7), woodMat);
+  counter.position.set(0, 0.5, -2.6);
+  addObstacle(CAFE.x, CAFE.z - 2.6, 2.5, 0.35, 1.0);
+  const coffee = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.6, 0.45), ironMat);
+  coffee.position.set(-1.4, 1.3, -2.6);
+  const coffeeLight = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), new THREE.MeshStandardMaterial({ color: 0x223018, emissive: 0xb8ff3c, emissiveIntensity: 2.4, toneMapped: false }));
+  coffeeLight.position.set(-1.2, 1.42, -2.36);
+  cafe.add(coffee, coffeeLight);
+  const stool = (x, z) => {
+    const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.08, 14), woodMat);
+    seat.position.set(x, 0.62, z);
     const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.6, 8), ironMat);
-    leg.position.set(sx, 0.3, -0.45);
+    leg.position.set(x, 0.3, z);
     cafe.add(seat, leg);
+  };
+  for (const sx of [-1.4, 0, 1.4]) stool(sx, -1.8);
+  for (const [tx, tz] of [[-3.3, 0.2], [3.3, 0.2], [-3.3, 2.4], [3.3, 2.4]]) {
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.06, 18), woodMat);
+    top.position.set(tx, 0.82, tz);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.2, 0.8, 8), ironMat);
+    stem.position.set(tx, 0.4, tz);
+    cafe.add(top, stem);
+    stool(tx - 0.95, tz);
+    stool(tx + 0.95, tz);
+    addObstacle(CAFE.x + tx, CAFE.z + tz, 0.5, 0.5, 0.85);
   }
-  cafe.add(floor, lamp, counter);
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(4.4, 1.9, 4), new THREE.MeshStandardMaterial({ color: 0x3a2f4f, roughness: 0.8 }));
-  roof.position.y = 4.0;
+  cafe.add(floor, counter);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(7.6, 1.9, 4), new THREE.MeshStandardMaterial({ color: 0x3a2f4f, roughness: 0.8 }));
+  roof.position.y = ROOM_H + 0.95;
   roof.rotation.y = Math.PI / 4;
-  const awning = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.06, 1.7), new THREE.MeshStandardMaterial({ color: 0xc2552a, roughness: 0.9 }));
-  awning.position.set(0, 2.35, 2.7);
+  roof.scale.z = 0.8;
+  const awning = new THREE.Mesh(new THREE.BoxGeometry(7.4, 0.06, 1.7), new THREE.MeshStandardMaterial({ color: 0xc2552a, roughness: 0.9 }));
+  awning.position.set(0, 2.75, CAFE.hd + 0.65);
   awning.rotation.x = 0.18;
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.5), new THREE.MeshStandardMaterial({ color: 0xb8ff3c, emissive: 0xb8ff3c, emissiveIntensity: 0.6 }));
-  sign.position.set(0, 2.85, 2.12);
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.56), new THREE.MeshStandardMaterial({ color: 0xb8ff3c, emissive: 0xb8ff3c, emissiveIntensity: 0.6 }));
+  sign.position.set(0, 3.16, CAFE.hd + 0.09);
   cafe.add(roof, awning, sign);
   WORLD.cafeAwning = awning;
   WORLD.cafeRoof = roof;
@@ -872,38 +910,40 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     parent.add(m);
     return m;
   };
-  const doorHalf = 0.9, sideW = hw - doorHalf;
-  addBox(hw * 2, 3, 0.14, 0, 1.5, hd, shopWallMat);
-  addBox(0.14, 3, hd * 2, -hw, 1.5, 0, shopWallMat);
-  addBox(0.14, 3, hd * 2, hw, 1.5, 0, shopWallMat);
-  addBox(sideW, 3, 0.14, -(doorHalf + sideW / 2), 1.5, -hd, shopWallMat);
-  addBox(sideW, 3, 0.14, doorHalf + sideW / 2, 1.5, -hd, shopWallMat);
-  addBox(doorHalf * 2, 0.7, 0.14, 0, 2.65, -hd, shopWallMat);
-  for (const [x, z, ohx, ohz] of [[0, hd, hw, 0.1], [-hw, 0, 0.1, hd], [hw, 0, 0.1, hd], [-(doorHalf + sideW / 2), -hd, sideW / 2, 0.1], [doorHalf + sideW / 2, -hd, sideW / 2, 0.1]]) {
-    addObstacle(SHOP.x + x, SHOP.z + z, ohx, ohz, 99);
-  }
+  buildRoom(shop, SHOP, -1, shopWallMat, shopBase);
   addBox(hw * 2, 0.04, hd * 2, 0, 0.02, 0, new THREE.MeshStandardMaterial({ color: 0xbfc6c4, roughness: 0.35 }));
   const neonMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xdff5ff, emissiveIntensity: 2.6, toneMapped: false });
-  for (const x of [-1.8, 1.8]) addBox(0.16, 0.05, hd * 1.5, x, 2.92, 0, neonMat);
+  for (const x of [-2.6, 0, 2.6]) addBox(0.16, 0.05, hd * 1.5, x, 3.4, 0, neonMat);
   const shelfMat = new THREE.MeshStandardMaterial({ color: 0x5a6068, roughness: 0.5, metalness: 0.5 });
-  const goodsColors = [0xe0441c, 0xffd166, 0x2d9cdb, 0xb8ff3c, 0xf4f1e6, 0xff8a2a].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.7 }));
-  for (const sx of [-2.4, -0.7]) {
-    addBox(0.5, 1.5, 3, sx, 0.75, 0.3, shelfMat);
-    addObstacle(SHOP.x + sx, SHOP.z + 0.3, 0.25, 1.5, 99);
-    for (const level of [0.45, 0.95, 1.45]) {
-      for (let i = 0; i < 9; i++) {
+  // Barang di rak satu InstancedMesh, biar ratusan kotak tetep satu draw call
+  const goodsColors = [0xe0441c, 0xffd166, 0x2d9cdb, 0xb8ff3c, 0xf4f1e6, 0xff8a2a].map((v) => new THREE.Color(v));
+  const shelfX = [-3.3, -1], levels = [0.45, 1.0, 1.55], perRow = 12;
+  const goods = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 0.3, 0.24), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7 }), shelfX.length * levels.length * perRow * 2);
+  const goodsM = new THREE.Matrix4();
+  let goodsN = 0;
+  for (const sx of shelfX) {
+    addBox(0.5, 1.8, 4, sx, 0.9, -0.2, shelfMat);
+    addObstacle(SHOP.x + sx, SHOP.z - 0.2, 0.25, 2, 99);
+    for (const level of levels) {
+      for (let i = 0; i < perRow; i++) {
         for (const side of [-1, 1]) {
-          const c = goodsColors[(i * 3 + Math.round(level * 2) + (side > 0 ? 1 : 0)) % goodsColors.length];
-          addBox(0.1, 0.26, 0.24, sx + side * 0.3, level, -1.0 + i * 0.32, c);
+          goodsM.setPosition(sx + side * 0.3, shopBase + level, -1.95 + i * 0.32);
+          goods.setMatrixAt(goodsN, goodsM);
+          goods.setColorAt(goodsN, goodsColors[(i * 5 + Math.round(level * 7) + (side > 0 ? 2 : 0)) % goodsColors.length]);
+          goodsN++;
         }
       }
     }
   }
-  const till = addBox(2, 1, 0.7, 1.8, 0.5, 1.75, woodMat);
+  shop.add(goods);
+  const fridgeMat = new THREE.MeshStandardMaterial({ color: 0x8fd4ff, emissive: 0x4fb4ff, emissiveIntensity: 0.9, roughness: 0.2 });
+  addBox(3.4, 2.3, 0.5, -2.2, 1.15, hd - 0.35, fridgeMat);
+  addObstacle(SHOP.x - 2.2, SHOP.z + hd - 0.35, 1.7, 0.25, 99);
+  const till = addBox(2.6, 1, 0.7, 2.4, 0.5, 1.9, woodMat);
   till.castShadow = true;
-  addObstacle(SHOP.x + 1.8, SHOP.z + 1.75, 1, 0.35, 1.14);
-  addBox(0.4, 0.3, 0.3, 1.5, 1.15, 1.75, ironMat);
-  const shopRoof = addBox(hw * 2 + 0.3, 0.18, hd * 2 + 0.3, 0, 3.08, 0, new THREE.MeshStandardMaterial({ color: 0x2a2d33, roughness: 0.8 }));
+  addObstacle(SHOP.x + 2.4, SHOP.z + 1.9, 1.3, 0.35, 1.14);
+  addBox(0.4, 0.3, 0.3, 2, 1.15, 1.9, ironMat);
+  const shopRoof = addBox(hw * 2 + 0.3, 0.18, hd * 2 + 0.3, 0, ROOM_H + 0.08, 0, new THREE.MeshStandardMaterial({ color: 0x2a2d33, roughness: 0.8 }));
   const shopSignCanvas = document.createElement('canvas');
   shopSignCanvas.width = 512; shopSignCanvas.height = 96;
   {
@@ -912,13 +952,13 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     c.fillStyle = '#b8ff3c'; c.font = '700 58px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
     c.fillText('MINI MART', 256, 50);
   }
-  const shopSign = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 0.78), new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(shopSignCanvas), emissive: 0xffffff, emissiveMap: null, emissiveIntensity: 0.25 }));
+  const shopSign = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 0.74), new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(shopSignCanvas), emissive: 0xffffff, emissiveMap: null, emissiveIntensity: 0.25 }));
   shopSign.material.map.colorSpace = THREE.SRGBColorSpace;
-  shopSign.position.set(0, shopBase + 2.68, -hd - 0.1);
+  shopSign.position.set(0, shopBase + ROOM_H - 0.4, -hd - 0.1);
   shopSign.rotation.y = Math.PI;
   shop.add(shopSign);
   shop.position.set(SHOP.x, 0, SHOP.z);
-  shop.traverse((m) => { if (m.isMesh && m !== shopSign) { m.castShadow = true; m.receiveShadow = true; } });
+  shop.traverse((m) => { if (m.isMesh && m !== shopSign && m !== goods) { m.castShadow = true; m.receiveShadow = true; } });
   group.add(shop);
   WORLD.shopRoof = shopRoof;
 
@@ -1126,7 +1166,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   const waters = [lake];
 
   const weather = createWeather(scene, renderer, { hi, waters, wind: windScale });
-  const npcs = createNpcs(group, { hi });
+  const npcs = createNpcs(group);
   WORLD.npcs = npcs.live;
   WORLD.interactables.push({ id: 'rooftop', name: 'Rooftop', x: ROOF.cx, z: ROOF.cz, line: 'You can see the whole city from up here. Every dark window is somebody who left.' });
   for (const s of npcs.sisters) {
@@ -1220,7 +1260,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
         WORLD.shopRoof.visible = !inShop;
       }
       if (WORLD.cafeRoof && player) {
-        const inside = Math.abs(player.x - WORLD.cafe.x) < 2.5 && Math.abs(player.z - WORLD.cafe.z) < 2.1;
+        const inside = Math.abs(player.x - CAFE.x) < CAFE.hw && Math.abs(player.z - CAFE.z) < CAFE.hd;
         WORLD.cafeRoof.visible = WORLD.cafeAwning.visible = !inside;
       }
       npcs.update(dt, t, cityLightCount, player);
