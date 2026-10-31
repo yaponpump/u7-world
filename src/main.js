@@ -532,7 +532,7 @@ window.addEventListener('resize', () => {
   composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-window.__u7 = { robot, behavior, controls, audio, scene, camera, renderer };
+window.__u7 = { robot, behavior, controls, audio, scene, camera, renderer, blockedByBuilding };
 
 // kamera awal: dari depan robot
 controls.input.camYaw = Math.PI;

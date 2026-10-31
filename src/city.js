@@ -9,6 +9,7 @@ const COLS = [[-8, 4], [12, 30], [38, 56], [64, 82], [90, 104]];
 const ROWS = [[56, 74], [82, 104]];
 const ROADS_X = [8, 34, 60, 86];
 const ROADS_Z = [50, 78];
+const LAMP_HEAD = { y: 6.42, r: 0.3 };
 
 let seed = 41;
 const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
@@ -43,9 +44,23 @@ export function onSidewalk(x, z) {
   return COLS.some((c) => ROWS.some((r) => inRect(x, z, c, r)));
 }
 export function blockedByBuilding(x, z) {
-  const pad = 0.7;
+  const pad = 0.55;
   return BUILDINGS.some((b) => x > b.x - pad && x < b.x + b.w + pad && z > b.z - pad && z < b.z + b.d + pad);
 }
+// Dua sinyal quest di kota: gang paling lebar di blok tengah, dan ujung jalan dekat skyline
+function alleySpot() {
+  let best = [21, 65], width = 0;
+  for (let x = 14; x < 29; x += 1) {
+    let run = 0;
+    for (let z = 58; z < 73; z += 0.25) {
+      run = blockedByBuilding(x, z) ? 0 : run + 0.25;
+      if (run > width) { width = run; best = [x, z - run / 2]; }
+    }
+  }
+  return best;
+}
+export const CITY_SIGNALS = [alleySpot(), [60, 103]];
+
 // 0 di kota, 1 di luar: buat ngeratain tanah di bawah jalan
 export function cityFlat(x, z) {
   const d = Math.max(CITY.x0 - x, CITY.z0 - z);
@@ -53,17 +68,37 @@ export function cityFlat(x, z) {
   return t * t * (3 - 2 * t);
 }
 
-export const cityUniforms = { uLit: { value: 0.27 }, uGlow: { value: 0 } };
-const pools = { mesh: null, total: 0 };
+export const cityUniforms = { uLit: { value: 0.27 }, uGlow: { value: 0 }, uFill: { value: 0 } };
+const pools = { mesh: null, heads: null, total: 0, lit: 3, night: 0 };
+const updateFill = () => { cityUniforms.uFill.value = pools.night * (0.08 + 0.14 * pools.lit / 5); };
+
+// Cahaya pantul kota: sekadar biar gang gelap tapi masih kebaca
+function addFill(mat, inner) {
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (s, r) => {
+    prev?.call(mat, s, r);
+    s.uniforms.uFill = cityUniforms.uFill;
+    s.fragmentShader = 'uniform float uFill;\n' + s.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * uFill;');
+  };
+  return mat;
+}
 
 // Dipanggil pas lampu kota nambah dan tiap ganti waktu
 export function setCityLit(n) {
   cityUniforms.uLit.value = n * 0.09;
-  if (pools.mesh) pools.mesh.count = Math.round(pools.total * n / 5);
+  pools.lit = n;
+  updateFill();
+  const on = Math.round(pools.total * n / 5);
+  if (pools.mesh) { pools.mesh.count = on; pools.heads.count = on; }
 }
 export function setCityNight(night) {
   cityUniforms.uGlow.value = night * 1.15;
-  if (pools.mesh) pools.mesh.material.opacity = night * 0.6;
+  pools.night = night;
+  updateFill();
+  if (pools.mesh) {
+    pools.mesh.material.opacity = night * 0.6;
+    pools.heads.material.emissiveIntensity = 0.1 + night * 3.4;
+  }
 }
 
 function poolTexture() {
@@ -166,8 +201,8 @@ function placeModel(group, model, items, size, useHeight) {
 }
 
 export function buildCity(group, { hi, A = {}, props = {}, fallback }) {
-  const concrete = facade(pbrMaterial(A.concrete, fallback, { roughness: 0.95 }));
-  const brick = facade(pbrMaterial(A.brick, fallback, { roughness: 0.95 }));
+  const concrete = addFill(facade(pbrMaterial(A.concrete, fallback, { roughness: 0.95 })));
+  const brick = addFill(facade(pbrMaterial(A.brick, fallback, { roughness: 0.95 })));
   const all = [...BUILDINGS, ...SKYLINE];
   for (const [list, mat] of [[all.filter((b) => !b.brick), concrete], [all.filter((b) => b.brick), brick]]) {
     if (!list.length) continue;
@@ -182,7 +217,7 @@ export function buildCity(group, { hi, A = {}, props = {}, fallback }) {
   roadGeo.rotateX(-Math.PI / 2);
   const ruv = roadGeo.attributes.uv;
   for (let i = 0; i < ruv.count; i++) ruv.setXY(i, ruv.getX(i) * w / 6, ruv.getY(i) * d / 6);
-  const road = new THREE.Mesh(roadGeo, pbrMaterial(A.asphalt, fallback, { roughness: 0.95, color: 0x8f8f8f }));
+  const road = new THREE.Mesh(roadGeo, addFill(pbrMaterial(A.asphalt, fallback, { roughness: 0.95, color: 0x8f8f8f })));
   road.position.set(CITY.x0 + w / 2, 0.03, CITY.z0 + d / 2);
   road.receiveShadow = true;
   group.add(road);
@@ -205,7 +240,7 @@ export function buildCity(group, { hi, A = {}, props = {}, fallback }) {
       walks.push(g);
     }
   }
-  const walk = new THREE.Mesh(mergeGeometries(walks), pbrMaterial(A.sidewalk, fallback, { roughness: 0.95, color: 0xa8a59d }));
+  const walk = new THREE.Mesh(mergeGeometries(walks), addFill(pbrMaterial(A.sidewalk, fallback, { roughness: 0.95, color: 0xa8a59d })));
   walk.receiveShadow = true;
   group.add(walk);
 
@@ -243,7 +278,8 @@ export function buildCity(group, { hi, A = {}, props = {}, fallback }) {
   for (let i = 0; i < 4; i++) barriers.push({ x: 20 + i * 2.1 - 3, y: 0.03, z: 46.2, ry: (rnd() - 0.5) * 0.3 });
   for (let i = 0; i < 3; i++) barriers.push({ x: 60 + (rnd() - 0.5), y: 0.03, z: 62 + i * 2.1, ry: Math.PI / 2 + (rnd() - 0.5) * 0.3 });
   // Sorotan lampu jalan, murah tanpa point light. Urutannya diacak biar nyalanya nyebar.
-  const lit = lamps.slice().sort(() => rnd() - 0.5);
+  const shown = hi ? lamps : lamps.filter((_, i) => i % 2 === 0);
+  const lit = shown.slice().sort(() => rnd() - 0.5);
   const poolGeo = new THREE.PlaneGeometry(13, 13);
   poolGeo.rotateX(-Math.PI / 2);
   const poolMesh = new THREE.InstancedMesh(poolGeo, new THREE.MeshBasicMaterial({
@@ -256,8 +292,17 @@ export function buildCity(group, { hi, A = {}, props = {}, fallback }) {
   pools.mesh = poolMesh;
   pools.total = lit.length;
 
+  // Kepala lampu yang nyala, kena bloom pas malam
+  const heads = new THREE.InstancedMesh(new THREE.SphereGeometry(LAMP_HEAD.r, 12, 8), new THREE.MeshStandardMaterial({
+    color: 0x2a2620, emissive: 0xffc98a, emissiveIntensity: 0.1, roughness: 0.3, toneMapped: false,
+  }), lit.length);
+  lit.forEach((l, i) => { pm.makeTranslation(l.x, l.y + LAMP_HEAD.y, l.z); heads.setMatrixAt(i, pm); });
+  heads.frustumCulled = false;
+  group.add(heads);
+  pools.heads = heads;
+
   placeModel(group, props.car, hi ? cars : cars.slice(0, 12), 4.3);
-  placeModel(group, props.lamp, hi ? lamps : lamps.filter((_, i) => i % 2 === 0), 7, true);
+  placeModel(group, props.lamp, shown, 7, true);
   placeModel(group, props.barrier, barriers, 2);
   placeModel(group, props.utility, boxes, 1.4, true);
   placeModel(group, props.power, power, 1.5, true);

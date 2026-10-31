@@ -48,7 +48,7 @@ async function loadPBR(name, repeat) {
     map: [`${dir}_diff_1k.jpg`, `${dir}_diff_2k.jpg`, `${dir}_diff_1k.png`],
     normalMap: [`${dir}_nor_gl_1k.jpg`, `${dir}_nor_gl_2k.jpg`, `${dir}_nor_gl_1k.png`],
     roughnessMap: [`${dir}_rough_1k.jpg`, `${dir}_rough_2k.jpg`, `${dir}_arm_1k.jpg`],
-    aoMap: [`${dir}_ao_1k.jpg`, `${dir}_arm_1k.jpg`],
+    aoMap: [`${dir}_arm_1k.jpg`],
   };
   const out = {};
   for (const [k, urls] of Object.entries(candidates)) {

@@ -6,7 +6,7 @@ import {
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { pbrMaterial } from './assets.js';
 import { Scatter, partsOf } from './scatter.js';
-import { buildCity, cityFlat, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
+import { buildCity, cityFlat, CITY_SIGNALS, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
 
 export const WORLD = {
   size: 140,
@@ -568,7 +568,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
 
   // ---------- Sinyal quest ----------
   const sigGeo = new THREE.OctahedronGeometry(0.35, 0);
-  for (const [x, z] of [[-24, 40], [-10, -30], [44, -38], [52, 20], [-50, -10]]) {
+  for (const [x, z] of [[-24, 40], ...CITY_SIGNALS, [44, -38], [-50, -10]]) {
     const m = new THREE.MeshStandardMaterial({ color: 0xb8ff3c, emissive: 0xb8ff3c, emissiveIntensity: 2.5, roughness: 0.2 });
     const s = new THREE.Mesh(sigGeo, m);
     s.position.set(x, groundHeight(x, z) + 1.2, z);
