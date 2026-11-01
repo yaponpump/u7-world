@@ -67,7 +67,7 @@ let wordMesh = null, grid = null;
 function buildWord() {
   const group = new THREE.Group();
   const font = new FontLoader().parse(fontJson);
-  const lime = new THREE.MeshPhysicalMaterial({ color: 0x8fd62a, roughness: 0.3, metalness: 0.02, clearcoat: 1, clearcoatRoughness: 0.12, sheen: 0.3, sheenColor: new THREE.Color(0xf4ffd0), envMapIntensity: 1.1 });
+  const lime = new THREE.MeshPhysicalMaterial({ color: 0x5fd39a, roughness: 0.3, metalness: 0.02, clearcoat: 1, clearcoatRoughness: 0.12, sheen: 0.3, sheenColor: new THREE.Color(0xf4ffd0), envMapIntensity: 1.1 });
   const violet = new THREE.MeshPhysicalMaterial({ color: 0x7a4dff, roughness: 0.3, metalness: 0.05, clearcoat: 1, clearcoatRoughness: 0.12, sheen: 0.5, sheenColor: new THREE.Color(0xd9c8ff), envMapIntensity: 1.1 });
   const spec = [ // [huruf, skala, rotasi z, rotasi y, offset y]
     ['7', 1.18, 0.07, -0.1, 0.08], ['P', 1.0, -0.05, 0.06, -0.04], ['O', 1.06, 0.04, -0.05, 0.05], ['D', 1.0, -0.07, 0.09, -0.03],
@@ -102,7 +102,7 @@ function buildGrid() {
     fragmentShader: `varying vec2 vP; uniform float uO;
       void main(){ vec2 g = abs(fract(vP * 0.9) - 0.5) / fwidth(vP * 0.9); float l = 1.0 - min(min(g.x, g.y), 1.0);
         float fade = 1.0 - smoothstep(2.0, 11.0, length(vP * vec2(0.8, 1.0)));
-        gl_FragColor = vec4(vec3(0.78, 0.7, 1.0), l * fade * 0.2 * uO); }`,
+        gl_FragColor = vec4(vec3(0.353, 0.267, 0.659), l * fade * 0.22 * uO); }`,
   });
   mat.extensions = { derivatives: true };
   const m = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), mat);
@@ -117,7 +117,7 @@ function setup3D() {
   renderer.setPixelRatio(Math.min(devicePixelRatio, narrow() ? 1.5 : 2));
   renderer.setSize(innerWidth, innerHeight, false);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.0;
   renderer.setClearColor(0x000000, 0);
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 0.1, 60);
@@ -127,7 +127,7 @@ function setup3D() {
   pmrem.dispose();
 
   // cahaya: key hangat (ember), rim ungu, isi dingin lembut
-  scene.add(new THREE.HemisphereLight(0x9d8cff, 0x120a30, 0.55));
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xd9cdff, 0.9));
   const key = new THREE.DirectionalLight(0xfff0d8, 2.0); key.position.set(2.5, 3.5, 2.5); scene.add(key);
   const rim = new THREE.DirectionalLight(0x9b6bff, 2.8); rim.position.set(-3, 2.2, -2.5); scene.add(rim);
   const fill = new THREE.DirectionalLight(0xb8ff3c, 0.35); fill.position.set(-1, 0.5, 3); scene.add(fill);
@@ -158,7 +158,7 @@ function setup3D() {
   const pos = new Float32Array(N * 3);
   for (let i = 0; i < N; i++) { pos[i * 3] = (Math.random() - 0.5) * 9; pos[i * 3 + 1] = Math.random() * 4.5; pos[i * 3 + 2] = (Math.random() - 0.5) * 6 - 1; }
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  dust = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xd9ccff, size: 0.03, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
+  dust = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0x9d8be0, size: 0.03, transparent: true, opacity: 0.45, depthWrite: false }));
   scene.add(dust);
 
   addEventListener('resize', () => {
@@ -266,7 +266,7 @@ function fixedUI() {
     onUpdate(self) { $('progress').style.transform = `scaleX(${self.progress})`; },
   });
   // warna glow latar ikut seksi
-  const glows = { hero: ['#5a35d8', '#24136a'], story: ['#2a1a6a', '#120c30'], live: ['#3b5a12', '#17200a'], world: ['#3a2290', '#1a1040'], moods: ['#5a35d8', '#24136a'], token: ['#2f4a10', '#141a0a'], buy: ['#3a2290', '#1a1040'], plan: ['#2a1a6a', '#120c30'], end: ['#6a3fff', '#2a1670'] };
+  const glows = { hero: ['#e3f8ee', '#e9e0ff'] };
   new MutationObserver(() => {
     const [a, b] = glows[document.body.dataset.section] || glows.hero;
     document.documentElement.style.setProperty('--glow-a', a);
