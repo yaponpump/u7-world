@@ -223,6 +223,7 @@ td.num { font-family: 'Space Mono', monospace; }
 footer { position: relative; z-index: 10; padding: 40px var(--gutter) 60px; font-size: 13px; color: var(--soft); display: grid; gap: 10px; background: rgba(243, 238, 255, 0.85); }
 footer nav { display: flex; gap: 18px; }
 footer nav:empty { display: none; }
+footer:has(nav:empty) { display: none; }
 
 /* ---- responsif ---- */
 @media (max-width: 900px) {
