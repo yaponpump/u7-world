@@ -176,7 +176,10 @@ export function createMinimap({ canvas, labelsEl, objectiveEl = null }) {
           tmp.set(it.x, it.y, it.z).project(camera);
           if (tmp.z > 1 || Math.abs(tmp.x) > 1.05 || Math.abs(tmp.y) > 1.05) continue;
           const sx = (tmp.x * 0.5 + 0.5) * window.innerWidth;
-          const sy = (-tmp.y * 0.5 + 0.5) * window.innerHeight;
+          let sy = (-tmp.y * 0.5 + 0.5) * window.innerHeight;
+          // jangan numpuk sama panel HUD: turunin dari bar atas, lewatin pojok kiri (evolusi, peta) dan kanan atas (tombol)
+          sy = Math.max(sy, 78);
+          if ((sx < 240 && sy < 400) || (sx > window.innerWidth - 400 && sy < 120)) continue;
           if (placed.some((p) => Math.abs(p.x - sx) < 90 && Math.abs(p.y - sy) < 26)) continue;
           placed.push({ x: sx, y: sy });
           const el = label(i++);

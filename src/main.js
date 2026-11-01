@@ -662,6 +662,16 @@ const idleLines = [
   'One more burn and I might learn something new...',
   'The sunset from that hill. You have to see it.',
 ];
+// Berdiri dari bangku: maju ke depan dudukan biar nggak nyangkut di badan bangku yang padat
+function standUp() {
+  const b = behavior.sitting;
+  behavior.sitting = null;
+  if (!b) return;
+  const pos = robot.root.position;
+  pos.x = b.x + Math.sin(b.rotY) * 0.95;
+  pos.z = b.z + Math.cos(b.rotY) * 0.95;
+  pos.y = groundHeight(pos.x, pos.z);
+}
 const sitLines = ['This bench is my favorite spot.', "Sitting for a bit. My systems need it... no they don't. I just want to.", 'You can see the lake and the pier from here.'];
 
 // batu lemparan
@@ -859,7 +869,7 @@ function tick() {
     // --- aksi ---
     if (controls.consume('e')) {
       if (behavior.sitting) {
-        behavior.sitting = null;
+        standUp();
         robot.setState('idle');
       } else if (chain.use(pos)) {
         behavior.idleTime = 0;
@@ -902,7 +912,7 @@ function tick() {
     if (controls.consume('g')) nextFace();
 
     // kejepit di dalam gedung atau mobil (misal dari save lama): keluarin ke titik bebas terdekat
-    if (behavior.grounded && blockedByBuilding(pos.x, pos.z, pos.y)) {
+    if (behavior.grounded && !behavior.sitting && blockedByBuilding(pos.x, pos.z, pos.y)) {
       [pos.x, pos.z] = nearestFree(pos.x, pos.z);
       pos.y = groundHeight(pos.x, pos.z);
     }
@@ -918,7 +928,7 @@ function tick() {
     const targetSpeed = moving && behavior.lock <= 0 ? (inp.run ? SPEED_RUN : SPEED_WALK) * speedMul * (behavior.wading ? 0.55 : 1) : 0;
     behavior.speed += (targetSpeed - behavior.speed) * Math.min(1, dt * (targetSpeed > behavior.speed ? 6 : 10));
     if (moving && behavior.lock <= 0) {
-      if (behavior.sitting) { behavior.sitting = null; }
+      if (behavior.sitting) standUp();
       const speed = behavior.speed;
       // arah relatif kamera: kamera ada di pos + (sin yaw, cos yaw), jadi "maju" (W) = (-sin yaw, -cos yaw)
       const yaw = inp.camYaw;
@@ -971,7 +981,7 @@ function tick() {
     // --- loncat (Space), ala Roblox ---
     const wantJump = controls.consume(' ') || inp.jumpHeld;
     if (wantJump && behavior.grounded && !behavior.sitting && behavior.lock <= 0) {
-      if (behavior.sitting) behavior.sitting = null;
+      if (behavior.sitting) standUp();
       behavior.grounded = false;
       behavior.vy = behavior.onRoof ? ROOF_JUMP : JUMP_SPEED;
       audio.play('jump');
