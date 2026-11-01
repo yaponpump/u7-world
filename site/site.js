@@ -12,6 +12,7 @@ import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
 import Lenis from 'lenis';
 import { createRobot, EXPRESSIONS } from '../src/robot.js';
 import { watchEvolution } from '../src/evolution.js';
+import { CONFIG } from '../src/config.js';
 let liveLevel = 0; // level evolusi asli dari chain (atau ?level= buat pratinjau)
 
 gsap.registerPlugin(ScrollTrigger, SplitText, ScrambleTextPlugin);
@@ -413,7 +414,111 @@ function evolutionLive() {
       : st.source === 'preview' ? `Preview: ${fmt(st.pct)} of supply burned. Next level at ${fmt(st.next)}.`
       : `${fmt(st.pct)} of the supply burned, read from the chain. Next level at ${fmt(st.next)}.`;
     first = false;
+    burnTotals(st);
   }, { mint: cfg.mint, network: cfg.network });
+}
+
+// ---------- burn log: total ke-burn dari supply, daftar burn dari server/burns ----------
+const burn = { shown: 0, st: null, seen: null, updated: 0, started: false };
+const SUPPLY = CONFIG.evolution?.initialSupply || 1_000_000_000;
+const num = (v) => Math.round(v).toLocaleString('en-US');
+const short = (v) => (v >= 1e6 ? `${+(v / 1e6).toFixed(2)}M` : v >= 1e3 ? `${+(v / 1e3).toFixed(1)}K` : num(v));
+const pctText = (v) => `${v === 0 ? '0' : v < 0.01 ? v.toFixed(4) : v < 1 ? v.toFixed(3) : v.toFixed(2)}%`;
+const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`; };
+const solscan = (kind, id) => `https://solscan.io/${kind}/${id}${cfg.network === 'mainnet' ? '' : '?cluster=devnet'}`;
+
+function burnTotals(st) {
+  const board = $('burn-board');
+  if (!board) return;
+  const grew = burn.st && st.pct > burn.st.pct;
+  burn.st = st;
+  board.dataset.state = st.source === 'chain' || st.source === 'loading' ? 'live' : st.source;
+  let amount = (st.pct / 100) * SUPPLY;
+  if (st.source === 'preview') amount = Math.round(amount / 1000) * 1000; // pratinjau: angka bulat
+  const paint = () => { $('burn-amount').textContent = num(burn.shown); };
+  if (reduced || !burn.started) { burn.shown = amount; paint(); }
+  else gsap.to(burn, { shown: amount, duration: 1.6, ease: 'power2.out', onUpdate: paint });
+  $('burn-pct').textContent = pctText(st.pct);
+  $('burn-left').textContent = num(SUPPLY - amount);
+  $('burn-lv').textContent = `Lv ${st.level} · ${st.name}`;
+  $('burn-to').textContent = `Next level at ${pctText(st.next)}`;
+  const span = Math.max(1e-9, st.next - st.prev);
+  $('burn-fill').style.width = `${(st.pct === 0 ? 0 : Math.min(1, Math.max(0, (st.pct - st.prev) / span)) * 100).toFixed(1)}%`;
+  if (st.source === 'chain') burn.updated = Date.now();
+  if (grew) burnFlash();
+  if (!burn.started) startBurnLog(st);
+  burn.started = true;
+}
+
+function burnFlash() {
+  const board = $('burn-board');
+  board.classList.remove('flash'); void board.offsetWidth; board.classList.add('flash');
+  if (robot) { robot.setExpression('happy', 3); robot.land?.(); }
+}
+
+function renderBurns(list, demo) {
+  const ol = $('burn-list');
+  ol.textContent = '';
+  if (!list.length) {
+    const li = document.createElement('li'); li.className = 'burn-empty';
+    li.textContent = burn.st?.pct > 0 ? 'Burn history shows here once the burn log is connected.' : 'Waiting for the first burn.';
+    ol.appendChild(li); return;
+  }
+  for (const b of list) {
+    const li = document.createElement('li');
+    const amt = document.createElement('b'); amt.textContent = `${short(b.amount)} $7POD`;
+    const when = document.createElement('span'); when.className = 'burn-when'; when.dataset.t = b.time; when.textContent = ago(b.time);
+    li.append(amt, when);
+    if (demo) { const d = document.createElement('em'); d.textContent = 'DEMO'; li.appendChild(d); }
+    else { const a = document.createElement('a'); a.href = solscan('tx', b.sig); a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'View on Solscan'; li.appendChild(a); }
+    ol.appendChild(li);
+  }
+}
+
+function startBurnLog(st) {
+  // countdown ke burn berikutnya: bot jalan tiap awal jam
+  const tick = () => {
+    const state = $('burn-board').dataset.state;
+    if (state === 'prelaunch') { $('burn-next').textContent = 'At launch'; }
+    else {
+      const left = 3600 - (Math.floor(Date.now() / 1000) % 3600);
+      $('burn-next').textContent = `in ${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
+    }
+    document.querySelectorAll('.burn-when').forEach((el) => { el.textContent = ago(+el.dataset.t); });
+    $('burn-updated').textContent = state === 'preview' ? 'Preview data' : burn.updated ? `Updated ${ago(burn.updated)}` : '';
+  };
+  tick(); setInterval(tick, 1000);
+
+  if (cfg.burnWallet) { const a = $('burn-all'); a.href = solscan('account', cfg.burnWallet); a.hidden = false; }
+
+  if (st.source === 'preview') {
+    // pratinjau: contoh burn tiap jam, jelas ditandain DEMO
+    const total = (st.pct / 100) * SUPPLY, hour = 3600e3, top = Math.floor(Date.now() / hour) * hour;
+    renderBurns(total > 0 ? [0.034, 0.028, 0.031, 0.022, 0.026].map((f, i) => ({ amount: total * f, time: top - i * hour })) : [], true);
+    return;
+  }
+  if (st.source === 'prelaunch' || !cfg.burnsUrl || !cfg.mint) { renderBurns([], false); return; }
+
+  const poll = async () => {
+    try {
+      const u = new URL(cfg.burnsUrl);
+      u.searchParams.set('mint', cfg.mint);
+      u.searchParams.set('network', cfg.network || 'mainnet');
+      const r = await fetch(u);
+      if (r.ok) {
+        const d = await r.json();
+        const list = Array.isArray(d.burns) ? d.burns : [];
+        const fresh = burn.seen && list.some((b) => !burn.seen.has(b.sig));
+        burn.seen = new Set(list.map((b) => b.sig));
+        renderBurns(list, false);
+        burn.updated = Date.parse(d.updatedAt) || Date.now();
+        if (fresh) burnFlash();
+      }
+    } catch { /* biarin daftar terakhir */ }
+    setTimeout(poll, 60_000);
+  };
+  renderBurns([], false);
+  poll();
 }
 
 // ---------- data token: cuma tampil kalau udah diisi di config.js ----------

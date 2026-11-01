@@ -39,6 +39,7 @@
     <nav class="menu" aria-label="Main">
       <span class="menu-pill" id="menu-pill" aria-hidden="true"></span>
       <a href="#story" data-nav="story">How</a>
+      <a href="#burns" data-nav="burns">Burns</a>
       <a href="#world" data-nav="world">World</a>
       <a href="#moods" data-nav="moods">Evolution</a>
       <a href="#token" data-nav="token">Token</a>
@@ -83,8 +84,34 @@
       </div>
     </section>
 
-    <!-- 04 World -->
-    <section class="s s-world" id="world" data-tag="04 — The world" aria-labelledby="world-title">
+    <!-- 04 Burns -->
+    <section class="s s-burns" id="burns" data-tag="04 — Burn log" aria-labelledby="burns-title">
+      <div class="wrap">
+        <h2 id="burns-title" class="reveal">Every burn, on chain</h2>
+        <p class="sub reveal">Creator fees buy $7POD and burn it every hour. Every number here is read from Solana, and every burn links to its transaction.</p>
+        <div class="burn-board reveal" id="burn-board" data-state="prelaunch">
+          <div class="burn-total">
+            <span class="burn-label">Total burned</span>
+            <p class="burn-big"><b id="burn-amount">0</b> <small>$7POD</small></p>
+            <dl class="burn-stats">
+              <div><dt>Of supply</dt><dd id="burn-pct">0%</dd></div>
+              <div><dt>Supply left</dt><dd id="burn-left">1,000,000,000</dd></div>
+              <div><dt>Next burn</dt><dd id="burn-next">At launch</dd></div>
+            </dl>
+            <div class="burn-level"><span id="burn-lv">Lv 0 · Dormant</span><span id="burn-to">Next level at 0.09%</span></div>
+            <div class="evo-meter burn-meter" aria-hidden="true"><i id="burn-fill"></i></div>
+          </div>
+          <div class="burn-feed">
+            <div class="burn-feed-head"><span class="burn-label">Latest burns</span><span class="burn-updated" id="burn-updated"></span></div>
+            <ol class="burn-list" id="burn-list" aria-live="polite"><li class="burn-empty">Waiting for the first burn.</li></ol>
+            <a class="burn-all" id="burn-all" target="_blank" rel="noopener" hidden>See every burn on Solscan</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 World -->
+    <section class="s s-world" id="world" data-tag="05 — The world" aria-labelledby="world-title">
       <div class="wrap">
         <h2 id="world-title" class="split">Its world, in your browser</h2>
         <ul class="features">
@@ -97,7 +124,7 @@
     </section>
 
     <!-- 05 Evolution path: pinned, robot 3D ganti level sambil scroll -->
-    <section class="s s-moods" id="moods" data-tag="05 — Evolution path" aria-labelledby="moods-title">
+    <section class="s s-moods" id="moods" data-tag="06 — Evolution path" aria-labelledby="moods-title">
       <div class="moods-pin">
         <div class="wrap">
           <h2 id="moods-title" class="reveal">Evolution path</h2>
@@ -115,7 +142,7 @@
     </section>
 
     <!-- 06 Token -->
-    <section class="s s-token" id="token" data-tag="06 — $7POD" aria-labelledby="token-title">
+    <section class="s s-token" id="token" data-tag="07 — $7POD" aria-labelledby="token-title">
       <div class="wrap">
         <h2 id="token-title" class="split">$7POD</h2>
         <p class="status" id="status">Solana · token not launched yet</p>
@@ -142,7 +169,7 @@
     </section>
 
     <!-- 07 Buy -->
-    <section class="s s-buy" id="buy" data-tag="07 — How to buy" aria-labelledby="buy-title">
+    <section class="s s-buy" id="buy" data-tag="08 — How to buy" aria-labelledby="buy-title">
       <div class="wrap">
         <h2 id="buy-title" class="split">How to buy</h2>
         <ol class="steps">
@@ -156,7 +183,7 @@
 
 
     <!-- 09 End -->
-    <section class="s s-end" id="end" data-tag="08 — Wake up">
+    <section class="s s-end" id="end" data-tag="09 — Wake up">
       <div class="wrap center">
         <h2 class="split">Every burn moves 7POD forward.</h2>
         <a class="btn reveal" data-play href="../">Enter 7POD's world</a>

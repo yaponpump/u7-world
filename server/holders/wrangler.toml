@@ -4,3 +4,5 @@ compatibility_date = "2026-01-01"
 
 [vars]
 ALLOWED_MINT = ""
+# Wallet bot burn (public address, bukan private key). Dipakai /burns buat daftar burn terakhir.
+BURN_WALLET = ""

@@ -31,3 +31,36 @@ test('rejects bad or unlisted mints and unknown origins get no CORS header', asy
   const r = await get(MINT, 'https://evil.example');
   assert.equal(r.headers.get('access-control-allow-origin'), null);
 });
+
+test('burns: lists recent burns of this mint from the burn wallet', async () => {
+  const WALLET = 'BurnWa11et1111111111111111111111111111111111'.slice(0, 44);
+  const benv = { ...env, BURN_WALLET: WALLET };
+  globalThis.fetch = async (url, init) => {
+    const { method, params } = JSON.parse(init.body);
+    if (method === 'getSignaturesForAddress') {
+      assert.equal(params[0], WALLET);
+      return new Response(JSON.stringify({ result: [
+        { signature: 'sigA', blockTime: 1700000300, err: null },
+        { signature: 'sigFail', blockTime: 1700000200, err: { x: 1 } },
+        { signature: 'sigB', blockTime: 1700000100, err: null },
+        { signature: 'sigOther', blockTime: 1700000000, err: null },
+      ] }));
+    }
+    const tx = {
+      sigA: { instructions: [{ parsed: { type: 'burnChecked', info: { mint: MINT, tokenAmount: { uiAmountString: '1500000' } } } }] },
+      sigB: { instructions: [], inner: [{ parsed: { type: 'burn', info: { mint: MINT, amount: '2500000000000' } } }] },
+      sigOther: { instructions: [{ parsed: { type: 'transfer', info: {} } }] },
+    }[params[0]];
+    return new Response(JSON.stringify({ result: { transaction: { message: { instructions: tx.instructions } }, meta: { innerInstructions: tx.inner ? [{ instructions: tx.inner }] : [], preTokenBalances: [] } } }));
+  };
+  const r = await worker.fetch(new Request(`https://x.dev/burns?mint=${MINT}&network=devnet`, { headers: { origin: 'http://localhost:5174' } }), benv);
+  const body = await r.json();
+  assert.equal(r.status, 200);
+  assert.deepEqual(body.burns.map((b) => [b.sig, b.amount, b.time]), [['sigA', 1500000, 1700000300000], ['sigB', 2500000, 1700000100000]]);
+  assert.equal(body.wallet, WALLET);
+});
+
+test('burns: 503 without a burn wallet', async () => {
+  const r = await worker.fetch(new Request(`https://x.dev/burns?mint=${MINT}&network=mainnet`), env);
+  assert.equal(r.status, 503);
+});
