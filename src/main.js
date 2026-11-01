@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight, distToRiver, onBridge, onPier, deckHeight, blockedByRail } from './world.js';
-import { BUILDINGS, setCityHolders, setCityPower, blockedByBuilding, cameraBlocked, inCity, onClubRoof, nearestFree, obstacleSlip, obstacleTop, rooftopHeight, touchingWall } from './city.js';
+import { BUILDINGS, ROOF, setCityHolders, setCityPower, blockedByBuilding, cameraBlocked, inCity, onClubRoof, nearestFree, obstacleSlip, obstacleTop, rooftopHeight, touchingWall } from './city.js';
 import { createRobot, STATES } from './robot.js';
 import { createAudio } from './audio.js';
 import { createWallet } from './wallet.js';
@@ -1268,7 +1268,7 @@ window.addEventListener('resize', () => {
   composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-window.__u7 = { get chain() { return chain; }, shop: { buy: buyItem, open: openShop, add: earnBolts, get bolts() { return bolts; }, gear, items: SHOP_ITEMS }, gameClock, BUILDINGS, rooftopHeight, obstacleTop, WORLD, world, get daily() { return daily; }, signals: WORLD.signals, robot, behavior, controls, audio, scene, camera, renderer, blockedByBuilding, isWater, wadeable, onBridge, groundHeight };
+window.__u7 = { ROOF, get chain() { return chain; }, shop: { buy: buyItem, open: openShop, add: earnBolts, get bolts() { return bolts; }, gear, items: SHOP_ITEMS }, gameClock, BUILDINGS, rooftopHeight, obstacleTop, WORLD, world, get daily() { return daily; }, signals: WORLD.signals, robot, behavior, controls, audio, scene, camera, renderer, blockedByBuilding, isWater, wadeable, onBridge, groundHeight };
 
 // kamera awal: dari depan robot
 controls.setYaw(Math.PI);

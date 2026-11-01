@@ -410,6 +410,12 @@ export function buildCity(group, { hi, A = {}, props = {}, fallback }) {
   }
   for (let i = 0; i < 4; i++) barriers.push({ x: 20 + i * 2.1 - 3, y: 0.03, z: 46.2, ry: (rnd() - 0.5) * 0.3 });
   for (let i = 0; i < 3; i++) barriers.push({ x: 60 + (rnd() - 0.5), y: 0.03, z: 62 + i * 2.1, ry: Math.PI / 2 + (rnd() - 0.5) * 0.3 });
+  // Tangga besi ke atap harus bersih: lampu, hydrant, dan kotak yang kena jalurnya dibuang
+  const offStair = (o) => !(o.x > ROOF.x0 - 1.6 && o.x < ROOF.x1 + 1.2 && o.z > ROOF.zA - 1.0 && o.z < ROOF.zB + 0.4);
+  for (const list of [lamps, boxes, power, hydrants, barriers]) {
+    const keep = list.filter(offStair);
+    list.length = 0; list.push(...keep);
+  }
   // Sorotan lampu jalan, murah tanpa point light. Urutannya diacak biar nyalanya nyebar.
   const shown = hi ? lamps : lamps.filter((_, i) => i % 2 === 0);
   const lit = shown.slice().sort(() => rnd() - 0.5);
