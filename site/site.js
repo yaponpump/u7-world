@@ -53,7 +53,88 @@ async function loadSequence(name, count) {
 const stage = $('stage');
 const canvas = $('gl');
 let renderer = null, scene, camera, robot, dust, shadowMesh, env;
-const view = { x: 2.3, y: 0, z: 0, ry: -0.45, s: 0.92, cx: 0.3, cy: 1.3, cz: 7.2, lx: 0.3, look: 1.35, on: 1 };
+const view = { x: 2.3, y: 0, z: 0, ry: -0.45, s: 0.92, cx: 0.3, cy: 1.3, cz: 7.2, lx: 0.3, look: 1.35, on: 0 };
+// tulisan 7POD 3D di hero, nempel ke kamera biar selalu di tengah layar
+const word = { s: 1, rx: 0, ry: 0, y: 0, z: 0, o: 1, spin: 0 };
+let wordMesh = null, grid = null;
+
+// Garis tengah huruf (tinggi 2). Tiap titik [x, y, radius sudut]. closed = bentuk tertutup.
+const GLYPHS = {
+  '7': { w: 1.25, closed: false, pts: [[0, 2, 0], [1.25, 2, 0.32], [0.42, 0, 0]] },
+  'P': { w: 1.1, closed: false, capEnd: false, pts: [[0, 0, 0], [0, 2, 0.4], [1.1, 2, 0.5], [1.1, 0.85, 0.5], [0.05, 0.85, 0]] },
+  'O': { w: 1.35, closed: true, pts: [[0, 0, 0.5], [1.35, 0, 0.5], [1.35, 2, 0.5], [0, 2, 0.5]] },
+  'D': { w: 1.3, closed: true, pts: [[0, 0, 0.38], [1.3, 0, 0.7], [1.3, 2, 0.7], [0, 2, 0.38]] },
+};
+function roundedPath(pts, closed) {
+  const V = (p) => new THREE.Vector3(p[0], p[1], 0);
+  const path = new THREE.CurvePath();
+  const n = pts.length;
+  const corner = (i) => {
+    const p = V(pts[i]), r = pts[i][2];
+    const prev = V(pts[(i - 1 + n) % n]), next = V(pts[(i + 1) % n]);
+    const a = p.clone().add(prev.clone().sub(p).setLength(Math.min(r, prev.distanceTo(p) / 2)));
+    const b = p.clone().add(next.clone().sub(p).setLength(Math.min(r, next.distanceTo(p) / 2)));
+    return { a, p, b };
+  };
+  const cs = pts.map((_, i) => (closed || (i > 0 && i < n - 1)) ? corner(i) : { a: V(pts[i]), p: V(pts[i]), b: V(pts[i]) });
+  const last = closed ? n : n - 1;
+  for (let i = 0; i < last; i++) {
+    const c = cs[i], d = cs[(i + 1) % n];
+    if (c.a.distanceTo(c.b) > 1e-4) path.add(new THREE.QuadraticBezierCurve3(c.a, c.p, c.b));
+    path.add(new THREE.LineCurve3(c.b, d.a));
+  }
+  return path;
+}
+function buildWord() {
+  const group = new THREE.Group();
+  const R = 0.2;
+  const env = { envMapIntensity: 1.5 };
+  const white = new THREE.MeshPhysicalMaterial({ color: 0xf6f0ea, roughness: 0.16, metalness: 0.05, clearcoat: 1, clearcoatRoughness: 0.05, ...env });
+  const copper = new THREE.MeshPhysicalMaterial({ color: 0xff5a1f, roughness: 0.22, metalness: 0.35, clearcoat: 1, clearcoatRoughness: 0.06, emissive: 0x5a1400, emissiveIntensity: 0.35, ...env });
+  // outline: cangkang gelap - terang - gelap - terang tipis
+  const shells = [
+    [1.22, new THREE.MeshBasicMaterial({ color: 0x1a0c08, side: THREE.BackSide })],
+    [1.34, new THREE.MeshBasicMaterial({ color: 0xd8c2b2, side: THREE.BackSide })],
+    [1.46, new THREE.MeshBasicMaterial({ color: 0x1a0c08, side: THREE.BackSide })],
+    [1.56, new THREE.MeshBasicMaterial({ color: 0x8a6a5a, side: THREE.BackSide, transparent: true, opacity: 0.6 })],
+  ];
+  let x = 0;
+  [...'7POD'].forEach((ch, i) => {
+    const g = GLYPHS[ch];
+    const path = roundedPath(g.pts, g.closed);
+    const ends = g.closed ? [] : g.capEnd === false ? [g.pts[0]] : [g.pts[0], g.pts[g.pts.length - 1]];
+    const letter = new THREE.Group();
+    const add = (r, mat) => {
+      letter.add(new THREE.Mesh(new THREE.TubeGeometry(path, 160, r, 20, g.closed), mat));
+      for (const e of ends) { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), mat); m.position.set(e[0], e[1], 0); letter.add(m); }
+    };
+    add(R, i === 0 ? copper : white);
+    for (const [k, mat] of shells) add(R * k, mat);
+    letter.position.x = x;
+    group.add(letter);
+    x += g.w + 0.62;
+  });
+  const width = x - 0.62;
+  group.children.forEach((l) => { l.position.x -= width / 2; l.position.y = -1; });
+  group.userData.width = width + R * 3;
+  return group;
+}
+function buildGrid() {
+  // lantai grid tipis yang memudar ke pinggir, kayak panggung
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: { uO: { value: 1 } },
+    vertexShader: 'varying vec2 vP; void main(){ vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+    fragmentShader: `varying vec2 vP; uniform float uO;
+      void main(){ vec2 g = abs(fract(vP * 0.9) - 0.5) / fwidth(vP * 0.9); float l = 1.0 - min(min(g.x, g.y), 1.0);
+        float fade = 1.0 - smoothstep(2.0, 11.0, length(vP * vec2(0.8, 1.0)));
+        gl_FragColor = vec4(vec3(1.0, 0.9, 0.85), l * fade * 0.16 * uO); }`,
+  });
+  mat.extensions = { derivatives: true };
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), mat);
+  m.rotation.x = -Math.PI / 2;
+  return m;
+}
 let webgl = false;
 try { webgl = !reduced && !!document.createElement('canvas').getContext('webgl2'); } catch { webgl = false; }
 
@@ -80,6 +161,13 @@ function setup3D() {
   robot = createRobot({ dormant: true });
   robot.root.position.set(0, 0, 0);
   scene.add(robot.root);
+
+  // 7POD gaya tabung kembung: huruf dari garis tengah + TubeGeometry, outline berlapis pakai cangkang BackSide
+  wordMesh = buildWord();
+  camera.add(wordMesh);
+  grid = buildGrid();
+  camera.add(grid);
+  scene.add(camera);
   robot.setState('idle');
 
   // bayangan kontak palsu (radial gradient) biar robot nggak ngambang
@@ -129,6 +217,19 @@ function frame(now) {
     robot.update(dt, 0, t);
     dust.rotation.y = t * 0.02;
     dust.position.y = Math.sin(t * 0.3) * 0.1;
+    if (wordMesh) {
+      // muat 62% lebar layar, maksimal tinggi 30% layar
+      const dist = 6;
+      const vh = 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+      const fit = Math.min((vh * camera.aspect * (camera.aspect < 1 ? 0.84 : 0.66)) / wordMesh.userData.width, vh * 0.17);
+      wordMesh.visible = word.o > 0.01;
+      wordMesh.position.set(0, vh * 0.06 + word.y, -dist + word.z);
+      grid.position.set(0, vh * 0.06 - 1.35 * fit + word.y, -dist - 2 + word.z);
+      grid.material.uniforms.uO.value = word.o;
+      grid.visible = word.o > 0.01;
+      wordMesh.scale.setScalar(fit * word.s * Math.max(0.001, word.o));
+      wordMesh.rotation.set(word.rx + mouse.y * 0.12 + Math.sin(t * 0.6) * 0.03, word.ry + word.spin + mouse.x * 0.28, 0);
+    }
     renderer.render(scene, camera);
   }
   requestAnimationFrame(frame);
@@ -187,7 +288,7 @@ function fixedUI() {
     onUpdate(self) { $('progress').style.transform = `scaleX(${self.progress})`; $('scroll-cue').classList.toggle('off', self.scroll() > 80); },
   });
   // warna glow latar ikut seksi
-  const glows = { hero: ['#3a1d6e', '#2b1206'], story: ['#1a1030', '#1a0b05'], live: ['#2a1f08', '#17110a'], world: ['#2d1a5c', '#1d1208'], moods: ['#3a1d6e', '#2b1206'], token: ['#1c2a0e', '#14100a'], buy: ['#2d1a5c', '#1d1208'], plan: ['#1a1030', '#1a0b05'], end: ['#4a2690', '#3a1706'] };
+  const glows = { hero: ['#4a1a0c', '#1c0906'], story: ['#1a1030', '#1a0b05'], live: ['#2a1f08', '#17110a'], world: ['#2d1a5c', '#1d1208'], moods: ['#3a1d6e', '#2b1206'], token: ['#1c2a0e', '#14100a'], buy: ['#2d1a5c', '#1d1208'], plan: ['#1a1030', '#1a0b05'], end: ['#4a2690', '#3a1706'] };
   new MutationObserver(() => {
     const [a, b] = glows[document.body.dataset.section] || glows.hero;
     document.documentElement.style.setProperty('--glow-a', a);
@@ -203,7 +304,7 @@ function robotTimeline() {
     ...vals, ease: 'none', scrollTrigger: { trigger, start, end, scrub: 0.6 },
   });
   // hero: pelan muter waktu mulai scroll, lalu mundur keluar ke kanan
-  gsap.to(view, { ry: 0.9, s: 0.8, y: -0.4, cz: 8.4, on: 0, ease: 'none', scrollTrigger: { trigger: at('hero'), start: 'top top', end: 'bottom top', scrub: 0.6 } });
+  gsap.to(word, { s: 0.55, rx: -0.5, z: -4, y: 0.8, o: 0, ease: 'none', scrollTrigger: { trigger: at('hero'), start: 'top top', end: 'bottom top', scrub: 0.6 } });
   // moods: 7POD di tengah kanan, deket, muter pelan
   pose({ x: 2.0, y: 0, z: 0, ry: -0.25, s: 1, cz: 6.8, cy: 1.4, cx: 0.4, lx: 0.4, look: 1.4, on: 1 }, at('moods'), 'top bottom', 'top top');
   gsap.to(view, { ry: 0.35, ease: 'none', scrollTrigger: { trigger: at('moods'), start: 'top top', end: 'bottom bottom', scrub: 0.6 } });
@@ -356,7 +457,7 @@ async function main() {
     try { setup3D(); jobs.push(track(new Promise((ok) => { renderer.compile(scene, camera); ok(); }))); }
     catch (e) { console.warn('3D off:', e); webgl = false; renderer = null; }
   }
-  if (!webgl) { stage.style.display = 'none'; $('hero-fallback').hidden = false; }
+  if (!webgl) { stage.style.display = 'none'; }
   tokenData();
   // jangan nahan layar lebih dari 4 detik, sisanya ngalir di belakang
   await Promise.race([Promise.all(jobs), new Promise((ok) => setTimeout(ok, 4000))]);
@@ -366,8 +467,8 @@ async function main() {
   document.body.classList.remove('loading');
   if (renderer) {
     requestAnimationFrame(frame);
-    gsap.from(view, { on: 0, y: -0.5, ry: -2.5, duration: 1.6, ease: 'power3.out', delay: 0.3 });
-    setTimeout(() => { robot.setState('wave'); robot.setExpression('happy', 3); setTimeout(() => robot.setState('idle'), 2800); }, 1500);
+    document.body.classList.add('gl');
+    gsap.from(word, { spin: -Math.PI * 1.5, s: 0.2, rx: 0.8, duration: 2.0, ease: 'expo.out', delay: 0.2 });
   }
   splitTitles();
   fixedUI();
