@@ -37,3 +37,10 @@ export const CONFIG = {
     { id: 'core', min: 1_000_000, label: 'Core' },
   ],
 };
+
+// Override dari public/launch.js (diisi lewat /admin/). Field kosong = pakai nilai di atas.
+const L = (typeof window !== 'undefined' && window.POD_LAUNCH) || {};
+export const LAUNCH = L;
+if (L.mint) CONFIG.token.address = String(L.mint).trim();
+if (L.network === 'mainnet' || L.network === 'devnet') CONFIG.token.network = L.network;
+if (L.holdersUrl) CONFIG.token.holdersUrl = L.holdersUrl;

@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="referrer" content="no-referrer" />
+<title>7POD Admin</title>
+<style>
+  :root { --bg:#0b0d10; --card:#14181d; --line:#262c34; --text:#e8ecf1; --muted:#8a94a0; --acc:#ff7a1a; --ok:#3ecf8e; --bad:#ff5d5d; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  main { max-width:640px; margin:0 auto; padding:28px 16px 64px; }
+  h1 { font-size:22px; margin:0 0 4px; } h1 b { color:var(--acc); }
+  .sub { color:var(--muted); margin:0 0 22px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:16px; }
+  h2 { font-size:14px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 12px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:12px 0 5px; }
+  input, select { width:100%; padding:11px 12px; border-radius:10px; border:1px solid var(--line); background:#0f1216; color:var(--text); font:inherit; }
+  input:focus, select:focus { outline:2px solid var(--acc); outline-offset:-1px; }
+  input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:13px; }
+  .row { display:flex; gap:8px; } .row > * { flex:1; } .row > button { flex:0 0 auto; }
+  button { padding:11px 16px; border-radius:10px; border:1px solid var(--line); background:#1d232a; color:var(--text); font:inherit; cursor:pointer; }
+  button.primary { background:var(--acc); border-color:var(--acc); color:#140a02; font-weight:700; width:100%; margin-top:16px; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  .hint { font-size:12px; color:var(--muted); margin-top:5px; }
+  .err { color:var(--bad); } .ok { color:var(--ok); }
+  .check { display:flex; gap:8px; align-items:flex-start; margin-top:12px; font-size:13px; color:var(--text); }
+  .check input { width:auto; margin-top:3px; }
+  #log { font-size:13px; white-space:pre-wrap; margin-top:12px; min-height:1em; }
+  .now { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:12px; color:var(--muted); word-break:break-all; }
+  a { color:var(--acc); }
+  .warn { border-color:#5a3a12; background:#1b1409; }
+</style>
+</head>
+<body>
+<main>
+  <h1><b>7POD</b> Admin</h1>
+  <p class="sub">Ganti CA dan link dari sini. Website sama game baca dari satu file (<code>public/launch.js</code>), jadi cukup simpan sekali.</p>
+
+  <section>
+    <h2>Sekarang live</h2>
+    <div class="now" id="now">Lagi dibaca...</div>
+  </section>
+
+  <section>
+    <h2>1. Akses GitHub</h2>
+    <label for="token">GitHub token (fine-grained, cuma repo ini, Contents: Read and write)</label>
+    <input id="token" type="password" class="mono" autocomplete="off" spellcheck="false" placeholder="github_pat_..." />
+    <div class="hint">Token cuma disimpen di tab ini, nggak dikirim ke mana pun selain api.github.com. Jangan pernah kirim token ke chat.</div>
+    <label class="check"><input type="checkbox" id="remember" /> Ingat selama tab ini kebuka (sessionStorage)</label>
+    <div class="row" style="margin-top:12px">
+      <div><label for="repo">Repo</label><input id="repo" class="mono" value="yaponpump/u7-world" /></div>
+      <div><label for="branch">Branch</label><input id="branch" class="mono" value="main" /></div>
+    </div>
+    <button id="load" style="margin-top:14px">Muat dari GitHub</button>
+  </section>
+
+  <section>
+    <h2>2. Token</h2>
+    <label for="mint">CA / mint address</label>
+    <div class="row">
+      <input id="mint" class="mono" spellcheck="false" placeholder="Kosong = belum launch" />
+      <button id="paste" type="button">Paste</button>
+    </div>
+    <div class="hint" id="mint-hint">Alamat Solana, 32 sampai 44 karakter base58.</div>
+
+    <label for="network">Network</label>
+    <select id="network"><option value="devnet">devnet (test)</option><option value="mainnet">mainnet (asli)</option></select>
+
+    <label for="buyUrl">Link beli</label>
+    <div class="row">
+      <input id="buyUrl" class="mono" placeholder="https://jup.ag/swap/SOL-..." />
+      <button id="autobuy" type="button">Isi Jupiter</button>
+    </div>
+    <div class="hint">Tombol Buy di website cuma aktif kalau network mainnet dan CA keisi.</div>
+
+    <label for="burnWallet">Burn wallet (alamat publik)</label>
+    <input id="burnWallet" class="mono" spellcheck="false" />
+  </section>
+
+  <section>
+    <h2>3. Server dan link</h2>
+    <label for="holdersUrl">Holders API</label>
+    <input id="holdersUrl" class="mono" placeholder="https://.../holders" />
+    <label for="burnsUrl">Burns API</label>
+    <input id="burnsUrl" class="mono" placeholder="https://.../burns" />
+    <label for="x">X</label>
+    <input id="x" class="mono" placeholder="https://x.com/..." />
+    <label for="telegram">Telegram</label>
+    <input id="telegram" class="mono" placeholder="https://t.me/..." />
+  </section>
+
+  <section id="lock-box" class="warn" hidden>
+    <div>CA udah dikunci karena token udah live di mainnet. Kalau beneran harus ganti, ketik <b>GANTI CA</b> di bawah.</div>
+    <input id="unlock" class="mono" style="margin-top:10px" autocomplete="off" placeholder="GANTI CA" />
+  </section>
+
+  <section id="confirm-box" class="warn" hidden>
+    <label class="check"><input type="checkbox" id="confirm-main" /> Aku udah cek CA ini 2 kali dan ini token mainnet yang asli.</label>
+  </section>
+
+  <button class="primary" id="save" disabled>Simpan ke GitHub</button>
+  <div id="log"></div>
+  <p class="hint">Habis disimpan, GitHub Pages update sendiri sekitar 1 sampai 2 menit. Semua perubahan kecatet di riwayat commit repo.</p>
+</main>
+
+<script>
+(() => {
+  const PATH = 'public/launch.js';
+  const FIELDS = ['mint', 'network', 'buyUrl', 'holdersUrl', 'burnsUrl', 'burnWallet', 'x', 'telegram'];
+  const B58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+  const $ = (id) => document.getElementById(id);
+  let sha = null, loaded = null;
+
+  const log = (msg, cls = '') => { $('log').className = cls; $('log').textContent = msg; };
+  const enc = (s) => btoa(unescape(encodeURIComponent(s)));
+  const dec = (b) => decodeURIComponent(escape(atob(b.replace(/\n/g, ''))));
+  const parse = (txt) => JSON.parse(txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1));
+  const build = (o) => '// Diisi dari /admin/. Satu sumber CA buat website + game. Jangan taruh key/secret di sini.\nwindow.POD_LAUNCH = ' + JSON.stringify(o, null, 2) + ';\n';
+
+  function fill(o) { for (const k of FIELDS) $(k).value = o[k] || (k === 'network' ? 'devnet' : ''); validate(); }
+  function read() { const o = {}; for (const k of FIELDS) o[k] = $(k).value.trim(); return o; }
+  function showNow(o, where) {
+    $('now').textContent = where + '\nCA: ' + (o.mint || '(kosong, belum launch)') + '\nNetwork: ' + (o.network || 'devnet') + '\nBuy: ' + (o.buyUrl || '-');
+  }
+
+  function validate() {
+    const o = read();
+    let ok = true, hint = 'Alamat Solana, 32 sampai 44 karakter base58.';
+    $('mint-hint').className = 'hint';
+    if (o.mint && !B58.test(o.mint)) { ok = false; hint = 'Format CA salah. Cek lagi, jangan ada spasi atau huruf 0 O I l.'; $('mint-hint').className = 'hint err'; }
+    else if (o.mint) { hint = 'Format OK. ' + o.mint.length + ' karakter.'; $('mint-hint').className = 'hint ok'; }
+    $('mint-hint').textContent = hint;
+    if (o.burnWallet && !B58.test(o.burnWallet)) ok = false;
+    for (const k of ['buyUrl', 'holdersUrl', 'burnsUrl', 'x', 'telegram']) if (o[k] && !/^https:\/\//.test(o[k])) ok = false;
+    const locked = !!(loaded && loaded.network === 'mainnet' && loaded.mint) && $('unlock').value.trim() !== 'GANTI CA';
+    $('lock-box').hidden = !(loaded && loaded.network === 'mainnet' && loaded.mint);
+    $('mint').readOnly = locked; $('network').disabled = locked; $('paste').disabled = locked;
+    if (locked && (o.mint !== loaded.mint || o.network !== 'mainnet')) ok = false;
+    const needConfirm = o.network === 'mainnet' && o.mint && (!loaded || loaded.mint !== o.mint || loaded.network !== 'mainnet');
+    $('confirm-box').hidden = !needConfirm;
+    if (needConfirm && !$('confirm-main').checked) ok = false;
+    $('save').disabled = !ok || !sha || !$('token').value.trim();
+    return ok;
+  }
+
+  async function gh(method, body) {
+    const repo = $('repo').value.trim(), branch = $('branch').value.trim();
+    const url = 'https://api.github.com/repos/' + repo + '/contents/' + PATH + (method === 'GET' ? '?ref=' + encodeURIComponent(branch) : '');
+    const r = await fetch(url, {
+      method, cache: 'no-store',
+      headers: { Authorization: 'Bearer ' + $('token').value.trim(), Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
+      body: body ? JSON.stringify({ ...body, branch }) : undefined,
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error((r.status === 401 ? 'Token salah atau kadaluarsa. ' : r.status === 403 ? 'Token nggak punya izin tulis ke repo ini. ' : r.status === 404 ? 'Repo, branch, atau file nggak ketemu (atau token nggak dikasih akses repo ini). ' : r.status === 409 ? 'File keburu berubah, klik Muat lagi. ' : '') + (j.message || r.status));
+    return j;
+  }
+
+  async function load() {
+    if (!$('token').value.trim()) return log('Isi token dulu.', 'err');
+    log('Memuat...');
+    try {
+      const j = await gh('GET');
+      sha = j.sha; loaded = parse(dec(j.content)); fill(loaded);
+      showNow(loaded, 'Di GitHub (' + $('branch').value.trim() + ')');
+      log('Kemuat. Ubah yang perlu, terus Simpan.', 'ok');
+    } catch (e) { sha = null; log(e.message, 'err'); }
+    validate();
+  }
+
+  async function save() {
+    if (!validate()) return;
+    const o = read(); if (!o.network) o.network = 'devnet';
+    const changed = FIELDS.filter((k) => (loaded?.[k] || '') !== o[k]);
+    if (!changed.length) return log('Nggak ada yang berubah.');
+    $('save').disabled = true; log('Menyimpan...');
+    try {
+      const j = await gh('PUT', { message: 'Admin: update ' + changed.join(', ') + (o.mint ? ' (CA ' + o.mint.slice(0, 4) + '...' + o.mint.slice(-4) + ')' : ''), content: enc(build(o)), sha });
+      sha = j.content.sha; loaded = o; $('confirm-main').checked = false; $('unlock').value = '';
+      showNow(o, 'Di GitHub (' + $('branch').value.trim() + '), baru disimpan');
+      log('Tersimpan. Commit ' + j.commit.sha.slice(0, 7) + '. Website update sekitar 1 sampai 2 menit lagi.', 'ok');
+    } catch (e) { log(e.message, 'err'); }
+    validate();
+  }
+
+  try { const t = sessionStorage.getItem('7pod-admin-token'); if (t) { $('token').value = t; $('remember').checked = true; } } catch {}
+  $('token').addEventListener('input', () => { try { if ($('remember').checked) sessionStorage.setItem('7pod-admin-token', $('token').value.trim()); } catch {} validate(); });
+  $('remember').addEventListener('change', () => { try { if ($('remember').checked) sessionStorage.setItem('7pod-admin-token', $('token').value.trim()); else sessionStorage.removeItem('7pod-admin-token'); } catch {} });
+  $('load').addEventListener('click', load);
+  $('save').addEventListener('click', save);
+  for (const k of FIELDS) $(k).addEventListener('input', validate);
+  $('mint').addEventListener('blur', () => { $('mint').value = $('mint').value.replace(/\s+/g, ''); validate(); });
+  $('confirm-main').addEventListener('change', validate);
+  $('unlock').addEventListener('input', validate);
+  $('paste').addEventListener('click', async () => { try { $('mint').value = (await navigator.clipboard.readText()).replace(/\s+/g, ''); validate(); } catch { log('Browser nolak akses clipboard, paste manual aja.', 'err'); } });
+  $('autobuy').addEventListener('click', () => { const m = $('mint').value.trim(); if (!B58.test(m)) return log('Isi CA yang bener dulu.', 'err'); $('buyUrl').value = 'https://jup.ag/swap/SOL-' + m; validate(); });
+
+  // Nilai yang lagi live di situs ini (tanpa token)
+  fetch('../launch.js', { cache: 'no-store' }).then((r) => r.text()).then((t) => { const o = parse(t); showNow(o, 'Di situs ini'); if (!loaded) fill(o); }).catch(() => { $('now').textContent = 'Belum ada launch.js di situs ini.'; });
+})();
+</script>
+</body>
+</html>

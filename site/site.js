@@ -18,7 +18,15 @@ let liveLevel = 0; // level evolusi asli dari chain (atau ?level= buat pratinjau
 
 gsap.registerPlugin(ScrollTrigger, SplitText, ScrambleTextPlugin);
 
-const cfg = window.POD_SITE || {};
+// public/launch.js (diisi lewat /admin/) menang atas site/config.js kalau field-nya keisi.
+const cfg = (() => {
+  const c = { ...(window.POD_SITE || {}) };
+  const L = window.POD_LAUNCH || {};
+  for (const k of ['mint', 'network', 'buyUrl', 'holdersUrl', 'burnsUrl', 'burnWallet']) if (L[k]) c[k] = String(L[k]).trim();
+  const extra = [['X', L.x], ['Telegram', L.telegram]].filter(([, u]) => u).map(([label, url]) => ({ label, url }));
+  if (extra.length) c.links = [...(c.links || []).filter((l) => !extra.some((e) => e.label === l.label)), ...extra];
+  return c;
+})();
 const $ = (id) => document.getElementById(id);
 const ASSETS = `${import.meta.env.BASE_URL}site-assets/`;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
