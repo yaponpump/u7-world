@@ -1,18 +1,18 @@
 /* 7POD website: satu canvas 3D di belakang, seksi DOM di depan, scroll halus.
    Warna: gelap hangat (arang + ember), aksen lime dari robot, ungu dari cat 7POD. */
 :root {
-  --bg: #0b0a10;
-  --bg2: #16100f;
-  --ember: #ff8a2a;
+  --bg: #0d0920;
+  --bg2: #1a1140;
+  --ember: #b8ff3c;
   --violet: #6d3df5;
   --lime: #b8ff3c;
   --white: #f6f1ea;
-  --soft: #b9b0a8;
-  --dim: #6f6861;
+  --soft: #bdb3d9;
+  --dim: #6f6690;
   --line: rgba(246, 241, 234, 0.12);
   --gutter: clamp(16px, 6vw, 96px);
-  --glow-a: #4a1a0c;
-  --glow-b: #1c0906;
+  --glow-a: #5a35d8;
+  --glow-b: #24136a;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -40,6 +40,15 @@ em { font: 700 13px/1 'Space Mono', monospace; color: var(--ember); letter-spaci
 .glow { position: absolute; width: 90vmax; height: 90vmax; left: 50%; top: 42%; translate: -50% -50%; border-radius: 50%; pointer-events: none;
   background: radial-gradient(circle, var(--glow-a) 0%, var(--glow-b) 38%, transparent 68%); opacity: 0.75; filter: blur(30px);
   transition: background 1.2s ease; }
+.clouds { position: absolute; inset: 0; pointer-events: none; opacity: 1; transition: opacity 0.6s;
+  background:
+    radial-gradient(ellipse 34% 22% at 18% 38%, rgba(140, 110, 255, 0.55), transparent 70%),
+    radial-gradient(ellipse 30% 20% at 84% 30%, rgba(184, 255, 60, 0.22), transparent 70%),
+    radial-gradient(ellipse 40% 26% at 60% 22%, rgba(120, 80, 240, 0.45), transparent 70%),
+    radial-gradient(ellipse 28% 18% at 35% 70%, rgba(184, 255, 60, 0.14), transparent 70%),
+    radial-gradient(ellipse 46% 30% at 78% 76%, rgba(90, 53, 216, 0.5), transparent 70%);
+  filter: blur(26px); }
+body:not([data-section="hero"]) .clouds { opacity: 0; }
 .grain { position: fixed; inset: -50%; z-index: 40; pointer-events: none; opacity: 0.07; mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
   animation: grain 0.6s steps(6) infinite; }
@@ -107,7 +116,7 @@ body.gl .hero-word { visibility: hidden; }
 .story-stage img, .story-stage canvas.seq { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .story-stage .lit { opacity: 0; }
 .story-stage canvas.seq { display: none; }
-.story-stage::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(11, 10, 16, 0.92) 0%, rgba(11, 10, 16, 0.55) 45%, rgba(11, 10, 16, 0.15) 100%), linear-gradient(0deg, var(--bg) 0%, transparent 25%, transparent 80%, rgba(11, 10, 16, 0.8) 100%); }
+.story-stage::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(13, 9, 32, 0.92) 0%, rgba(13, 9, 32, 0.55) 45%, rgba(13, 9, 32, 0.15) 100%), linear-gradient(0deg, var(--bg) 0%, transparent 25%, transparent 80%, rgba(13, 9, 32, 0.8) 100%); }
 .lamps { position: absolute; left: 0; right: 0; bottom: 14%; display: flex; justify-content: space-evenly; z-index: 1; }
 .lamps i { width: 6px; height: 6px; border-radius: 50%; background: #3a3230; box-shadow: none; transition: background 0.5s, box-shadow 0.5s; }
 .lamps i.on { background: #ffd58a; box-shadow: 0 0 18px 6px rgba(255, 196, 110, 0.55); }
@@ -173,7 +182,7 @@ footer nav:empty { display: none; }
   .menu { display: none; }
   .features, .tiles, .steps { grid-template-columns: 1fr 1fr; }
   .story-pin { grid-template-columns: 1fr; align-items: end; padding-bottom: 80px; }
-  .story-stage::after { background: linear-gradient(0deg, var(--bg) 0%, rgba(11, 10, 16, 0.75) 45%, rgba(11, 10, 16, 0.2) 100%); }
+  .story-stage::after { background: linear-gradient(0deg, var(--bg) 0%, rgba(13, 9, 32, 0.75) 45%, rgba(13, 9, 32, 0.2) 100%); }
   .section-tag { display: none; }
 }
 @media (max-width: 600px) {
