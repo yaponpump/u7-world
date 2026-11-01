@@ -263,7 +263,7 @@ function noticeTexture() {
   ctx.font = 'bold 62px "Chakra Petch", sans-serif';
   ctx.fillText('CITY NOTICE', 390, 92);
   ctx.font = '38px "Figtree", sans-serif';
-  ['Creator fees buy back $7POD every hour.', 'Every burn helps 7POD evolve.', 'Next stop: superintelligence (fiction).'].forEach((t, i) => ctx.fillText(t, 390, 180 + i * 66));
+  ['Creator fees buy back 7POD every hour.', 'Every burn helps 7POD evolve.', 'Next stop: superintelligence (fiction).'].forEach((t, i) => ctx.fillText(t, 390, 180 + i * 66));
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
@@ -1250,7 +1250,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
       c.fillStyle = '#0d1016'; c.fillRect(0, 0, 1024, 512);
       c.textBaseline = 'middle';
       c.fillStyle = '#b8ff3c'; c.font = '700 96px sans-serif'; c.textAlign = 'left';
-      c.fillText('$7POD', 56, 96);
+      c.fillText('7POD', 56, 96);
       c.fillStyle = tag === 'LIVE' ? '#b8ff3c' : '#ffb347'; c.font = '700 64px sans-serif'; c.textAlign = 'right';
       c.fillText(tag, 968, 96);
       c.fillStyle = '#ece6d6'; c.font = '700 120px sans-serif'; c.textAlign = 'left';

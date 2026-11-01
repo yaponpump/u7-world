@@ -61,6 +61,8 @@ const stage = $('stage');
 const canvas = $('gl');
 let renderer = null, scene, camera, robot, dust, shadowMesh, env;
 const view = { x: 1.0, y: -3.4, z: -1.2, ry: -0.3, s: 0.95, cx: 0, cy: 1.2, cz: 7.2, lx: 0, look: 1.35, on: 1, mob: 0 };
+// Animasi scroll nulis ke `goal`; tiap frame `view` ngejar `goal` pelan-pelan, jadi robot nggak pernah loncat walau scroll dibalik cepat
+const goal = { ...view };
 const HERO_Y = 0.78; // robot berdiri di lantai grid hero
 // tulisan 7POD 3D di hero, nempel ke kamera biar selalu di tengah layar
 const word = { s: 1, rx: 0, ry: 0, y: 0, z: 0, o: 1, spin: 0 };
@@ -182,6 +184,8 @@ function frame(now) {
   if (!document.hidden && renderer) {
     const t = now / 1000;
     const r = robot.root;
+    const ease = 1 - Math.exp(-dt * 9);
+    for (const k in goal) view[k] += (goal[k] - view[k]) * ease;
     // skala layar sempit: robot lebih kecil dan ke tengah
     const nw = narrow();
     const mid = !nw && innerWidth < 1250;
@@ -190,7 +194,7 @@ function frame(now) {
     r.position.set(view.x * k, view.y + 1.9 * mk, view.z);
     r.rotation.y = view.ry + mouse.x * 0.18;
     r.scale.setScalar(view.s * view.on * (nw ? 1 - 0.18 * mk : mid ? 0.86 : 1));
-    r.visible = view.on > 0.01;
+    r.visible = view.on > 0.06; // jangan nyisain robot mini (cuma antenanya keliatan) pas lagi ngilang
     camera.position.set(view.cx * k + mouse.x * 0.12, view.cy + 0.25 + mouse.y * -0.08, view.cz * (nw ? 1.25 + 0.85 * mk : 1));
     camera.lookAt(view.lx * k, view.look + 0.7 * mk, 0);
     robot.update(dt, 0, t);
@@ -302,15 +306,16 @@ function fixedUI() {
 function robotTimeline() {
   // tiap seksi = satu pose; di antaranya robot nyelip keluar/masuk
   const at = (id) => $(id);
-  const pose = (vals, trigger, start = 'top bottom', end = 'top top') => gsap.to(view, {
+  const pose = (vals, trigger, start = 'top bottom', end = 'top top') => gsap.to(goal, {
     ...vals, ease: 'none', scrollTrigger: { trigger, start, end, scrub: 0.6 },
   });
   // hero: pelan muter waktu mulai scroll, lalu mundur keluar ke kanan
   gsap.to(word, { s: 0.55, rx: -0.5, z: -4, y: 0.8, o: 0, ease: 'none', scrollTrigger: { trigger: at('hero'), start: 'top top', end: 'bottom top', scrub: 0.6 } });
-  gsap.to(view, { y: -3.4, on: 0, ease: 'none', scrollTrigger: { trigger: at('hero'), start: 'top top', end: '60% top', scrub: 0.6 } });
+  // titik awal dikunci ke pose hero, biar pas scroll balik ke atas robot berdiri penuh lagi (bukan setengah kebenam)
+  gsap.fromTo(goal, { y: HERO_Y, on: 1 }, { y: -3.4, on: 0, ease: 'none', immediateRender: false, scrollTrigger: { trigger: at('hero'), start: 'top top', end: '60% top', scrub: 0.6 } });
   // moods: 7POD di tengah kanan, deket, muter pelan
   pose({ x: 2.0, y: 0, z: 0, ry: -0.25, s: 1, cz: 6.8, cy: 1.4, cx: 0.4, lx: 0.4, look: 1.4, on: 1, mob: 1 }, at('moods'), 'top bottom', 'top top');
-  gsap.to(view, { ry: 0.35, ease: 'none', scrollTrigger: { trigger: at('moods'), start: 'top top', end: 'bottom bottom', scrub: 0.6 } });
+  gsap.to(goal, { ry: 0.35, ease: 'none', scrollTrigger: { trigger: at('moods'), start: 'top top', end: 'bottom bottom', scrub: 0.6 } });
   pose({ on: 0, y: -0.4 }, at('moods'), 'bottom 60%', 'bottom top');
   // end: 7POD di tengah, dadah
   pose({ x: 0, y: 0, z: 0, ry: 0.1, s: 1, cz: 8.6, cy: 1.2, cx: 0, lx: 0, look: 1.6, on: 1, mob: 1 }, at('end'), 'top bottom', 'top 30%');
@@ -466,7 +471,7 @@ function renderBurns(list, demo) {
   }
   for (const b of list.slice(0, 3)) {
     const li = document.createElement('li');
-    const amt = document.createElement('b'); amt.textContent = `${short(b.amount)} $7POD`;
+    const amt = document.createElement('b'); amt.textContent = `${short(b.amount)} 7POD`;
     const when = document.createElement('span'); when.className = 'burn-when'; when.dataset.t = b.time; when.textContent = ago(b.time);
     li.append(amt, when);
     if (demo) { const d = document.createElement('em'); d.textContent = 'DEMO'; li.appendChild(d); }
@@ -550,7 +555,7 @@ function tokenData() {
   if (cfg.buyUrl && mainnet) {
     const b = $('buy-link');
     b.href = cfg.buyUrl; b.target = '_blank'; b.rel = 'noopener';
-    b.removeAttribute('aria-disabled'); b.textContent = 'Buy $7POD';
+    b.removeAttribute('aria-disabled'); b.textContent = 'Buy 7POD';
   }
   for (const { label, url } of cfg.links || []) {
     const a = document.createElement('a');
@@ -611,7 +616,8 @@ async function main() {
       gsap.to(l.position, { y: l.userData.base.y, duration: 1.1, ease: 'bounce.out', delay: 0.15 + i * 0.12 });
       gsap.to(l.scale, { x: l.userData.base.sc, y: l.userData.base.sc, z: l.userData.base.sc, duration: 0.9, ease: 'back.out(2)', delay: 0.15 + i * 0.12 });
     });
-    gsap.to(view, { y: HERO_Y, duration: 1.1, ease: 'back.out(1.6)', delay: 1.0 });
+    // muncul dari balik huruf; kalau orang udah keburu scroll, biarin animasi scroll yang pegang
+    gsap.to(goal, { y: HERO_Y, duration: 1.1, ease: 'back.out(1.6)', delay: 1.0, onStart() { if (scrollY > 40) this.kill(); } });
     setTimeout(() => { robot.setState('wave'); robot.setExpression('happy', 3); setTimeout(() => robot.setState('idle'), 2800); }, 1900);
   }
   splitTitles();

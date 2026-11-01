@@ -214,7 +214,7 @@ body.gl .hero-word { visibility: hidden; }
 .token-info, .buy-box { display: grid; align-content: start; gap: 16px; padding: 30px 32px; min-width: 0; }
 .token-info { border-right: 1px solid var(--line); }
 .token-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.token-tick { font: 800 30px/1 Outfit, sans-serif; letter-spacing: -0.02em; background: linear-gradient(90deg, #2fbf7c 0 18%, #7a4dff 18%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.token-tick { font: 800 30px/1 Outfit, sans-serif; letter-spacing: -0.02em; background: linear-gradient(90deg, #2fbf7c 0 24%, #7a4dff 24%); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .token-row .status { margin: 0; border-radius: 99px; display: inline-flex; align-items: center; gap: 7px; }
 .token-row .status::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #c9bde8; }
 .token-row .status.live::before { background: #2fbf7c; animation: livePing 2s ease-out infinite; }

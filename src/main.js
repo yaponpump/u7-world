@@ -431,7 +431,7 @@ const market = createMarket({
     const prevMood = marketState?.mood;
     marketState = s;
     const chg = s.change24 == null ? '' : `${s.change24 >= 0 ? '+' : ''}${s.change24.toFixed(1)}% 24h`;
-    const price = s.price == null ? (s.source === 'demo' ? 'Demo · token not launched yet' : '') : `$${s.price < 1 ? s.price.toPrecision(3) : s.price.toFixed(2)}`;
+    const price = s.price == null ? (s.source === 'demo' ? 'Demo · token not launched yet' : '') : `${s.price < 1 ? s.price.toPrecision(3) : s.price.toFixed(2)} USD`;
     const livePrice = CONFIG.token.network === 'mainnet' && s.price != null;
     world.setBillboard(livePrice ? { tag: 'LIVE', price, note: chg || 'Market price' } : { tag: 'DEMO', price: 'No live price', note: 'Testnet · token not launched yet' });
     $('market-text').innerHTML = `<span>${MOOD_LABEL[s.mood]}</span><span class="chg ${s.change24 >= 0 ? 'up' : 'down'}">${[price, chg].filter(Boolean).join(' · ')}</span>`;
@@ -599,7 +599,7 @@ const INTRO_TIPS = [
   'The river is shallow. Wade across, or use a bridge or the stepping stones.',
   'Talk to the city robots (E). They know what the market is doing.',
   'Press T to skip three hours. Nights pass faster than days.',
-  'Press Q for a photo with the $7POD mark. Share it on X.',
+  'Press Q for a photo with the 7POD mark. Share it on X.',
   'Leave 7POD alone for a while. It gets bored, then sleepy.',
   'At Superintelligence, 7POD wears a golden halo.',
 ];
@@ -1243,7 +1243,7 @@ function takePhoto() {
       a.href = c.toDataURL('image/png');
       a.download = `vuzz-world-${Date.now()}.png`;
       a.click();
-      showToast('Photo saved with the $7POD mark. Share it on X');
+      showToast('Photo saved with the 7POD mark. Share it on X');
     } catch (e) {
       showToast('Could not save the photo in this browser.');
     }

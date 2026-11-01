@@ -20,7 +20,7 @@ export const voice = {
     if (!synth || volume <= 0.02) return;
     if (!voices.length) loadVoices();
     const p = profileFor(name);
-    const u = new SpeechSynthesisUtterance(text.replace(/\$7POD/g, 'seven pod').replace(/7POD/g, 'seven pod'));
+    const u = new SpeechSynthesisUtterance(text.replace(/\$?7POD/g, 'seven pod'));
     u.pitch = p.pitch; u.rate = p.rate; u.volume = Math.min(1, volume);
     if (voices.length) u.voice = voices[p.voiceIdx];
     synth.cancel();

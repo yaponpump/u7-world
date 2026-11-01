@@ -1,7 +1,7 @@
 // Satu tempat buat setting project. Isi pas token udah launch.
 export const CONFIG = {
   name: '7POD',
-  ticker: '$7POD',
+  ticker: '7POD',
 
   // Token on-chain (kosong = belum launch, semua wallet yang connect dihitung "sinyal").
   token: {
