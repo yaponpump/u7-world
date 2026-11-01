@@ -309,8 +309,8 @@ footer:has(nav:empty) { display: none; }
 /* ---- responsif ---- */
 @media (max-width: 900px) {
   .menu { display: none; }
-  .sound-btn { margin-left: auto; }
-  .ui .btn.small { margin-left: auto; }
+  .ui .sound-btn { margin: 0 -12px 0 auto; }
+  .ui .btn.small { margin-left: 0; }
   .features, .tiles, .steps { grid-template-columns: 1fr 1fr; }
   .burn-board { grid-template-columns: minmax(0, 1fr); }
   .evo-side { border-right: 0; border-bottom: 1px solid var(--line); padding: 28px 20px; }
