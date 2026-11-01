@@ -60,7 +60,7 @@ async function loadSequence(name, count) {
 const stage = $('stage');
 const canvas = $('gl');
 let renderer = null, scene, camera, robot, dust, shadowMesh, env;
-const view = { x: 1.0, y: -3.4, z: -1.2, ry: -0.3, s: 0.95, cx: 0, cy: 1.2, cz: 7.2, lx: 0, look: 1.35, on: 1, mob: 0 };
+const view = { x: 1.0, y: -3.4, z: -1.2, ry: -0.3, s: 0.95, cx: 0, cy: 1.2, cz: 7.2, lx: 0, look: 1.505, on: 1, mob: 0 };
 // Animasi scroll nulis ke `goal`; tiap frame `view` ngejar `goal` pelan-pelan, jadi robot nggak pernah loncat walau scroll dibalik cepat
 const goal = { ...view };
 const HERO_Y = 0.78; // robot berdiri di lantai grid hero
@@ -206,8 +206,9 @@ function frame(now) {
       const vh = 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
       const fit = Math.min((vh * camera.aspect * (camera.aspect < 1 ? 0.88 : 0.64)) / wordMesh.userData.width, vh * 0.25);
       wordMesh.visible = word.o > 0.01;
-      wordMesh.position.set(0, vh * 0.06 + word.y, -dist + word.z);
-      grid.position.set(0, vh * 0.06 - 1.35 * fit + word.y, -dist - 2 + word.z);
+      const base = vh * (camera.aspect < 1 ? -0.136 : -0.176); // sedikit di bawah tengah biar seimbang sama nav di atas
+      wordMesh.position.set(0, base + word.y, -dist + word.z);
+      grid.position.set(0, base - 1.35 * fit + word.y, -dist - 2 + word.z);
       grid.material.uniforms.uO.value = word.o;
       grid.visible = word.o > 0.01;
       wordMesh.scale.setScalar(fit * word.s * Math.max(0.001, word.o));
