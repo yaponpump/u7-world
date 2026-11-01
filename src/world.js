@@ -127,8 +127,8 @@ WORLD.routes = [
 ];
 // Tempat yang bisa ditekan E: { id, name, x, z, line }
 WORLD.interactables = [
-  { id: 'tower', name: 'Signal Tower', x: 26, z: 6, line: 'One ring for every city light. Find signals and they come back on.' },
-  { id: 'notice', name: 'Notice board', x: 24, z: -17, line: 'Five signals got lost in The Blackout. The board says bring them home.' },
+  { id: 'tower', name: 'Signal Tower', x: 26, z: 6, line: 'It hums a little louder after every burn. 7POD listens to it.' },
+  { id: 'notice', name: 'Notice board', x: 24, z: -17, line: 'The board tracks 7POD. Every burn moves it one step closer to the next level.' },
   { id: 'hill', name: 'Hill lookout', x: 39.5, z: -35.5, line: 'You can see the whole city from up here. Most of it is still dark.' },
   { id: 'pier', name: 'Pier', x: -19, z: 22, line: 'End of the line. Press R and skip a rock.' },
   { id: 'cafeCounter', name: 'Cafe counter', x: CAFE.x, z: CAFE.z - 1.5, line: 'Nobody has run this counter since The Blackout. The coffee machine still hums.' },
@@ -263,7 +263,7 @@ function noticeTexture() {
   ctx.font = 'bold 62px "Chakra Petch", sans-serif';
   ctx.fillText('CITY NOTICE', 390, 92);
   ctx.font = '38px "Figtree", sans-serif';
-  ['Five signals were lost in The Blackout.', 'Every signal found brings a light back.', 'Follow the green arrow.'].forEach((t, i) => ctx.fillText(t, 390, 180 + i * 66));
+  ['Creator fees buy back $7POD every hour.', 'Every burn helps 7POD evolve.', 'Next stop: superintelligence (fiction).'].forEach((t, i) => ctx.fillText(t, 390, 180 + i * 66));
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
@@ -1241,7 +1241,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
       c.fillStyle = '#0d1016'; c.fillRect(0, 0, 1024, 512);
       c.textBaseline = 'middle';
       c.fillStyle = '#b8ff3c'; c.font = '700 96px sans-serif'; c.textAlign = 'left';
-      c.fillText('$VUZZ', 56, 96);
+      c.fillText('$7POD', 56, 96);
       c.fillStyle = tag === 'LIVE' ? '#b8ff3c' : '#ffb347'; c.font = '700 64px sans-serif'; c.textAlign = 'right';
       c.fillText(tag, 968, 96);
       c.fillStyle = '#ece6d6'; c.font = '700 120px sans-serif'; c.textAlign = 'left';

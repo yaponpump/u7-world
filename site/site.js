@@ -11,6 +11,8 @@ import { SplitText } from 'gsap/SplitText';
 import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
 import Lenis from 'lenis';
 import { createRobot, EXPRESSIONS } from '../src/robot.js';
+import { watchEvolution } from '../src/evolution.js';
+let liveLevel = 0; // level evolusi asli dari chain (atau ?level= buat pratinjau)
 
 gsap.registerPlugin(ScrollTrigger, SplitText, ScrambleTextPlugin);
 
@@ -373,29 +375,45 @@ function world() {
   });
 }
 
-// ---------- 05 moods: scroll atau klik ganti ekspresi robot ----------
+// ---------- 05 evolution path: scroll atau klik ganti level robot ----------
 function moods() {
   const items = [...$('faces').children];
   let cur = -1;
-  const set = (i, hold = Infinity) => {
+  const back = () => { cur = -1; items.forEach((li) => li.classList.remove('active')); if (robot) { robot.setEvolution(liveLevel); robot.setState('idle'); } };
+  const set = (i) => {
     i = Math.max(0, Math.min(items.length - 1, i));
     if (i === cur) return;
     cur = i;
-    items.forEach((li, j) => li.classList.toggle('active', j === i));
-    const face = items[i].dataset.face;
-    if (robot && EXPRESSIONS.includes(face)) {
-      robot.setFace(face);
-      robot.setState(face === 'surprised' ? 'curious' : face === 'sad' ? 'yawn' : 'idle');
-    }
+    items.forEach((li, j) => { li.classList.toggle('active', j === i); li.classList.toggle('done', j <= liveLevel); });
+    if (robot) { robot.setEvolution(+items[i].dataset.level); robot.setExpression(i === 0 ? 'neutral' : 'happy', 1.6); robot.land(); }
   };
-  items.forEach((li, i) => li.addEventListener('click', () => { set(i); if (robot) robot.land(); }));
+  items.forEach((li, i) => { li.classList.toggle('done', i <= liveLevel); li.addEventListener('click', () => set(i)); });
   if (reduced) { set(0); return; }
   ScrollTrigger.create({
     trigger: $('moods'), start: 'top top', end: 'bottom bottom', scrub: true,
     onUpdate(self) { set(Math.floor(self.progress * items.length * 0.999)); },
-    onLeave() { if (robot) { robot.setFace('neutral'); robot.setState('idle'); } },
-    onLeaveBack() { if (robot) { robot.setFace('neutral'); robot.setState('idle'); } },
+    onLeave: back, onLeaveBack: back,
   });
+}
+
+// ---------- status evolusi live ----------
+function evolutionLive() {
+  let first = true;
+  watchEvolution((st) => {
+    liveLevel = st.level;
+    if (robot) robot.setEvolution(st.level);
+    document.querySelectorAll('#faces li').forEach((li) => li.classList.toggle('done', +li.dataset.level <= st.level));
+    const span = Math.max(1e-9, st.next - st.prev);
+    const prog = st.pct === 0 ? 0 : Math.min(1, Math.max(0, (st.pct - st.prev) / span));
+    $('evo-fill').style.width = `${(prog * 100).toFixed(1)}%`;
+    const fmt = (v) => `${v < 1 ? v.toFixed(2) : v.toFixed(1)}%`;
+    const el = $('holders');
+    if (first || reduced) el.textContent = st.name; else gsap.to(el, { duration: 1.2, scrambleText: { text: st.name, chars: 'upperAndLowerCase', speed: 0.6 } });
+    $('holders-note').textContent = st.source === 'prelaunch' ? 'Waiting for the first burn. The level is read straight from the chain once $7POD launches.'
+      : st.source === 'preview' ? `Preview: ${fmt(st.pct)} of supply burned. Next level at ${fmt(st.next)}.`
+      : `${fmt(st.pct)} of the supply burned, read from the chain. Next level at ${fmt(st.next)}.`;
+    first = false;
+  }, { mint: cfg.mint, network: cfg.network });
 }
 
 // ---------- data token: cuma tampil kalau udah diisi di config.js ----------
@@ -439,12 +457,7 @@ function tokenData() {
       $('holders-note').textContent = `Counted from the chain. Updated ${new Date(d.updatedAt).toLocaleTimeString()}.`;
     } catch { /* biarin teks awal */ }
   }
-  if (cfg.holdersUrl && cfg.mint) { holders(); setInterval(holders, 5 * 60 * 1000); }
-  // teks hitung: scramble masuk sekali waktu kelihatan
-  if (!reduced) {
-    const el = $('holders'); const text = el.textContent;
-    ScrollTrigger.create({ trigger: el, start: 'top 85%', once: true, onEnter() { gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 1.6, scrambleText: { text, chars: 'upperAndLowerCase', speed: 0.5 } }); } });
-  }
+  void holders; // jumlah holder nggak dipakai lagi, gantinya status evolusi
 }
 
 // ---------- mulai ----------
@@ -491,6 +504,7 @@ async function main() {
   story(seqPromise);
   world();
   moods();
+  evolutionLive();
   ScrollTrigger.refresh();
   window.__vuzzSite = { view, robot, lenis, ScrollTrigger };
 }

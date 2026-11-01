@@ -1,7 +1,7 @@
 // Satu tempat buat setting project. Isi pas token udah launch.
 export const CONFIG = {
-  name: 'VUZZ',
-  ticker: '$VUZZ',
+  name: '7POD',
+  ticker: '$7POD',
 
   // Token on-chain (kosong = belum launch, semua wallet yang connect dihitung "sinyal").
   token: {
@@ -19,6 +19,14 @@ export const CONFIG = {
     coingeckoId: '',    // contoh 'solana'
     dexscreener: '',    // contoh 'solana/<pairAddress>'
     pollSeconds: 120,
+  },
+
+  // Evolusi robot dari total burn (persen supply). Pratinjau sebelum launch: tambah ?level=3 atau ?burn=0.8 di URL.
+  evolution: {
+    initialSupply: 1_000_000_000,
+    thresholds: [0.09, 0.3, 0.6, 1.1, 1.6], // Awake, Aware, Learning, Reasoning, Superintelligence
+    step: 0.5,                               // tiap tambahan ini setelah Superintelligence = Evolution +1
+    pollSeconds: 180,
   },
 
   // Tier holder: saldo minimal (dalam token utuh) buat buka skin.

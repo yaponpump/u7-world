@@ -233,6 +233,37 @@ export function createRobot({ dormant = false } = {}) {
 
   root.traverse((m) => { if (m.isMesh) m.castShadow = true; });
 
+  // ---- Evolusi: tiap level nambah bagian yang nyala di kepala ----
+  // 2 antena hidup, 3 otak sirkuit, 4 cincin orbit, 5 halo emas, 6+ bintang evolusi di halo
+  const glowMat = (c) => new THREE.MeshBasicMaterial({ color: c, toneMapped: false, transparent: true });
+  const evo = { level: -1, beacon: null, brain: new THREE.Group(), rings: new THREE.Group(), halo: new THREE.Group(), stars: [] };
+  evo.beacon = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 12), glowMat(COL.lime));
+  evo.beacon.position.set(0.22, 1.32, -0.2);
+  const beaconAura = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 12), glowMat(COL.lime));
+  beaconAura.material.opacity = 0.25; evo.beacon.add(beaconAura);
+  const brainMat = glowMat(COL.lime);
+  const trace = (x, z, w, d) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.018, d), brainMat); m.position.set(x, 1.006, z); evo.brain.add(m); };
+  trace(-0.3, 0.15, 0.36, 0.03); trace(-0.13, 0.02, 0.03, 0.28); trace(0.2, -0.18, 0.4, 0.03); trace(0.02, -0.05, 0.03, 0.3); trace(0.3, 0.2, 0.03, 0.26); trace(0.16, 0.32, 0.3, 0.03);
+  for (const [x, z] of [[-0.48, 0.15], [-0.13, -0.12], [0.4, -0.18], [0.02, 0.1], [0.3, 0.33], [0.01, 0.32]]) {
+    const n = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), brainMat); n.position.set(x, 1.01, z); evo.brain.add(n);
+  }
+  const ringA = new THREE.Mesh(new THREE.TorusGeometry(0.98, 0.016, 8, 96), glowMat(0x9b7bff));
+  const ringB = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.012, 8, 96), glowMat(COL.lime));
+  ringA.rotation.set(Math.PI / 2 - 0.3, 0, 0.2); ringB.rotation.set(Math.PI / 2 + 0.35, 0, -0.25);
+  const moonA = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), glowMat(COL.lime)); moonA.position.x = 0.98; ringA.add(moonA);
+  evo.rings.add(ringA, ringB); evo.rings.position.y = 0.58;
+  const haloMat = glowMat(0xffc65a);
+  const haloRing = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.045, 12, 64), haloMat);
+  haloRing.rotation.x = Math.PI / 2;
+  const haloAura = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.11, 10, 64), glowMat(0xffd88a)); haloAura.rotation.x = Math.PI / 2; haloAura.material.opacity = 0.22;
+  evo.halo.add(haloRing, haloAura); evo.halo.position.y = 1.62;
+  for (let i = 0; i < 8; i++) {
+    const st = new THREE.Mesh(new THREE.OctahedronGeometry(0.06, 0), glowMat(0xffffff));
+    st.userData.a = (i / 8) * Math.PI * 2; st.visible = false; evo.halo.add(st); evo.stars.push(st);
+  }
+  head.add(evo.beacon, evo.brain, evo.rings, evo.halo);
+  for (const g of [evo.beacon, evo.brain, evo.rings, evo.halo]) { g.visible = false; g.traverse((m) => { m.castShadow = false; }); }
+
   // ---- state & animasi ----
   const state = { name: 'idle', t: 0, blink: 0, eyeMode: 'normal', squash: 0, expr: null, exprT: 0 };
   const api = {
@@ -271,6 +302,18 @@ export function createRobot({ dormant = false } = {}) {
       api.setExpression(name, Infinity);
     },
     setHat(on) { hat.visible = on; },
+    // Level evolusi dari total burn (0 = Dormant). Visual numpuk: level tinggi tetap punya bagian level bawah.
+    setEvolution(level = 0) {
+      const lv = Math.max(0, Math.floor(level));
+      evo.level = lv;
+      evo.beacon.visible = lv >= 2;
+      evo.brain.visible = lv >= 3;
+      evo.rings.visible = lv >= 4;
+      evo.halo.visible = lv >= 5;
+      evo.stars.forEach((st, i) => { st.visible = lv - 5 > i; });
+      eyeMat.emissiveIntensity = lv === 0 ? 0.6 : lv >= 5 ? 3 : 2.2;
+    },
+    get evolution() { return Math.max(0, evo.level); },
     setLight(on) {
       torchLens.visible = on;
       torch.intensity = on ? 3.2 : 0;
@@ -291,6 +334,15 @@ export function createRobot({ dormant = false } = {}) {
     },
     update(dt, speed, time) {
       state.t += dt;
+      if (evo.level >= 2) {
+        const p = 1 + Math.sin(time * 4) * 0.18; evo.beacon.scale.setScalar(p);
+        if (evo.level >= 3) brainMat.opacity = 0.65 + Math.sin(time * 3) * 0.35;
+        if (evo.level >= 4) { ringA.rotation.z += dt * 0.9; ringB.rotation.z -= dt * 0.6; }
+        if (evo.level >= 5) {
+          evo.halo.rotation.y += dt * 0.6; evo.halo.position.y = 1.62 + Math.sin(time * 1.6) * 0.04;
+          evo.stars.forEach((st) => { if (!st.visible) return; const a = st.userData.a + time * 0.8; st.position.set(Math.cos(a) * 0.42, 0.1 + Math.sin(time * 3 + st.userData.a) * 0.05, Math.sin(a) * 0.42); st.rotation.y += dt * 3; });
+        }
+      }
       const t = state.t;
       const n = state.name;
 

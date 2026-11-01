@@ -25,6 +25,13 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
 .lamps { display: flex; gap: 6px; margin-top: 6px; }
 .lamp { width: 12px; height: 12px; border-radius: 50%; background: #2a2f3a; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1); }
 .lamp.on { background: var(--orange); box-shadow: 0 0 10px var(--orange); }
+.panel.evo { min-width: 210px; }
+.evo-name { font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 18px; margin-top: 2px; letter-spacing: 0.02em; }
+.evo-bar { height: 7px; border-radius: 99px; background: rgba(255,255,255,0.12); margin: 7px 0 5px; overflow: hidden; }
+.evo-bar i { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, #9b7bff, var(--lime, #b8ff3c)); transition: width 0.8s ease; }
+.panel.evo.up { animation: evoUp 1.4s ease 2; }
+@keyframes evoUp { 50% { box-shadow: 0 0 0 2px #b8ff3c, 0 0 28px rgba(184,255,60,0.55); } }
+.intro-evo { display: inline-block; margin: 2px 0 14px; padding: 6px 12px; border-radius: 99px; border: 1px solid rgba(184,255,60,0.4); color: #b8ff3c; font: 700 12px 'Chakra Petch', sans-serif; letter-spacing: 0.08em; text-transform: uppercase; }
 .btn { pointer-events: auto; font-family: var(--display); font-weight: 700; font-size: 13px; letter-spacing: 0.04em; border: 0; border-radius: 999px; padding: 10px 16px; cursor: pointer; color: var(--paper); background: var(--panel); border: 1px solid rgba(255,255,255,0.12); }
 .btn:hover { border-color: var(--lime); }
 .btn.primary { background: var(--lime); color: var(--ink); border-color: transparent; }
@@ -86,7 +93,9 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
   .chip.testnet { font-size: 9px; padding: 3px 7px; }
   .panel.quest { max-width: 58vw; }
   .panel.quest .small { font-size: 11px; }
-  .lights .small { font-size: 11px; }
+  .lights .small, .evo .small { font-size: 11px; }
+  .panel.evo { min-width: 0; }
+  .evo-name { font-size: 15px; }
   .objective { top: auto; bottom: calc(212px + env(safe-area-inset-bottom, 0px)); font-size: 11px; padding: 6px 10px; }
   .toast { bottom: calc(196px + env(safe-area-inset-bottom, 0px)); font-size: 12px; max-width: 86vw; text-align: center; }
   .bubble { top: 34%; max-width: 70vw; font-size: 12px; }

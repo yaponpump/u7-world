@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>7POD</title>
-  <meta name="description" content="7POD is a browser open world on Solana. A city went dark, one small robot stayed, and every new holder turns a light back on." />
+  <meta name="description" content="7POD is a small robot on Solana that evolves as $7POD burns. Every hour, creator fees buy back and burn the token, and the robot moves one step closer to a fictional superintelligence." />
   <meta property="og:title" content="7POD" />
-  <meta property="og:description" content="A city went dark. One small robot stayed." />
+  <meta property="og:description" content="A small robot, evolving one burn at a time." />
   <meta property="og:image" content="img/hero-day.jpg" />
   <meta name="theme-color" content="#f3eeff" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -38,13 +38,13 @@
     <a class="wordmark" href="#top" aria-label="7POD, back to top"><span class="logo" aria-hidden="true"><b>7</b><b>P</b><b>O</b><b>D</b></span></a>
     <nav class="menu" aria-label="Main">
       <span class="menu-pill" id="menu-pill" aria-hidden="true"></span>
-      <a href="#story" data-nav="story">Story</a>
+      <a href="#story" data-nav="story">How</a>
       <a href="#world" data-nav="world">World</a>
-      <a href="#moods" data-nav="moods">Moods</a>
+      <a href="#moods" data-nav="moods">Evolution</a>
       <a href="#token" data-nav="token">Token</a>
       <a href="#buy" data-nav="buy">Buy</a>
     </nav>
-    <a class="btn small" data-play href="../">Play</a>
+    <a class="btn small" data-play href="../">Enter world</a>
   </header>
   <div class="progress" aria-hidden="true"><i id="progress"></i></div>
 
@@ -56,7 +56,7 @@
     </section>
 
     <!-- 02 Story: pinned, scrub -->
-    <section class="s s-story" id="story" data-tag="02 — The Blackout" aria-label="The story of the city">
+    <section class="s s-story" id="story" data-tag="02 — How it evolves" aria-label="How 7POD evolves">
       <div class="story-pin" id="story-pin">
         <div class="story-stage" id="story-stage">
           <img src="img/city-dark.jpg" alt="" width="1600" height="900" />
@@ -65,49 +65,51 @@
           <div class="lamps" id="lamps" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
         </div>
         <div class="story-steps" id="story-steps">
-          <article><em>01</em><h2>The Blackout</h2><p>One night every lamp in the city went out. People left. The units that kept the place running shut down one by one.</p></article>
-          <article><em>02</em><h2>7POD stayed</h2><p>The smallest unit kept walking the same streets, waiting for anyone to answer.</p></article>
-          <article><em>03</em><h2>A signal came back</h2><p>Each signal found turns on another light. Windows follow, then whole streets.</p></article>
-          <article><em>04</em><h2>That signal is you</h2><p>Holders are the signals. The more people show up, the more of the city comes back.</p></article>
+          <article><em>01</em><h2>Trade</h2><p>Every trade on $7POD pays a small creator fee. Nothing extra for you to do.</p></article>
+          <article><em>02</em><h2>Burn</h2><p>Every hour, the fees buy back $7POD and burn it for good. Each burn has a public transaction link.</p></article>
+          <article><em>03</em><h2>Evolve</h2><p>The robot follows the total burned, not the price. Burns only add up, so 7POD only moves forward.</p></article>
+          <article><em>04</em><h2>All the way up</h2><p>Each level changes how 7POD looks, all the way to a fictional superintelligence. It is a story, not real AI.</p></article>
         </div>
       </div>
     </section>
 
     <!-- 03 Live -->
-    <section class="s s-live" id="live" data-tag="03 — City lights" aria-labelledby="live-title">
+    <section class="s s-live" id="live" data-tag="03 — Evolution status" aria-labelledby="live-title">
       <div class="wrap center">
-        <h2 id="live-title" class="split">City lights</h2>
-        <p class="count scramble" id="holders">Live count starts at launch</p>
-        <p class="sub reveal" id="holders-note">This number will come straight from the chain. We will not show a made-up figure before then.</p>
+        <h2 id="live-title" class="split">Right now, 7POD is</h2>
+        <p class="count scramble" id="holders">Dormant</p>
+        <div class="evo-meter reveal" aria-hidden="true"><i id="evo-fill"></i></div>
+        <p class="sub reveal" id="holders-note">Waiting for the first burn. The level is read straight from the chain once $7POD launches.</p>
       </div>
     </section>
 
     <!-- 04 World -->
     <section class="s s-world" id="world" data-tag="04 — The world" aria-labelledby="world-title">
       <div class="wrap">
-        <h2 id="world-title" class="split">Walk it yourself</h2>
+        <h2 id="world-title" class="split">Its world, in your browser</h2>
         <ul class="features">
           <li class="card" data-depth="0.08"><figure><img src="img/park-day.jpg" data-still="park-day" alt="7POD in a grassy park with a fountain and a hill" width="1200" height="675" loading="lazy" /></figure><h3>No download</h3><p>It runs in the browser.</p></li>
           <li class="card" data-depth="0.16"><figure><img src="img/hero-day.jpg" data-still="lake-sunset" alt="7POD smiling in the park on a clear morning" width="1000" height="556" loading="lazy" /></figure><h3>A real day</h3><p>Morning, noon, sunset and night pass while you play.</p></li>
           <li class="card" data-depth="0.1"><figure><img src="img/city-lit.jpg" data-still="rooftop-view" alt="City blocks at night with every window lit" width="1600" height="900" loading="lazy" /></figure><h3>Weather from the market</h3><p>Pumps bring golden light, dumps bring storms.</p></li>
-          <li class="card" data-depth="0.2"><figure><img src="img/shop.jpg" data-still="shop-interior" alt="7POD inside the mini mart beside shelves full of goods" width="900" height="563" loading="lazy" /></figure><h3>Things to do</h3><p>Find lost signals, walk into the cafe, climb to the rooftop, talk to the robots.</p></li>
+          <li class="card" data-depth="0.2"><figure><img src="img/shop.jpg" data-still="shop-interior" alt="7POD inside the mini mart beside shelves full of goods" width="900" height="563" loading="lazy" /></figure><h3>No quests</h3><p>Walk into the cafe, climb to the rooftop, talk to the robots. Its level follows you everywhere.</p></li>
         </ul>
       </div>
     </section>
 
-    <!-- 05 Moods: pinned, 7POD 3D ganti ekspresi -->
-    <section class="s s-moods" id="moods" data-tag="05 — Moods" aria-labelledby="moods-title">
+    <!-- 05 Evolution path: pinned, robot 3D ganti level sambil scroll -->
+    <section class="s s-moods" id="moods" data-tag="05 — Evolution path" aria-labelledby="moods-title">
       <div class="moods-pin">
         <div class="wrap">
-          <h2 id="moods-title" class="split">7POD has moods</h2>
-          <ul class="faces" id="faces">
-            <li data-face="happy"><img src="img/face-happy.jpg" alt="7POD looking happy" width="420" height="326" loading="lazy" /><span>Happy</span></li>
-            <li data-face="sad"><img src="img/face-sad.jpg" alt="7POD looking sad" width="420" height="326" loading="lazy" /><span>Sad</span></li>
-            <li data-face="angry"><img src="img/face-angry.jpg" alt="7POD looking angry" width="420" height="326" loading="lazy" /><span>Angry</span></li>
-            <li data-face="surprised"><img src="img/face-surprised.jpg" alt="7POD looking surprised" width="420" height="326" loading="lazy" /><span>Surprised</span></li>
-            <li data-face="disgust"><img src="img/face-disgust.jpg" alt="7POD looking disgusted" width="420" height="326" loading="lazy" /><span>Disgust</span></li>
+          <h2 id="moods-title" class="reveal">Evolution path</h2>
+          <ul class="faces levels" id="faces">
+            <li data-level="0"><b>0</b><span>Dormant</span><small>Visor dark</small></li>
+            <li data-level="1"><b>1</b><span>Awake</span><small>Eyes on</small></li>
+            <li data-level="2"><b>2</b><span>Aware</span><small>Antenna live</small></li>
+            <li data-level="3"><b>3</b><span>Learning</span><small>Circuit brain</small></li>
+            <li data-level="4"><b>4</b><span>Reasoning</span><small>Orbit rings</small></li>
+            <li data-level="5"><b>5</b><span>Superintelligence</span><small>Golden halo</small></li>
           </ul>
-          <p class="sub mood-hint">Scroll or tap a mood. The same faces are in the game.</p>
+          <p class="sub mood-hint">Tap a level to preview it. After level 5, every extra burn adds a star to the halo.</p>
         </div>
       </div>
     </section>
@@ -119,9 +121,10 @@
         <p class="status" id="status">Solana · token not launched yet</p>
         <p class="ca" id="ca" hidden><span>Contract</span> <code id="ca-value"></code> <button type="button" id="ca-copy">Copy</button></p>
         <dl id="tokenomics" class="tiles">
+          <div class="reveal"><dt>Burn</dt><dd>Every hour, from creator fees</dd></div>
           <div class="reveal"><dt>Chain</dt><dd>Solana</dd></div>
           <div class="reveal"><dt>Supply</dt><dd>Published before launch</dd></div>
-          <div class="reveal"><dt>Allocation</dt><dd>Published before launch</dd></div>
+          
           <div class="reveal"><dt>Contract</dt><dd>Published at launch</dd></div>
         </dl>
         <h3 class="reveal">What holding unlocks</h3>
@@ -156,8 +159,9 @@
       <div class="wrap">
         <h2 id="plan-title" class="split">What comes next</h2>
         <ol class="plan">
-          <li class="reveal"><b>Now</b> Playable world on devnet, with wallet connect, skins and daily supply runs</li>
-          <li class="reveal"><b>Mainnet</b> Token launch, live holder count lights the city</li>
+          <li class="reveal"><b>Now</b> 7POD and its world are ready, waiting at Dormant</li>
+          <li class="reveal"><b>Launch</b> $7POD goes live, hourly burns start, the robot starts to evolve</li>
+          <li class="reveal"><b>After</b> New levels, new forms, every one unlocked by burns</li>
         </ol>
       </div>
     </section>
@@ -165,8 +169,8 @@
     <!-- 09 End -->
     <section class="s s-end" id="end" data-tag="09 — Wake up">
       <div class="wrap center">
-        <h2 class="split">The lights are not going to turn themselves on.</h2>
-        <a class="btn reveal" data-play href="../">Wake up 7POD</a>
+        <h2 class="split">Every burn moves 7POD forward.</h2>
+        <a class="btn reveal" data-play href="../">Enter 7POD's world</a>
       </div>
     </section>
   </main>

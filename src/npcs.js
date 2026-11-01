@@ -20,9 +20,9 @@ const COURIERS = [
 const WALK_SPEED = 1.9;
 const BOLT_LINES = [
   'Bolt, city mechanic. If it sparks, it comes to me eventually.',
-  'Those generators held up, then? Told you the old levers only need a firm pull.',
+  'Every hour the burn crew comes through. I just keep the lights wired.',
   'The mini mart keeps me in spare fuses. Nobody else is buying.',
-  'Three pieces of you went missing in The Blackout, VUZZ. Bring them here and I would still say you look fine.',
+  'Another upgrade, 7POD? Hold still, let me look at those new circuits.',
 ];
 
 // Unit mati nggak gerak, jadi bagiannya digabung per material biar hemat draw call.
