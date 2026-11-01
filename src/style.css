@@ -155,6 +155,8 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
 /* bubble NPC: warna beda dari VUZZ, ada nama di atas */
 .bubble.npc { background: #fff7e6; border: 2px solid var(--orange); max-width: 260px; text-align: left; transition: opacity 0.15s; }
 .bubble.npc::after { border-top-color: var(--orange); }
+.bubble.npc.ambient { font-size: 12px; max-width: 200px; padding: 6px 10px; animation: bubbleIn 0.25s ease; }
+@keyframes bubbleIn { from { opacity: 0; transform: translate(-50%, -90%); } to { transform: translate(-50%, -100%); } }
 .bubble.npc b { display: block; font: 700 11px var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--orange); margin-bottom: 2px; }
 .evo-minds { color: #b8ff3c; margin-top: 2px; }
 .evo-minds::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #b8ff3c; box-shadow: 0 0 8px #b8ff3c; margin-right: 6px; vertical-align: 1px; }

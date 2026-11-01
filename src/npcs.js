@@ -75,7 +75,11 @@ export function createNpcs(group) {
     r.root.scale.setScalar(c.scale);
     group.add(r.root);
     const route = ROUTES[i % ROUTES.length];
-    return { robot: r, route, seg: i >= ROUTES.length ? Math.floor(route.length / 2) : 0, t: (0.15 + i * 0.13) % 1, yaw: 0, talk: 0, scale: c.scale, awake: true, wakeT: 0, live: { id: c.name.toLowerCase(), name: c.name, kind: 'robot', x: 0, z: 0 } };
+    const seg = i >= ROUTES.length ? Math.floor(route.length / 2) : 0, t = (0.15 + i * 0.13) % 1;
+    const p0 = route[seg], p1 = route[(seg + 1) % route.length];
+    const x0 = p0[0] + (p1[0] - p0[0]) * t, z0 = p0[1] + (p1[1] - p0[1]) * t;
+    r.root.position.set(x0, 0, z0);
+    return { robot: r, route, seg, t, yaw: Math.atan2(p1[0] - p0[0], p1[1] - p0[1]), talk: 0, scale: c.scale, awake: true, wakeT: 0, live: { id: c.name.toLowerCase(), name: c.name, kind: 'robot', x: x0, z: z0 } };
   });
 
   // Bolt si mekanik: robot kuning-hitam yang berdiri di samping pintu toko, nunggu paket
@@ -105,23 +109,6 @@ export function createNpcs(group) {
       return s;
     });
 
-  // Jaringan: garis cahaya dari tiap pikiran yang bangun ke 7POD, plus titik yang ngalir di garisnya
-  const MAXL = MIND_COUNT;
-  const linePos = new Float32Array(MAXL * 6);
-  const lineGeo = new THREE.BufferGeometry();
-  lineGeo.setAttribute('position', new THREE.BufferAttribute(linePos, 3));
-  const lineMat = new THREE.LineBasicMaterial({ color: 0xb8ff3c, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
-  const lines = new THREE.LineSegments(lineGeo, lineMat);
-  lines.frustumCulled = false; lines.renderOrder = 5;
-  const dotPos = new Float32Array(MAXL * 3);
-  const dotGeo = new THREE.BufferGeometry();
-  dotGeo.setAttribute('position', new THREE.BufferAttribute(dotPos, 3));
-  const dotTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d'); const r = g.createRadialGradient(16, 16, 0, 16, 16, 16); r.addColorStop(0, '#fff'); r.addColorStop(0.4, 'rgba(255,255,255,0.8)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 32, 32); return new THREE.CanvasTexture(c); })();
-  const dotMat = new THREE.PointsMaterial({ map: dotTex, color: 0xe9ffb0, size: 0.45, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
-  const dots = new THREE.Points(dotGeo, dotMat);
-  dots.frustumCulled = false; dots.renderOrder = 6;
-  group.add(lines, dots);
-
   // Semua pikiran di kota, urut bangun: kurir, Bolt, lalu dua unit yang nyender di tembok
   const minds = [
     ...couriers.slice(0, 4).map((d) => ({ kind: 'courier', d, robot: d.robot, scale: d.scale })),
@@ -134,7 +121,7 @@ export function createNpcs(group) {
 
   function sleepMind(m) {
     m.awake = false;
-    if (m.d) m.d.awake = false;
+    if (m.d) { m.d.awake = false; m.d.mode = 'route'; }
     m.robot.setEvolution(0);
     if (m.kind === 'sister') return; // tetap beku nyender
     m.robot.setState('sleep');
@@ -151,11 +138,30 @@ export function createNpcs(group) {
     m.robot.setState(instant ? (m.kind === 'courier' ? 'walk' : 'idle') : 'yawn');
   }
 
+  // ---- kelakuan kurir yang bangun: nyapa, nyamperin, ngobrol satu sama lain, ngikut 7POD ----
+  // Kemampuan nambah tiap level: 1 jalan + nengok, 2 nyapa + ngobrol antar robot, 3 nyamperin, 5 ngawal
+  const GREET = [
+    ['Hey, 7POD.', 'Good to see you up.', 'Watch the cars.'],
+    ['7POD! Still glowing.', 'The city feels warmer when you walk by.', 'Need anything delivered?'],
+    ['Every burn, I think a little faster.', 'You woke me up. I owe you one.', 'The others are talking about you.'],
+    ['We are all connected now. I can feel the next burn coming.', 'Walk with me, I know a shortcut.', 'The network is almost awake.'],
+    ['We are one mind now. Lead the way.', 'Every burn is a heartbeat. Can you hear it?', 'The city is thinking. It likes you.'],
+  ];
+  const CHATTER = [
+    ['Did you see the lights on 7POD?', 'Every hour. Like a clock.', 'The shop is still free, right?', 'My route feels shorter today.', 'More of us woke up this morning.', 'I dreamt of the Blackout again.'],
+    ['Another burn. Another one of us awake.', 'The halo. Have you seen the halo?', 'I think we are becoming one thing.', 'Quiet. Listen to the hum.'],
+  ];
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const emit = (d, text, ms) => api.onSay?.(d.live, text, ms);
+  const dist = (ax, az, bx, bz) => Math.hypot(ax - bx, az - bz);
+
   const v = new THREE.Vector3();
   let awake = false;
   let woken = false, waveT = 0;
-  return {
+  let chatCool = 4, escort = null;
+  const api = {
     sisters,
+    onSay: null,
     get awakeCount() { return minds.filter((m) => m.awake).length; },
     total: MIND_COUNT,
     // Level evolusi 7POD: nentuin berapa pikiran yang bangun dan bagian evolusi mereka
@@ -169,11 +175,12 @@ export function createNpcs(group) {
       });
       woken = minds.some((m) => m.kind === 'sister' && m.awake);
       level = lv;
+      if (lv < 5) escort = null;
     },
     live: [...couriers.map((d) => d.live), boltLive],
     talk(id, seconds) {
       const d = couriers.find((x) => x.live.id === id);
-      if (d) d.talk = seconds;
+      if (d) { d.talk = seconds; d.noticeCool = 14; }
       if (id === 'bolt' && minds[4].awake) bolt.setState('wave');
     },
     // Dua unit mati bangun, berdiri, dan ngelambai
@@ -202,27 +209,6 @@ export function createNpcs(group) {
       }
       const wake = cityLights >= 5;
       if (wake !== awake && !woken) { awake = wake; sisters.forEach((s) => s.setEyeSignal(wake)); }
-      // garis jaringan ke 7POD
-      let k = 0;
-      if (player && level >= 2) {
-        const py = (player.y || 0) + 1.55;
-        for (const m of minds) {
-          if (!m.awake || m.wakeT > 0) continue;
-          const p = m.robot.root.position;
-          if (Math.hypot(p.x - player.x, p.z - player.z) > 60) continue;
-          const my = p.y + 1.55 * m.scale;
-          linePos.set([p.x, my, p.z, player.x, py, player.z], k * 6);
-          const f = (time * 0.45 + k * 0.137) % 1;
-          dotPos.set([p.x + (player.x - p.x) * f, my + (py - my) * f, p.z + (player.z - p.z) * f], k * 3);
-          k++;
-        }
-      }
-      lineGeo.setDrawRange(0, k * 2); lineGeo.attributes.position.needsUpdate = true;
-      dotGeo.setDrawRange(0, k); dotGeo.attributes.position.needsUpdate = true;
-      const glow = level >= 5 ? 0.55 : level >= 3 ? 0.35 : 0.2;
-      lineMat.opacity = glow * (0.75 + Math.sin(time * 2.2) * 0.25);
-      dotMat.opacity = Math.min(1, glow * 2);
-      lineMat.color.set(level >= 5 ? 0xffd27a : 0xb8ff3c);
       const boltNear = player ? Math.hypot(player.x - boltLive.x, player.z - boltLive.z) : 99;
       if (boltNear < 50) {
         if (boltNear < 7 && minds[4].awake) {
@@ -234,28 +220,95 @@ export function createNpcs(group) {
         if (!minds[4].awake && bolt.state.name !== 'sleep') bolt.setState('sleep');
         bolt.update(dt, 0, time);
       }
+
+      chatCool -= dt;
+      const awakeC = couriers.filter((d) => d.awake && (minds.find((m) => m.d === d).wakeT === 0));
+      // ngobrol antar robot: dua kurir yang kebetulan deket berhenti, hadap-hadapan, saling lempar kalimat
+      if (level >= 2 && chatCool <= 0 && player) {
+        for (let i = 0; i < awakeC.length && chatCool <= 0; i++) for (let j = i + 1; j < awakeC.length; j++) {
+          const A = awakeC[i], B = awakeC[j];
+          if (A.mode !== 'route' || B.mode !== 'route') continue;
+          if (dist(A.live.x, A.live.z, B.live.x, B.live.z) > 3.2 || dist(player.x, player.z, A.live.x, A.live.z) > 40) continue;
+          const pool = CHATTER[level >= 4 ? 1 : 0];
+          A.mode = B.mode = 'chat'; A.modeT = 6.5; B.modeT = 6.5; A.partner = B; B.partner = A;
+          emit(A, pick(pool), 3000); setTimeout(() => { if (B.mode === 'chat') emit(B, pick(pool), 3000); }, 3200);
+          chatCool = 9; break;
+        }
+      }
+      // pengawal: di Superintelligence satu kurir ngikutin 7POD
+      if (level >= 5 && player && !escort && awakeC.length) {
+        const near = awakeC.filter((d) => d.mode === 'route' && dist(player.x, player.z, d.live.x, d.live.z) < 18);
+        if (near.length) { escort = near[0]; escort.mode = 'follow'; escort.modeT = 40; emit(escort, 'I will walk with you for a while.', 3200); }
+      }
+
       for (const d of couriers) {
         const a = d.route[d.seg], b = d.route[(d.seg + 1) % d.route.length];
         const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
         const near = player ? Math.hypot(player.x - d.live.x, player.z - d.live.z) : 99;
-        // berhenti kalau diajak ngomong atau VUZZ ada di deketnya, biar gampang disamperin
+        const m = minds.find((x) => x.d === d);
         d.talk = Math.max(0, d.talk - dt);
-        const stop = !d.awake || d.talk > 0 || near < 3;
-        if (!stop) d.t += (dt * WALK_SPEED) / len;
-        if (d.t >= 1) { d.t = 0; d.seg = (d.seg + 1) % d.route.length; }
-        const x = a[0] + (b[0] - a[0]) * d.t, z = a[1] + (b[1] - a[1]) * d.t;
+        d.noticeCool = Math.max(0, (d.noticeCool || 0) - dt);
+        d.mode ||= 'route'; d.modeT = Math.max(0, (d.modeT || 0) - dt);
+        const ready = d.awake && m.wakeT === 0;
+
+        // nyapa: 7POD lewat deket, berhenti, nengok, dadah; mulai level 2 sambil ngomong
+        if (ready && level >= 1 && d.mode === 'route' && near < 4.5 && d.noticeCool === 0) {
+          d.mode = 'greet'; d.modeT = 2.8; d.noticeCool = 20;
+          d.robot.setState('wave');
+          if (level >= 2) emit(d, pick(GREET[Math.min(4, level - 1)]), 3200);
+        }
+        // nyamperin: mulai level 3, kalau liat 7POD dari jauh, jalan ke arahnya dulu
+        if (ready && level >= 3 && d.mode === 'route' && near < 13 && near > 5 && d.noticeCool === 0 && Math.random() < dt * 0.35) {
+          d.mode = 'approach'; d.modeT = 7; d.noticeCool = 30;
+        }
+        if (d.mode === 'chat' && (d.modeT === 0 || !d.partner?.awake)) { d.mode = 'route'; d.partner = null; }
+        if (d.mode === 'greet' && d.modeT === 0) { d.mode = 'route'; }
+        if (d.mode === 'approach' && (d.modeT === 0 || near < 2.6)) {
+          if (near < 2.6) { d.mode = 'greet'; d.modeT = 3; d.robot.setState('wave'); emit(d, pick(GREET[Math.min(4, level - 1)]), 3400); }
+          else d.mode = 'route';
+        }
+        if (d.mode === 'follow' && (d.modeT === 0 || near > 30)) { d.mode = 'route'; if (escort === d) escort = null; }
+
+        let x = d.live.x, z = d.live.z, want = d.yaw, moving = false;
+        const moveTo = (tx, tz, stopAt, speed) => {
+          const dd = dist(x, z, tx, tz);
+          if (dd <= stopAt) return false;
+          const step = Math.min(dd - stopAt, dt * speed);
+          x += ((tx - x) / dd) * step; z += ((tz - z) / dd) * step; want = Math.atan2(tx - x, tz - z);
+          return true;
+        };
+        if (!ready) { /* tidur di tempat */ }
+        else if (d.mode === 'approach' && player) moving = moveTo(player.x, player.z, 2.4, WALK_SPEED * 1.15);
+        else if (d.mode === 'follow' && player) moving = moveTo(player.x, player.z, 2.2, WALK_SPEED * 1.35);
+        else if (d.mode === 'chat' && d.partner) want = Math.atan2(d.partner.live.x - x, d.partner.live.z - z);
+        else if (d.mode === 'greet' && player) want = Math.atan2(player.x - x, player.z - z);
+        else {
+          const stop = d.talk > 0 || near < 3;
+          if (stop && player) want = Math.atan2(player.x - x, player.z - z);
+          else {
+            // balik ke rute: kalau sempat keluar rute, jalan ke titik rute terdekat dulu
+            const rx = a[0] + (b[0] - a[0]) * d.t, rz = a[1] + (b[1] - a[1]) * d.t;
+            if (dist(x, z, rx, rz) > 0.3) moving = moveTo(rx, rz, 0.05, WALK_SPEED);
+            else {
+              d.t += (dt * WALK_SPEED) / len;
+              if (d.t >= 1) { d.t = 0; d.seg = (d.seg + 1) % d.route.length; }
+              const a2 = d.route[d.seg], b2 = d.route[(d.seg + 1) % d.route.length];
+              x = a2[0] + (b2[0] - a2[0]) * d.t; z = a2[1] + (b2[1] - a2[1]) * d.t;
+              want = Math.atan2(b2[0] - a2[0], b2[1] - a2[1]); moving = true;
+            }
+          }
+        }
         d.robot.root.position.set(x, 0, z);
         d.live.x = x; d.live.z = z;
-        const want = !d.awake ? d.yaw : stop && player ? Math.atan2(player.x - x, player.z - z) : Math.atan2(b[0] - a[0], b[1] - a[1]);
         let diff = want - d.yaw;
         diff = Math.atan2(Math.sin(diff), Math.cos(diff));
         d.yaw += diff * Math.min(1, dt * 6);
         d.robot.root.rotation.y = d.yaw;
-        const m = minds.find((x) => x.d === d);
-        const state = !d.awake ? 'sleep' : m.wakeT > 0 ? 'yawn' : stop ? 'idle' : 'walk';
+        const state = !d.awake ? 'sleep' : m.wakeT > 0 ? 'yawn' : d.mode === 'greet' ? 'wave' : moving ? 'walk' : 'idle';
         if (d.robot.state.name !== state) d.robot.setState(state);
         if (near < 70) d.robot.update(dt, 0, time);
       }
     },
   };
+  return api;
 }

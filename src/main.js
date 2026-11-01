@@ -279,6 +279,26 @@ function npcSay(npc, text, ms = 4800) {
   clearTimeout(npcBubbleTimer);
   npcBubbleTimer = setTimeout(() => { npcBubble.hidden = true; npcSpeaker = null; }, ms);
 }
+// Bubble ambient: robot kota nyapa atau ngobrol satu sama lain, bisa beberapa sekaligus
+const ambientBubbles = [];
+function ambientSay(npc, text, ms = 3200) {
+  if (!started) return;
+  const old = ambientBubbles.find((b) => b.npc.id === npc.id);
+  if (old) { old.el.remove(); ambientBubbles.splice(ambientBubbles.indexOf(old), 1); }
+  const el = document.createElement('div');
+  el.className = 'bubble npc ambient';
+  el.innerHTML = `<b>${npc.name}</b>${text}`;
+  npcBubble.parentElement.appendChild(el);
+  ambientBubbles.push({ el, npc, until: performance.now() + ms });
+}
+world.npcs.onSay = ambientSay;
+function placeBubbleAt(el, sp) {
+  const v = new THREE.Vector3(sp.x, (sp.y ?? groundHeight(sp.x, sp.z)) + (sp.kind === 'robot' ? 2.6 : 2.2), sp.z).project(camera);
+  const onScreen = v.z < 1 && Math.abs(v.x) < 1.2 && Math.abs(v.y) < 1.2;
+  el.style.opacity = onScreen ? 1 : 0;
+  el.style.left = `${(v.x * 0.5 + 0.5) * window.innerWidth}px`;
+  el.style.top = `${(-v.y * 0.5 + 0.5) * window.innerHeight}px`;
+}
 function say(text, ms = 3200) {
   bubble.textContent = text;
   bubble.hidden = false;
@@ -1139,12 +1159,13 @@ function tick() {
 
   // posisi bubble NPC di atas kepala NPC yang lagi ngomong
   if (!npcBubble.hidden && npcSpeaker) {
-    const sp = (WORLD.npcs || []).find((n) => n.id === npcSpeaker.id) || npcSpeaker;
-    const v = new THREE.Vector3(sp.x, (sp.y ?? groundHeight(sp.x, sp.z)) + (sp.kind === 'robot' ? 2.6 : 2.2), sp.z).project(camera);
-    const onScreen = v.z < 1 && Math.abs(v.x) < 1.2 && Math.abs(v.y) < 1.2;
-    npcBubble.style.opacity = onScreen ? 1 : 0;
-    npcBubble.style.left = `${(v.x * 0.5 + 0.5) * window.innerWidth}px`;
-    npcBubble.style.top = `${(-v.y * 0.5 + 0.5) * window.innerHeight}px`;
+    placeBubbleAt(npcBubble, (WORLD.npcs || []).find((n) => n.id === npcSpeaker.id) || npcSpeaker);
+  }
+  const nowMs = performance.now();
+  for (let i = ambientBubbles.length - 1; i >= 0; i--) {
+    const b = ambientBubbles[i];
+    if (nowMs > b.until || (npcSpeaker && npcSpeaker.id === b.npc.id)) { b.el.remove(); ambientBubbles.splice(i, 1); continue; }
+    placeBubbleAt(b.el, b.npc);
   }
   // posisi bubble di atas kepala
   if (!bubble.hidden) {
