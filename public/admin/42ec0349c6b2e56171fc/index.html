@@ -253,7 +253,7 @@
   const enc = (s) => btoa(unescape(encodeURIComponent(s)));
   const dec = (b) => decodeURIComponent(escape(atob(b.replace(/\n/g, ''))));
   const parse = (txt) => JSON.parse(txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1));
-  const build = (o) => '// Diisi dari /admin/. Satu sumber CA buat website + game. Jangan taruh key/secret di sini.\nwindow.POD_LAUNCH = ' + JSON.stringify(o, null, 2) + ';\n';
+  const build = (o) => '// Diisi dari panel admin. Satu sumber CA buat website + game. Jangan taruh key/secret di sini.\nwindow.POD_LAUNCH = ' + JSON.stringify(o, null, 2) + ';\n';
 
   function fill(o) { for (const k of FIELDS) $(k).value = o[k] || (k === 'network' ? 'devnet' : ''); validate(); }
   function read() { const o = {}; for (const k of FIELDS) o[k] = $(k).value.trim(); return o; }
@@ -334,7 +334,7 @@
   $('autobuy').addEventListener('click', () => { const m = $('mint').value.trim(); if (!B58.test(m)) return log('Isi CA yang bener dulu.', 'err'); $('buyUrl').value = 'https://jup.ag/swap/SOL-' + m; validate(); });
 
   // Nilai yang lagi live di situs ini (tanpa token)
-  fetch('../launch.js', { cache: 'no-store' }).then((r) => r.text()).then((t) => { const o = parse(t); showNow(o, 'Di situs ini'); if (!loaded) fill(o); }).catch(() => { $('now').textContent = 'Belum ada launch.js di situs ini.'; });
+  fetch('../../launch.js', { cache: 'no-store' }).then((r) => r.text()).then((t) => { const o = parse(t); showNow(o, 'Di situs ini'); if (!loaded) fill(o); }).catch(() => { $('now').textContent = 'Belum ada launch.js di situs ini.'; });
 })();
 </script>
 </body>

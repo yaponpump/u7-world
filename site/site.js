@@ -18,7 +18,7 @@ let liveLevel = 0; // level evolusi asli dari chain (atau ?level= buat pratinjau
 
 gsap.registerPlugin(ScrollTrigger, SplitText, ScrambleTextPlugin);
 
-// public/launch.js (diisi lewat /admin/) menang atas site/config.js kalau field-nya keisi.
+// public/launch.js (diisi lewat panel admin) menang atas site/config.js kalau field-nya keisi.
 const cfg = (() => {
   const c = { ...(window.POD_SITE || {}) };
   const L = window.POD_LAUNCH || {};

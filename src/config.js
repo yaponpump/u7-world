@@ -38,7 +38,7 @@ export const CONFIG = {
   ],
 };
 
-// Override dari public/launch.js (diisi lewat /admin/). Field kosong = pakai nilai di atas.
+// Override dari public/launch.js (diisi lewat panel admin). Field kosong = pakai nilai di atas.
 const L = (typeof window !== 'undefined' && window.POD_LAUNCH) || {};
 export const LAUNCH = L;
 if (L.mint) CONFIG.token.address = String(L.mint).trim();
