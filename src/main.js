@@ -427,11 +427,12 @@ const market = createMarket({
     const livePrice = CONFIG.token.network === 'mainnet' && s.price != null;
     world.setBillboard(livePrice ? { tag: 'LIVE', price, note: chg || 'Market price' } : { tag: 'DEMO', price: 'No live price', note: 'Testnet · token not launched yet' });
     $('market-text').innerHTML = `<span>${MOOD_LABEL[s.mood]}</span><span class="chg ${s.change24 >= 0 ? 'up' : 'down'}">${[price, chg].filter(Boolean).join(' · ')}</span>`;
-    world.setWeather?.({ kind: s.mood, intensity: s.intensity });
+    // Tanpa hujan: market merah cuma bikin langit mendung, nggak pernah turun hujan atau badai
+    world.setWeather?.({ kind: s.mood === 'storm' || s.mood === 'rain' ? 'cloudy' : s.mood, intensity: s.intensity });
     if (!first && prevMood !== s.mood && started) {
       const lines = {
-        storm: "Storm. My sensors say the market is dumping. I'll wait under a roof.",
-        rain: "Rain. Market's red. The burns still count, though.",
+        storm: "Grey sky. My sensors say the market is dumping. The burns still count, though.",
+        rain: "Clouds rolling in. Market's red. The burns still count, though.",
         cloudy: 'Overcast. Flat market. Just another day in this city.',
         clear: "Clear sky. Market's green. Good day for a walk.",
         golden: 'Look at that sky. Busy market, bigger burns.',
@@ -668,8 +669,8 @@ const faceLines = {
 function npcLine(npc) {
   const h = gameClock.hour, mood = marketState?.mood || 'cloudy';
   const pool = [];
-  if (mood === 'storm') pool.push("Storm's bad for deliveries. Market's worse. Hold on tight.", 'Everyone is selling. I just deliver. Rain in my gears.');
-  if (mood === 'rain') pool.push("Red candles, wet streets. Same thing, really.", "Market's down. The lamps still burn, though. That's what matters.");
+  if (mood === 'storm') pool.push("Rough market today. Hold on tight.", 'Everyone is selling. I just deliver.');
+  if (mood === 'rain') pool.push("Red candles, grey sky. Same thing, really.", "Market's down. The lamps still burn, though. That's what matters.");
   if (mood === 'cloudy') pool.push('Flat market, flat sky. Quiet route today.', "Nothing's moving. Not the charts, not the clouds.");
   if (mood === 'clear') pool.push("Green day. Even my battery feels fuller.", "Market's up. Someone bought a lamp for the north street.");
   if (mood === 'golden') pool.push("Look at that sky! Charts look the same. Everything's up!", "Golden hour and a golden chart. I'm flying extra routes today.");

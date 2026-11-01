@@ -100,8 +100,8 @@ export function createMarket({ onChange = () => {} } = {}) {
 }
 
 export const MOOD_LABEL = {
-  storm: 'Storm · market dumping',
-  rain: 'Rain · market red',
+  storm: 'Grey sky · market dumping',
+  rain: 'Overcast · market red',
   cloudy: 'Overcast · flat market',
   clear: 'Clear · market green',
   golden: 'Golden hour · market pumping',
