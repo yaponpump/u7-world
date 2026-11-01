@@ -2,6 +2,9 @@
 // scroll halus (Lenis) yang nyetir kamera, pose robot, frame sequence, dan teks (GSAP).
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
+import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
+import fontJson from 'three/examples/fonts/helvetiker_bold.typeface.json';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { SplitText } from 'gsap/SplitText';
@@ -25,6 +28,7 @@ function track(p) {
   return Promise.resolve(p).finally(() => { load.done++; paintLoader(); });
 }
 function paintLoader() {
+  if (load.closed) return; // loader udah ditutup, jangan tiban tween penutupnya
   const target = Math.round((load.done / Math.max(1, load.total)) * 100);
   gsap.to(load.pct, { v: target, duration: 0.5, ease: 'power2.out', overwrite: true, onUpdate() {
     $('loader-pct').textContent = Math.round(load.pct.v);
@@ -53,7 +57,58 @@ async function loadSequence(name, count) {
 const stage = $('stage');
 const canvas = $('gl');
 let renderer = null, scene, camera, robot, dust, shadowMesh, env;
-const view = { x: 2.3, y: 0, z: 0, ry: -0.45, s: 0.92, cx: 0.3, cy: 1.3, cz: 7.2, lx: 0.3, look: 1.35, on: 1 };
+const view = { x: 1.0, y: -3.4, z: -1.2, ry: -0.3, s: 0.95, cx: 0, cy: 1.2, cz: 7.2, lx: 0, look: 1.35, on: 1, mob: 0 };
+const HERO_Y = 0.78; // robot berdiri di lantai grid hero
+// tulisan 7POD 3D di hero, nempel ke kamera biar selalu di tengah layar
+const word = { s: 1, rx: 0, ry: 0, y: 0, z: 0, o: 1, spin: 0 };
+let wordMesh = null, grid = null;
+
+// Huruf balon gaya FWOG: tebel, bevel besar, tiap huruf miring dan numpuk dikit
+function buildWord() {
+  const group = new THREE.Group();
+  const font = new FontLoader().parse(fontJson);
+  const lime = new THREE.MeshPhysicalMaterial({ color: 0x8fd62a, roughness: 0.3, metalness: 0.02, clearcoat: 1, clearcoatRoughness: 0.12, sheen: 0.3, sheenColor: new THREE.Color(0xf4ffd0), envMapIntensity: 1.1 });
+  const violet = new THREE.MeshPhysicalMaterial({ color: 0x7a4dff, roughness: 0.3, metalness: 0.05, clearcoat: 1, clearcoatRoughness: 0.12, sheen: 0.5, sheenColor: new THREE.Color(0xd9c8ff), envMapIntensity: 1.1 });
+  const spec = [ // [huruf, skala, rotasi z, rotasi y, offset y]
+    ['7', 1.18, 0.07, -0.1, 0.08], ['P', 1.0, -0.05, 0.06, -0.04], ['O', 1.06, 0.04, -0.05, 0.05], ['D', 1.0, -0.07, 0.09, -0.03],
+  ];
+  let x = 0;
+  const letters = [];
+  spec.forEach(([ch, sc, rz, ry, oy], i) => {
+    const geo = new TextGeometry(ch, { font, size: 1, depth: 0.55, curveSegments: 10, bevelEnabled: true, bevelThickness: 0.26, bevelSize: 0.16, bevelOffset: 0, bevelSegments: 6 });
+    geo.computeBoundingBox(); geo.center();
+    const w = (geo.boundingBox.max.x - geo.boundingBox.min.x) * sc;
+    const m = new THREE.Mesh(geo, i === 0 ? lime : violet);
+    const pivot = new THREE.Group(); pivot.add(m);
+    pivot.position.set(x + w / 2, oy, i % 2 ? -0.12 : 0.1);
+    pivot.rotation.set(0, ry, rz);
+    pivot.scale.setScalar(sc);
+    pivot.userData.base = { x: x + w / 2, y: oy, rz, ry, sc };
+    group.add(pivot); letters.push(pivot);
+    x += w * 0.86; // numpuk dikit
+  });
+  const width = x + 0.3;
+  letters.forEach((l) => { l.position.x -= width / 2; l.userData.base.x -= width / 2; });
+  group.userData.width = width + 0.4;
+  group.userData.letters = letters;
+  return group;
+}
+function buildGrid() {
+  // lantai grid tipis yang memudar ke pinggir, kayak panggung
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: { uO: { value: 1 } },
+    vertexShader: 'varying vec2 vP; void main(){ vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+    fragmentShader: `varying vec2 vP; uniform float uO;
+      void main(){ vec2 g = abs(fract(vP * 0.9) - 0.5) / fwidth(vP * 0.9); float l = 1.0 - min(min(g.x, g.y), 1.0);
+        float fade = 1.0 - smoothstep(2.0, 11.0, length(vP * vec2(0.8, 1.0)));
+        gl_FragColor = vec4(vec3(1.0, 0.9, 0.85), l * fade * 0.16 * uO); }`,
+  });
+  mat.extensions = { derivatives: true };
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), mat);
+  m.rotation.x = -Math.PI / 2;
+  return m;
+}
 let webgl = false;
 try { webgl = !reduced && !!document.createElement('canvas').getContext('webgl2'); } catch { webgl = false; }
 
@@ -80,6 +135,13 @@ function setup3D() {
   robot = createRobot({ dormant: true });
   robot.root.position.set(0, 0, 0);
   scene.add(robot.root);
+
+  // 7POD gaya tabung kembung: huruf dari garis tengah + TubeGeometry, outline berlapis pakai cangkang BackSide
+  wordMesh = buildWord();
+  camera.add(wordMesh);
+  grid = buildGrid();
+  camera.add(grid);
+  scene.add(camera);
   robot.setState('idle');
 
   // bayangan kontak palsu (radial gradient) biar robot nggak ngambang
@@ -119,16 +181,32 @@ function frame(now) {
     // skala layar sempit: robot lebih kecil dan ke tengah
     const nw = narrow();
     const mid = !nw && innerWidth < 1250;
-    const k = nw ? 0.35 : mid ? 0.92 : 1;
-    r.position.set(view.x * k, view.y + (nw ? 1.9 : 0), view.z);
+    const mk = nw ? view.mob : 0; // seberapa 'layout HP' posenya (0 di hero, 1 di seksi teks)
+    const k = (nw ? 0.5 - 0.15 * mk : mid ? 0.92 : 1);
+    r.position.set(view.x * k, view.y + 1.9 * mk, view.z);
     r.rotation.y = view.ry + mouse.x * 0.18;
-    r.scale.setScalar(view.s * view.on * (nw ? 0.82 : mid ? 0.86 : 1));
+    r.scale.setScalar(view.s * view.on * (nw ? 1 - 0.18 * mk : mid ? 0.86 : 1));
     r.visible = view.on > 0.01;
-    camera.position.set(view.cx * k + mouse.x * 0.12, view.cy + 0.25 + mouse.y * -0.08, view.cz * (nw ? 2.1 : 1));
-    camera.lookAt(view.lx * k, view.look + (nw ? 0.7 : 0), 0);
+    camera.position.set(view.cx * k + mouse.x * 0.12, view.cy + 0.25 + mouse.y * -0.08, view.cz * (nw ? 1.25 + 0.85 * mk : 1));
+    camera.lookAt(view.lx * k, view.look + 0.7 * mk, 0);
     robot.update(dt, 0, t);
     dust.rotation.y = t * 0.02;
     dust.position.y = Math.sin(t * 0.3) * 0.1;
+    if (wordMesh) {
+      // muat 62% lebar layar, maksimal tinggi 30% layar
+      const dist = 6;
+      const vh = 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+      const fit = Math.min((vh * camera.aspect * (camera.aspect < 1 ? 0.88 : 0.64)) / wordMesh.userData.width, vh * 0.25);
+      wordMesh.visible = word.o > 0.01;
+      wordMesh.position.set(0, vh * 0.06 + word.y, -dist + word.z);
+      grid.position.set(0, vh * 0.06 - 1.35 * fit + word.y, -dist - 2 + word.z);
+      grid.material.uniforms.uO.value = word.o;
+      grid.visible = word.o > 0.01;
+      wordMesh.scale.setScalar(fit * word.s * Math.max(0.001, word.o));
+      wordMesh.rotation.set(word.rx + mouse.y * 0.1, word.ry + word.spin + mouse.x * 0.22, 0);
+      // tiap huruf goyang pelan beda fase, kayak balon
+      wordMesh.userData.letters.forEach((l, i) => { const b = l.userData.base; l.position.y = b.y + Math.sin(t * 1.1 + i * 1.3) * 0.04; l.rotation.z = b.rz + Math.sin(t * 0.8 + i) * 0.02; });
+    }
     renderer.render(scene, camera);
   }
   requestAnimationFrame(frame);
@@ -187,7 +265,7 @@ function fixedUI() {
     onUpdate(self) { $('progress').style.transform = `scaleX(${self.progress})`; $('scroll-cue').classList.toggle('off', self.scroll() > 80); },
   });
   // warna glow latar ikut seksi
-  const glows = { hero: ['#3a1d6e', '#2b1206'], story: ['#1a1030', '#1a0b05'], live: ['#2a1f08', '#17110a'], world: ['#2d1a5c', '#1d1208'], moods: ['#3a1d6e', '#2b1206'], token: ['#1c2a0e', '#14100a'], buy: ['#2d1a5c', '#1d1208'], plan: ['#1a1030', '#1a0b05'], end: ['#4a2690', '#3a1706'] };
+  const glows = { hero: ['#4a1a0c', '#1c0906'], story: ['#1a1030', '#1a0b05'], live: ['#2a1f08', '#17110a'], world: ['#2d1a5c', '#1d1208'], moods: ['#3a1d6e', '#2b1206'], token: ['#1c2a0e', '#14100a'], buy: ['#2d1a5c', '#1d1208'], plan: ['#1a1030', '#1a0b05'], end: ['#4a2690', '#3a1706'] };
   new MutationObserver(() => {
     const [a, b] = glows[document.body.dataset.section] || glows.hero;
     document.documentElement.style.setProperty('--glow-a', a);
@@ -203,13 +281,14 @@ function robotTimeline() {
     ...vals, ease: 'none', scrollTrigger: { trigger, start, end, scrub: 0.6 },
   });
   // hero: pelan muter waktu mulai scroll, lalu mundur keluar ke kanan
-  gsap.to(view, { ry: 0.9, s: 0.8, y: -0.4, cz: 8.4, on: 0, ease: 'none', scrollTrigger: { trigger: at('hero'), start: 'top top', end: 'bottom top', scrub: 0.6 } });
+  gsap.to(word, { s: 0.55, rx: -0.5, z: -4, y: 0.8, o: 0, ease: 'none', scrollTrigger: { trigger: at('hero'), start: 'top top', end: 'bottom top', scrub: 0.6 } });
+  gsap.to(view, { y: -3.4, on: 0, ease: 'none', scrollTrigger: { trigger: at('hero'), start: 'top top', end: '60% top', scrub: 0.6 } });
   // moods: 7POD di tengah kanan, deket, muter pelan
-  pose({ x: 2.0, y: 0, z: 0, ry: -0.25, s: 1, cz: 6.8, cy: 1.4, cx: 0.4, lx: 0.4, look: 1.4, on: 1 }, at('moods'), 'top bottom', 'top top');
+  pose({ x: 2.0, y: 0, z: 0, ry: -0.25, s: 1, cz: 6.8, cy: 1.4, cx: 0.4, lx: 0.4, look: 1.4, on: 1, mob: 1 }, at('moods'), 'top bottom', 'top top');
   gsap.to(view, { ry: 0.35, ease: 'none', scrollTrigger: { trigger: at('moods'), start: 'top top', end: 'bottom bottom', scrub: 0.6 } });
   pose({ on: 0, y: -0.4 }, at('moods'), 'bottom 60%', 'bottom top');
   // end: 7POD di tengah, dadah
-  pose({ x: 0, y: 0, z: 0, ry: 0.1, s: 1, cz: 8.6, cy: 1.2, cx: 0, lx: 0, look: 1.6, on: 1 }, at('end'), 'top bottom', 'top 30%');
+  pose({ x: 0, y: 0, z: 0, ry: 0.1, s: 1, cz: 8.6, cy: 1.2, cx: 0, lx: 0, look: 1.6, on: 1, mob: 1 }, at('end'), 'top bottom', 'top 30%');
   ScrollTrigger.create({ trigger: at('end'), start: 'top 60%', onEnter() { robot.setState('wave'); robot.setExpression('happy', 6); }, onLeaveBack() { robot.setState('idle'); } });
   // hero: dadah sekali waktu loading selesai
 }
@@ -356,18 +435,27 @@ async function main() {
     try { setup3D(); jobs.push(track(new Promise((ok) => { renderer.compile(scene, camera); ok(); }))); }
     catch (e) { console.warn('3D off:', e); webgl = false; renderer = null; }
   }
-  if (!webgl) { stage.style.display = 'none'; $('hero-fallback').hidden = false; }
+  if (!webgl) { stage.style.display = 'none'; }
   tokenData();
   // jangan nahan layar lebih dari 4 detik, sisanya ngalir di belakang
   await Promise.race([Promise.all(jobs), new Promise((ok) => setTimeout(ok, 4000))]);
   // selesai: tutup loader, mulai render, dan robot dadah sekali
-  await gsap.to(load.pct, { v: 100, duration: 0.4, onUpdate() { $('loader-pct').textContent = Math.round(load.pct.v); $('loader-fill').style.width = `${load.pct.v}%`; } });
+  load.closed = true;
+  await new Promise((ok) => gsap.to(load.pct, { v: 100, duration: 0.4, overwrite: true, onUpdate() { $('loader-pct').textContent = Math.round(load.pct.v); $('loader-fill').style.width = `${load.pct.v}%`; }, onComplete: ok }));
   gsap.to($('loader'), { yPercent: -100, duration: 0.9, ease: 'power4.inOut', onComplete() { $('loader').remove(); } });
   document.body.classList.remove('loading');
   if (renderer) {
     requestAnimationFrame(frame);
-    gsap.from(view, { on: 0, y: -0.5, ry: -2.5, duration: 1.6, ease: 'power3.out', delay: 0.3 });
-    setTimeout(() => { robot.setState('wave'); robot.setExpression('happy', 3); setTimeout(() => robot.setState('idle'), 2800); }, 1500);
+    document.body.classList.add('gl');
+    // huruf jatuh satu-satu dengan mantul, lalu robot nongol dari balik huruf dan dadah
+    const L = wordMesh.userData.letters;
+    L.forEach((l, i) => {
+      l.position.y = 6; l.scale.setScalar(0.001);
+      gsap.to(l.position, { y: l.userData.base.y, duration: 1.1, ease: 'bounce.out', delay: 0.15 + i * 0.12 });
+      gsap.to(l.scale, { x: l.userData.base.sc, y: l.userData.base.sc, z: l.userData.base.sc, duration: 0.9, ease: 'back.out(2)', delay: 0.15 + i * 0.12 });
+    });
+    gsap.to(view, { y: HERO_Y, duration: 1.1, ease: 'back.out(1.6)', delay: 1.0 });
+    setTimeout(() => { robot.setState('wave'); robot.setExpression('happy', 3); setTimeout(() => robot.setState('idle'), 2800); }, 1900);
   }
   splitTitles();
   fixedUI();
