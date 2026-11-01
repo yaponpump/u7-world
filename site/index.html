@@ -39,10 +39,9 @@
     <nav class="menu" aria-label="Main">
       <span class="menu-pill" id="menu-pill" aria-hidden="true"></span>
       <a href="#story" data-nav="story">How</a>
-      <a href="#burns" data-nav="burns">Burns</a>
+      <a href="#token" data-nav="token">$7POD</a>
       <a href="#world" data-nav="world">World</a>
       <a href="#moods" data-nav="moods">Evolution</a>
-      <a href="#token" data-nav="token">Token</a>
       <a href="#buy" data-nav="buy">Buy</a>
     </nav>
     <a class="btn small" data-play href="../">Enter world</a>
@@ -74,8 +73,8 @@
       </div>
     </section>
 
-    <!-- 03 Evolution + burns -->
-    <section class="s s-burns" id="burns" data-tag="03 — Evolution status" aria-labelledby="burns-title">
+    <!-- 03 $7POD: evolusi, burn, token, cara beli -->
+    <section class="s s-burns" id="token" data-tag="03 — $7POD" aria-labelledby="burns-title">
       <div class="wrap">
         <h2 id="burns-title" class="reveal burn-title">Right now, 7POD is</h2>
         <div class="burn-board reveal" id="burn-board" data-state="prelaunch">
@@ -99,6 +98,29 @@
             <div class="burn-feed-head"><span class="burn-label">Latest burns</span><span class="burn-updated" id="burn-updated"></span></div>
             <ol class="burn-list" id="burn-list" aria-live="polite"><li class="burn-empty">Waiting for the first burn.</li></ol>
             <a class="burn-all" id="burn-all" target="_blank" rel="noopener" hidden>See every burn on Solscan</a>
+          </div>
+          <div class="board-row token-row" id="buy">
+            <div class="token-info">
+              <div class="token-head"><span class="token-tick">$7POD</span><p class="status" id="status">Solana · not launched yet</p></div>
+              <div class="ca-box" id="ca-box"><span class="burn-label">Contract</span><p class="ca-line"><code id="ca-value">Published at launch</code><button type="button" id="ca-copy" hidden>Copy</button></p></div>
+              <ul class="token-facts">
+                <li><span>Chain</span><b>Solana</b></li>
+                <li><span>Supply</span><b>Published before launch</b></li>
+                <li><span>Burn</span><b>Hourly, from creator fees</b></li>
+              </ul>
+              <div class="tier-chips"><span class="burn-label">Holder skins in the world</span>
+                <ul><li><b>Signal</b> any wallet</li><li><b>Spark</b> 1K</li><li><b>Beacon</b> 100K</li><li><b>Core</b> 1M</li></ul>
+                <small>Cosmetic only. Holding pays nothing.</small></div>
+            </div>
+            <div class="buy-box">
+              <span class="burn-label">How to buy</span>
+              <ol class="buy-steps">
+                <li><em>1</em><div><b>Get a Solana wallet</b><p>Phantom, Solflare or Backpack. Never share your seed phrase.</p></div></li>
+                <li><em>2</em><div><b>Add some SOL</b><p>Buy it on an exchange and send it to your wallet.</p></div></li>
+                <li><em>3</em><div><b>Swap for $7POD</b><p>Check the contract above first. Fake tokens with the same name are common.</p></div></li>
+              </ol>
+              <a class="btn buy-btn" id="buy-link" aria-disabled="true">Buy opens at launch</a>
+            </div>
           </div>
         </div>
         <p class="burn-foot reveal">Creator fees buy $7POD and burn it every hour. Every number here is read from Solana.</p>
@@ -136,49 +158,8 @@
       </div>
     </section>
 
-    <!-- 06 Token -->
-    <section class="s s-token" id="token" data-tag="06 — $7POD" aria-labelledby="token-title">
-      <div class="wrap">
-        <h2 id="token-title" class="split">$7POD</h2>
-        <p class="status" id="status">Solana · token not launched yet</p>
-        <p class="ca" id="ca" hidden><span>Contract</span> <code id="ca-value"></code> <button type="button" id="ca-copy">Copy</button></p>
-        <dl id="tokenomics" class="tiles">
-          <div class="reveal"><dt>Burn</dt><dd>Every hour, from creator fees</dd></div>
-          <div class="reveal"><dt>Chain</dt><dd>Solana</dd></div>
-          <div class="reveal"><dt>Supply</dt><dd>Published before launch</dd></div>
-          
-          <div class="reveal"><dt>Contract</dt><dd>Published at launch</dd></div>
-        </dl>
-        <h3 class="reveal">What holding unlocks</h3>
-        <table class="reveal">
-          <thead><tr><th scope="col">Tier</th><th scope="col">Minimum balance</th><th scope="col">In the game</th></tr></thead>
-          <tbody>
-            <tr><td>Signal</td><td>Connect a wallet</td><td>Glacier and Midnight skins</td></tr>
-            <tr><td>Spark</td><td class="num">1,000</td><td>Acid and Rose Gold skins</td></tr>
-            <tr><td>Beacon</td><td class="num">100,000</td><td>Beacon skin</td></tr>
-            <tr><td>Core</td><td class="num">1,000,000</td><td>Core skin</td></tr>
-          </tbody>
-        </table>
-        <p class="sub reveal">Tiers are cosmetic. They do not pay anything.</p>
-      </div>
-    </section>
-
-    <!-- 07 Buy -->
-    <section class="s s-buy" id="buy" data-tag="07 — How to buy" aria-labelledby="buy-title">
-      <div class="wrap">
-        <h2 id="buy-title" class="split">How to buy</h2>
-        <ol class="steps">
-          <li class="reveal"><em>01</em><h3>Get a Solana wallet</h3><p>Phantom, Solflare or Backpack all work. Never share your seed phrase, with anyone, ever.</p></li>
-          <li class="reveal"><em>02</em><h3>Add some SOL</h3><p>Buy it on an exchange and send it to your wallet.</p></li>
-          <li class="reveal"><em>03</em><h3>Swap for $7POD</h3><p>Check the contract address on this page first. Fake tokens with the same name are common.</p></li>
-        </ol>
-        <a class="btn reveal" id="buy-link" aria-disabled="true">Buy opens at launch</a>
-      </div>
-    </section>
-
-
-    <!-- 09 End -->
-    <section class="s s-end" id="end" data-tag="08 — Wake up">
+    <!-- 06 End -->
+    <section class="s s-end" id="end" data-tag="06 — Wake up">
       <div class="wrap center">
         <h2 class="split">Every burn moves 7POD forward.</h2>
         <a class="btn reveal" data-play href="../">Enter 7POD's world</a>

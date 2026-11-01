@@ -522,9 +522,10 @@ function tokenData() {
   const mainnet = cfg.network === 'mainnet';
   if (cfg.mint) {
     $('status').textContent = mainnet ? 'Live on Solana' : 'Solana devnet test, not real money';
-    $('status').hidden = false;
-    $('ca').hidden = false;
+    $('status').classList.toggle('live', mainnet);
+    $('ca-copy').hidden = false;
     $('ca-value').textContent = `${cfg.mint.slice(0, 6)}...${cfg.mint.slice(-6)}`;
+    $('ca-value').title = cfg.mint;
     $('ca-copy').addEventListener('click', async () => {
       try { await navigator.clipboard.writeText(cfg.mint); $('ca-copy').textContent = 'Copied'; }
       catch { $('ca-copy').textContent = 'Copy failed'; }
