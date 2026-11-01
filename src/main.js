@@ -844,7 +844,7 @@ function tick() {
     const chainHint = chain.hint?.(pos); // ada yang bisa dipakai pakai E
     const chainNote = chain.note?.(pos) ?? chainHint; // cuma petunjuk
     $('act-sit').hidden = !chainHint && !behavior.nearBench && !behavior.sitting && !behavior.nearThing && !behavior.nearNpc;
-    $('act-sit').textContent = behavior.sitting ? 'E · Stand up' : chainHint ? 'E · Use' : behavior.nearBench ? 'E · Sit' : 'E · Inspect';
+    $('act-sit').textContent = behavior.sitting ? 'E · Stand up' : chainHint ? 'E · Use' : behavior.nearBench ? 'E · Sit' : behavior.nearNpc ? 'E · Talk' : 'E · Inspect';
     $('act-drink').hidden = !behavior.nearDrink || !!behavior.sitting;
     $('act-drink').textContent = behavior.nearCafe ? 'F · Coffee' : 'F · Drink';
     $('act-throw').hidden = !behavior.nearPier || !!behavior.sitting;
