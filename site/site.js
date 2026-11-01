@@ -18,7 +18,7 @@ let liveLevel = 0; // level evolusi asli dari chain (atau ?level= buat pratinjau
 
 gsap.registerPlugin(ScrollTrigger, SplitText, ScrambleTextPlugin);
 
-const cfg = window.VUZZ_SITE || {};
+const cfg = window.POD_SITE || {};
 const $ = (id) => document.getElementById(id);
 const ASSETS = `${import.meta.env.BASE_URL}site-assets/`;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -692,6 +692,6 @@ async function main() {
   moods();
   evolutionLive();
   ScrollTrigger.refresh();
-  window.__vuzzSite = { view, robot, lenis, ScrollTrigger };
+  window.__podSite = { view, robot, lenis, ScrollTrigger };
 }
 main();

@@ -1,4 +1,4 @@
-name = "vuzz-holders"
+name = "pod7-holders"
 main = "src/index.js"
 compatibility_date = "2026-01-01"
 

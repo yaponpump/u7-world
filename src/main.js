@@ -382,7 +382,7 @@ function pickSkin(skin, { silent = false } = {}) {
   currentSkin = skin;
   applySkin(robot, skin);
   document.documentElement.style.setProperty('--violet', skin.primary);
-  try { localStorage.setItem('vuzz-skin', skin.id); } catch {}
+  try { localStorage.setItem('7pod-skin', skin.id); } catch {}
   renderSkins();
   if (!silent) showToast(`Skin ${skin.name}`, 1400);
 }
@@ -418,7 +418,7 @@ $('face-btn').addEventListener('click', nextFace);
 renderSkins();
 {
   let saved = null;
-  try { saved = localStorage.getItem('vuzz-skin'); } catch {}
+  try { saved = localStorage.getItem('7pod-skin'); } catch {}
   const s = SKINS.find((k) => k.id === saved);
   if (s && isUnlocked(s, walletState, CONFIG.tiers)) pickSkin(s, { silent: true });
 }
@@ -724,7 +724,7 @@ function splash(x, z) {
 // ---------- Siklus hari sendiri ----------
 // Dunia punya jamnya sendiri: mulai pagi, satu hari penuh = 12 menit nyata (siang agak lebih
 // lama, malam lebih cepat). ?hour=12 ngunci jam (buat tes), ?realtime=1 ngikut jam komputer.
-// Tombol T lompat 3 jam. Pas VUZZ tidur, waktunya jalan 6x lebih cepat.
+// Tombol T lompat 3 jam. Pas 7POD tidur, waktunya jalan 6x lebih cepat.
 const urlParams = new URLSearchParams(location.search);
 const hourParam = urlParams.get('hour');
 const realtime = urlParams.get('realtime') === '1';
@@ -1156,7 +1156,7 @@ function tick() {
   const camGround = groundHeight(camPos.x, camPos.z) + 0.6;
   if (camPos.y < camGround) camPos.y = camGround;
   if (finale) {
-    // sinematik ending: kamera naik pelan di belakang VUZZ, pandangan geser dari dia ke kota
+    // sinematik ending: kamera naik pelan di belakang 7POD, pandangan geser dari dia ke kota
     finale.t += dt;
     const p = Math.min(1, finale.t / finale.dur);
     const ease = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
@@ -1226,7 +1226,7 @@ function takePhoto() {
   requestAnimationFrame(() => {
     composer.render();
     try {
-      // tempel watermark $VUZZ + jam dunia di pojok, lalu simpan
+      // tempel watermark 7POD + jam dunia di pojok, lalu simpan
       const src = renderer.domElement;
       const c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
       const g = c.getContext('2d');
@@ -1241,7 +1241,7 @@ function takePhoto() {
       g.fillText(`7POD World · ${clock} · ${evo.name}`, 30 * k, c.height - 64 * k);
       const a = document.createElement('a');
       a.href = c.toDataURL('image/png');
-      a.download = `vuzz-world-${Date.now()}.png`;
+      a.download = `7pod-world-${Date.now()}.png`;
       a.click();
       showToast('Photo saved with the 7POD mark. Share it on X');
     } catch (e) {

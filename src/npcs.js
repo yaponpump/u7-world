@@ -4,7 +4,7 @@ import { createRobot } from './robot.js';
 import { MIND_COUNT, mindsFor as awakeFor } from './evolution.js';
 import { addObstacle, BUILDINGS, SHOP } from './city.js';
 
-// Robot kurir yang jalan kaki keliling kota, plus saudara VUZZ yang mati di pinggir tembok.
+// Robot kurir yang jalan kaki keliling kota, plus saudara 7POD yang mati di pinggir tembok.
 // Rutenya di tengah jalan, jauh dari mobil parkir, barikade, dan gedung.
 const ROUTES = [
   [[8, 50], [34, 50], [34, 78], [8, 78]],

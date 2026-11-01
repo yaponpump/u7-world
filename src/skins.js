@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-// Skin holder: palet warna buat armor VUZZ.
+// Skin holder: palet warna buat armor 7POD.
 // unlock: 'free' (semua), 'wallet' (wallet connect), atau id tier dari CONFIG.tiers.
 
 export const SKINS = [

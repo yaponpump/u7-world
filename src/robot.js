@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { panelLineTexture, wornPaintTextures } from './textures.js';
 
-// VUZZ: mecha kecil dari logam aus, warna ungu, lime, oranye.
+// 7POD: mecha kecil dari logam aus, warna ungu, lime, oranye.
 // Kalau nanti ada model GLB asli, API (setState, update) tetep sama.
 
 const COL = {

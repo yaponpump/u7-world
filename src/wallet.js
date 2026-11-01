@@ -5,7 +5,7 @@ import { CONFIG } from './config.js';
 // EVM: MetaMask, Rabby, Coinbase (window.ethereum).
 // Nggak ada signing, cuma baca alamat dan (kalau token diisi di config) saldo.
 
-const LS_KEY = 'vuzz-wallet';
+const LS_KEY = '7pod-wallet';
 
 export function createWallet({ onChange = () => {} } = {}) {
   const state = {
@@ -70,13 +70,13 @@ export function createWallet({ onChange = () => {} } = {}) {
   }
 
   function attachListeners() {
-    if (evmProvider && !evmProvider.__vuzzBound) {
-      evmProvider.__vuzzBound = true;
+    if (evmProvider && !evmProvider.__podBound) {
+      evmProvider.__podBound = true;
       evmProvider.on?.('accountsChanged', (acc) => { if (!acc?.length) api.disconnect(); else { state.address = acc[0]; refreshBalance().then(emit); } });
       evmProvider.on?.('chainChanged', () => refreshBalance().then(emit));
     }
-    if (solProvider && !solProvider.__vuzzBound) {
-      solProvider.__vuzzBound = true;
+    if (solProvider && !solProvider.__podBound) {
+      solProvider.__podBound = true;
       solProvider.on?.('disconnect', () => api.disconnect());
       solProvider.on?.('accountChanged', (pk) => { if (pk) { state.address = pk.toString(); refreshBalance().then(emit); } else api.disconnect(); });
     }

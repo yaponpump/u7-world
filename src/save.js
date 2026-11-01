@@ -1,7 +1,18 @@
 // Progres pemain disimpan di browser (localStorage). Nanti bisa dipindah per wallet.
 // Isi: sinyal yang udah ketemu, lampu kota, wajah pilihan, jam dunia, posisi terakhir,
 // ending udah dilihat, dan misi harian hari ini.
-const KEY = 'vuzz-save';
+const KEY = '7pod-save';
+
+// Pindahin data lama yang masih pakai nama vuzz-* ke 7pod-* sekali aja, biar progres pemain nggak hilang
+try {
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const k = localStorage.key(i);
+    if (!k || !k.startsWith('vuzz-')) continue;
+    const nk = '7pod-' + k.slice(5);
+    if (localStorage.getItem(nk) === null) localStorage.setItem(nk, localStorage.getItem(k));
+    localStorage.removeItem(k);
+  }
+} catch { /* storage diblok */ }
 
 // Tanpa address: save utama. Dengan address: salinan per wallet di browser ini.
 export function loadSave(address = null) {

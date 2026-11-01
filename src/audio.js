@@ -1,4 +1,4 @@
-// Suara VUZZ dan dunianya, semuanya disintesis di browser pakai Web Audio.
+// Suara 7POD dan dunianya, semuanya disintesis di browser pakai Web Audio.
 // Nggak ada file audio, jadi nggak ada masalah lisensi dan nggak nambah ukuran download.
 //
 // API:

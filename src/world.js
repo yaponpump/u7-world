@@ -137,7 +137,7 @@ WORLD.interactables = [
 WORLD.cafe.counter = { x: CAFE.x, z: CAFE.z - 1.5 };
 WORLD.shop = { x: SHOP.x, z: SHOP.z, counter: { x: SHOP.x + 2.4, z: SHOP.z + 0.9 } };
 WORLD.interactables.push({ id: 'shopCounter', name: 'Shop counter', ...WORLD.shop.counter, line: 'The till still has power. The shelves are full and nobody came back to buy anything.' });
-// Quest berantai setelah ending: nyalain generator, antar paket, cari bagian tubuh VUZZ
+// Quest berantai setelah ending: nyalain generator, antar paket, cari bagian tubuh 7POD
 WORLD.generators = [
   { id: 'tower', x: 30.5, z: 9.5, label: 'behind the Signal Tower' },
   { id: 'cafe', x: 51, z: 28, label: 'east of the cafe' },
@@ -1069,7 +1069,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   holderWindow.visible = false;
   group.add(holderWindow);
 
-  // ---------- Paket kiriman + bagian tubuh VUZZ ----------
+  // ---------- Paket kiriman + bagian tubuh 7POD ----------
   const glowOrange = new THREE.MeshStandardMaterial({ color: 0x5a1a08, emissive: 0xff5a1f, emissiveIntensity: 2.4, toneMapped: false });
   const parcelMesh = new THREE.Group();
   const parcelBox = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.42, 0.5), new THREE.MeshStandardMaterial({ color: 0xa97a4a, roughness: 0.9 }));
