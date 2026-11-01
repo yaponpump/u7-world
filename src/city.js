@@ -84,15 +84,24 @@ export const touchingWall = (x, z, y) => BUILDINGS.some((b) => y < b.h - 0.2 && 
 // Rintangan rendah punya tinggi (top): bisa dilompatin dan diinjek atapnya.
 const OBSTACLES = [];
 export const addObstacle = (x, z, hx, hz, top = 1.0) => OBSTACLES.push({ x, z, hx, hz, top });
+// Rintangan bulat (air mancur, batu, tiang, kursi): r = jari-jari badan
+export const addRoundObstacle = (x, z, r, top = 99) => OBSTACLES.push({ x, z, hx: r, hz: r, r, top });
+// Jarak keluar dari bodi rintangan (negatif = di dalam)
+const obGap = (o, x, z) => (o.r ? Math.hypot(x - o.x, z - o.z) - o.r : Math.max(Math.abs(x - o.x) - o.hx, Math.abs(z - o.z) - o.hz));
 // Puncak rintangan rendah di titik ini (0 kalau nggak ada), buat napak di atas mobil
 export function obstacleTop(x, z) {
   let top = 0;
-  for (const o of OBSTACLES) if (Math.abs(x - o.x) < o.hx + OB_STAND && Math.abs(z - o.z) < o.hz + OB_STAND) top = Math.max(top, o.top);
+  for (const o of OBSTACLES) if (obGap(o, x, z) < OB_STAND) top = Math.max(top, o.top);
   return top;
 }
 // Arah tergelincir kalau kaki ada di bibir pijakan, di luar bodi rintangan. null kalau bukan di sana.
 export function obstacleSlip(x, z) {
   for (const o of OBSTACLES) {
+    if (o.r) {
+      const d = Math.hypot(x - o.x, z - o.z) - o.r;
+      if (d > 0 && d < OB_STAND) return [Math.sign(x - o.x), Math.sign(z - o.z)];
+      continue;
+    }
     const dx = Math.abs(x - o.x) - o.hx, dz = Math.abs(z - o.z) - o.hz;
     if (Math.max(dx, dz) > 0 && Math.max(dx, dz) < OB_STAND) return [dx > 0 ? Math.sign(x - o.x) : 0, dz > 0 ? Math.sign(z - o.z) : 0];
   }
@@ -104,7 +113,7 @@ export function blockedByBuilding(x, z, y = 0) {
   // Nggak bisa masuk ke tengah tangga dari bawah
   if (inStair(x, z) && y < stairY(x) - 0.8) return true;
   return BUILDINGS.some(inside) || SKYLINE.some((b) => nearB(b, x, z))
-    || OBSTACLES.some((o) => y < o.top - 0.2 && Math.abs(x - o.x) < o.hx + OB_PAD && Math.abs(z - o.z) < o.hz + OB_PAD);
+    || OBSTACLES.some((o) => y < o.top - 0.2 && obGap(o, x, z) < OB_PAD);
 }
 // Titik bebas terdekat, buat ngeluarin robot yang terlanjur kejepit (misal dari save lama)
 export function nearestFree(x, z) {
@@ -281,7 +290,7 @@ function facade(mat) {
   return mat;
 }
 
-function placeModel(group, model, items, size, useHeight) {
+function placeModel(group, model, items, size, useHeight, shadow = true) {
   if (!model || !items.length) return;
   const box = new THREE.Box3().setFromObject(model);
   const ext = box.getSize(new THREE.Vector3());
@@ -290,7 +299,7 @@ function placeModel(group, model, items, size, useHeight) {
   const m = new THREE.Matrix4(), w = new THREE.Matrix4();
   for (const p of partsOf(model, { leafTint: false })) {
     const mesh = new THREE.InstancedMesh(p.geometry, p.material, items.length);
-    mesh.castShadow = mesh.receiveShadow = true;
+    mesh.castShadow = shadow; mesh.receiveShadow = true;
     mesh.frustumCulled = false;
     items.forEach((it, i) => {
       q.setFromAxisAngle(up, it.ry);
@@ -439,9 +448,10 @@ export function buildCity(group, { hi, A = {}, props = {}, fallback }) {
   for (const p of power) OBSTACLES.push({ x: p.x, z: p.z, hx: 0.5, hz: 0.35, top: 1.5 });
   for (const h of hydrants) OBSTACLES.push({ x: h.x, z: h.z, hx: 0.2, hz: 0.2, top: 0.8 });
   placeModel(group, props.car, shownCars, 4.3);
-  placeModel(group, props.lamp, shown, 7, true);
-  placeModel(group, props.barrier, barriers, 2);
-  placeModel(group, props.utility, boxes, 1.4, true);
-  placeModel(group, props.power, power, 1.5, true);
-  placeModel(group, props.hydrant, hydrants, 0.8, true);
+  // Props kecil berat (hydrant ~13 ribu segitiga) nggak ikut gambar bayangan, biar shadow pass ringan
+  placeModel(group, props.lamp, shown, 7, true, false);
+  placeModel(group, props.barrier, barriers, 2, false, false);
+  placeModel(group, props.utility, boxes, 1.4, true, false);
+  placeModel(group, props.power, power, 1.5, true, false);
+  placeModel(group, props.hydrant, hydrants, 0.8, true, false);
 }

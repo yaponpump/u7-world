@@ -185,7 +185,16 @@ export function createNpcs(group) {
   let awake = false;
   let woken = false, waveT = 0;
   let chatCool = 4, escort = null;
+  // Badan robot lain padat buat pemain: nggak bisa ditembus, tapi kalau udah nempel tetap bisa jalan menjauh
+  const bodies = () => [...couriers.map((d) => d.robot.root.position), bolt.root.position, ...sisters.map((s) => s.root.position)];
   const api = {
+    blocksMove(px, pz, nx, nz) {
+      for (const p of bodies()) {
+        const dn = Math.hypot(nx - p.x, nz - p.z);
+        if (dn < 0.6 && dn < Math.hypot(px - p.x, pz - p.z)) return true;
+      }
+      return false;
+    },
     sisters,
     onSay: null,
     get awakeCount() { return minds.filter((m) => m.awake).length; },

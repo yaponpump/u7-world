@@ -9,7 +9,7 @@ import { Scatter, partsOf } from './scatter.js';
 import { createWeather } from './weather.js';
 import { createNpcs } from './npcs.js';
 import { createEcosystem } from './ecosystem.js';
-import { addObstacle, CAFE, CLUB, DOOR_H, ROOM_H, setInsideRoom, blockedByBuilding, buildCity, cityFlat, ROOF, SHOP, setCityFinale, setCityPower, CITY_SIGNALS, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
+import { addObstacle, addRoundObstacle, CAFE, CLUB, DOOR_H, ROOM_H, setInsideRoom, blockedByBuilding, buildCity, cityFlat, ROOF, SHOP, setCityFinale, setCityPower, CITY_SIGNALS, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
 
 export const WORLD = {
   size: 140,
@@ -326,6 +326,11 @@ function buildSignposts(group, woodMat, list) {
       back.rotation.y = Math.PI;
       arm.add(board, tip, strip, front, back);
       sign.add(arm);
+      // papan yang setinggi badan robot ikut padat
+      if (arm.position.y < 1.9) {
+        const a = Math.atan2(lm.z - z, lm.x - x);
+        for (const d of [0.45, 0.95, 1.45, 1.8]) addRoundObstacle(x + Math.cos(a) * d, z + Math.sin(a) * d, 0.16);
+      }
     });
     group.add(sign);
   }
@@ -525,7 +530,11 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
       .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb *= mix(0.32, 0.85, vH);');
   };
   bladeMat.userData.wind = { value: 0 };
-  const blades = new THREE.InstancedMesh(bladeGeo, bladeMat, bladeCount);
+  // Rumput dipecah per kotak 12 m: kotak di luar layar atau jauh dari kamera nggak digambar sama sekali.
+  // Dulu 200 ribu rumpun (4 juta segitiga) digambar tiap frame, ini sumber lag terbesar.
+  const GRASS_CELL = 12, GRASS_FAR = 40;
+  const cells = new Map();
+  const cellOf = (x, z) => { const k = `${Math.floor(x / GRASS_CELL)},${Math.floor(z / GRASS_CELL)}`; let c = cells.get(k); if (!c) cells.set(k, c = { m: [], c: [] }); return c; };
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v3 = new THREE.Vector3(), s3 = new THREE.Vector3();
   const colorTmp = new THREE.Color();
   let seed = 3;
@@ -546,17 +555,31 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     const sc = 0.55 + grnd() * 0.5 + Math.max(0, patch) * 0.45;
     s3.set(1, sc, 1);
     m4.compose(v3, q, s3);
-    blades.setMatrixAt(placed, m4);
+    const cell = cellOf(x, z);
+    cell.m.push(m4.clone());
     {
       const u = grnd(), dry = Math.max(0, -patch) * 0.65 * grnd();
       colorTmp.setRGB(0.07 + u * 0.09 + dry * 0.2, 0.13 + u * 0.09 + dry * 0.1, 0.03 + u * 0.03 + dry * 0.04);
     }
-    blades.setColorAt(placed, colorTmp);
+    cell.c.push(colorTmp.clone());
     placed++;
   }
-  blades.instanceMatrix.needsUpdate = true;
-  blades.castShadow = false;
-  blades.receiveShadow = true;
+  const blades = new THREE.Group();
+  const grassCells = [];
+  for (const cell of cells.values()) {
+    const mesh = new THREE.InstancedMesh(bladeGeo, bladeMat, cell.m.length);
+    cell.m.forEach((mm, i) => mesh.setMatrixAt(i, mm));
+    cell.c.forEach((cc, i) => mesh.setColorAt(i, cc));
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.computeBoundingSphere();
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+    blades.add(mesh);
+    grassCells.push({ mesh, x: mesh.boundingSphere.center.x, z: mesh.boundingSphere.center.z });
+  }
+  const updateGrass = (camera) => {
+    for (const g of grassCells) g.mesh.visible = Math.hypot(g.x - camera.position.x, g.z - camera.position.z) < GRASS_FAR + GRASS_CELL;
+  };
   group.add(blades);
 
   // ---------- Air (reflektif) ----------
@@ -575,8 +598,11 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     w.material.uniforms.size.value = 3.5;
     // Pantulan air nggak perlu rumput: ini yang paling makan GPU
     const reflect = w.onBeforeRender;
+    let wf = 0;
     w.onBeforeRender = (renderer, scene, camera) => {
       if (Math.hypot(camera.position.x - WORLD.lake.x, camera.position.z - WORLD.lake.z) > WORLD.lake.r + 55) return;
+      // pantulan cukup diperbarui tiap 2 frame, matanya nggak bakal ngeh tapi GPU-nya lega
+      if (wf++ % 2) return;
       blades.visible = false;
       reflect.call(w, renderer, scene, camera);
       blades.visible = true;
@@ -610,7 +636,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   const basin = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.5, 0.75, 48, 1, true), stoneMat);
   basin.position.set(WORLD.fountain.x, 0.37, WORLD.fountain.z);
   // kolam air mancur: tepinya setinggi lutut, bisa dilompatin tapi nggak ditembus
-  addObstacle(WORLD.fountain.x, WORLD.fountain.z, 2.5, 2.5, 0.8);
+  addRoundObstacle(WORLD.fountain.x, WORLD.fountain.z, 3.45, 0.8);
   const basinRim = new THREE.Mesh(new THREE.TorusGeometry(3.3, 0.18, 12, 48), stoneMat);
   basinRim.rotation.x = Math.PI / 2;
   basinRim.position.set(WORLD.fountain.x, 0.75, WORLD.fountain.z);
@@ -884,6 +910,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.6, 8), ironMat);
     leg.position.set(x, 0.3, z);
     cafe.add(seat, leg);
+    addRoundObstacle(CAFE.x + x, CAFE.z + z, 0.24, 0.66);
   };
   for (const sx of [-1.4, 0, 1.4]) stool(sx, -1.8);
   for (const [tx, tz] of [[-3.3, 0.2], [3.3, 0.2], [-3.3, 2.4], [3.3, 2.4]]) {
@@ -1102,12 +1129,14 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   }
   board.add(bb, paper);
   board.position.set(WORLD.park.x + 4, 0, WORLD.park.z - 17);
+  addObstacle(board.position.x, board.position.z, 1.5, 0.12, 99);
   board.traverse((m) => { m.castShadow = true; });
   group.add(board);
 
   // ---------- Menara lampu komunitas ----------
   const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.5, 7.5, 16), ironMat);
   tower.position.set(WORLD.park.x + 6, 3.75, WORLD.park.z + 6);
+  addRoundObstacle(tower.position.x, tower.position.z, 0.5);
   tower.castShadow = true;
   group.add(tower);
   const towerLights = [];
@@ -1159,6 +1188,8 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     r.scale.set(1, 0.6 + rnd() * 0.4, 1);
     r.castShadow = r.receiveShadow = true;
     group.add(r);
+    // batu padat, yang pendek bisa dilompatin dan diinjek
+    addRoundObstacle(x, z, rockSize * 0.85, r.position.y + rockSize * r.scale.y);
   }
 
   // ---------- Burung ----------
@@ -1264,7 +1295,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
       if (p) p.mesh.visible = visible;
     },
     get weather() { return weather.state; },
-    updateTrees(camera) { for (const t of treeSets) t.update(camera); },
+    updateTrees(camera) { for (const t of treeSets) t.update(camera); updateGrass(camera); },
     // Pemain di dalam ruangan: kamera boleh di luar, tembok yang ngalangin ilang
     updateRooms(camera) {
       if (!player) return;

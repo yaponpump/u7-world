@@ -931,7 +931,7 @@ function tick() {
       // Sungai dan pinggir danau dangkal, bisa diseberangi jalan kaki; tengah danau tetap dalam.
       const clubGate = onClubRoof(nx, nz, pos.y);
       if (clubGate) clubNotice(clubOpen());
-      const free = (x, z) => (!isWater(x, z) || wadeable(x, z)) && !blockedByBuilding(x, z, pos.y) && !(onClubRoof(x, z, pos.y) && !clubOpen()) && !blockedByRail(x, z) && x > BOUNDS.min && x < BOUNDS.max && z > BOUNDS.min && z < BOUNDS.max;
+      const free = (x, z) => (!isWater(x, z) || wadeable(x, z)) && !blockedByBuilding(x, z, pos.y) && !(onClubRoof(x, z, pos.y) && !clubOpen()) && !blockedByRail(x, z) && !world.npcs?.blocksMove?.(pos.x, pos.z, x, z) && x > BOUNDS.min && x < BOUNDS.max && z > BOUNDS.min && z < BOUNDS.max;
       if (free(nx, nz)) {
         pos.x = nx; pos.z = nz;
       } else if (free(nx, pos.z)) {
