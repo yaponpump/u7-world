@@ -11,7 +11,7 @@ import { SplitText } from 'gsap/SplitText';
 import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
 import Lenis from 'lenis';
 import { createRobot, EXPRESSIONS } from '../src/robot.js';
-import { watchEvolution } from '../src/evolution.js';
+import { watchEvolution, levelName } from '../src/evolution.js';
 import { CONFIG } from '../src/config.js';
 let liveLevel = 0; // level evolusi asli dari chain (atau ?level= buat pratinjau)
 
@@ -406,13 +406,12 @@ function evolutionLive() {
     document.querySelectorAll('#faces li').forEach((li) => li.classList.toggle('done', +li.dataset.level <= st.level));
     const span = Math.max(1e-9, st.next - st.prev);
     const prog = st.pct === 0 ? 0 : Math.min(1, Math.max(0, (st.pct - st.prev) / span));
-    $('evo-fill').style.width = `${(prog * 100).toFixed(1)}%`;
-    const fmt = (v) => `${v < 1 ? v.toFixed(2) : v.toFixed(1)}%`;
+    $('evo-ring').style.strokeDashoffset = `${(100 - prog * 100).toFixed(1)}`;
+    $('evo-lvnum').textContent = st.level;
     const el = $('holders');
     if (first || reduced) el.textContent = st.name; else gsap.to(el, { duration: 1.2, scrambleText: { text: st.name, chars: 'upperAndLowerCase', speed: 0.6 } });
-    $('holders-note').textContent = st.source === 'prelaunch' ? 'Waiting for the first burn. The level is read straight from the chain once $7POD launches.'
-      : st.source === 'preview' ? `Preview: ${fmt(st.pct)} of supply burned. Next level at ${fmt(st.next)}.`
-      : `${fmt(st.pct)} of the supply burned, read from the chain. Next level at ${fmt(st.next)}.`;
+    $('holders-note').textContent = st.source === 'prelaunch' ? 'Starts evolving with the first burn after launch.'
+      : `${pctText(Math.max(0, st.next - st.pct))} more burned to reach ${levelName(st.level + 1)}`;
     first = false;
     burnTotals(st);
   }, { mint: cfg.mint, network: cfg.network });
@@ -424,7 +423,7 @@ const SUPPLY = CONFIG.evolution?.initialSupply || 1_000_000_000;
 const num = (v) => Math.round(v).toLocaleString('en-US');
 const short = (v) => (v >= 1e6 ? `${+(v / 1e6).toFixed(2)}M` : v >= 1e3 ? `${+(v / 1e3).toFixed(1)}K` : num(v));
 const pctText = (v) => `${v === 0 ? '0' : v < 0.01 ? v.toFixed(4) : v < 1 ? v.toFixed(3) : v.toFixed(2)}%`;
-const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`; };
+const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.floor(m / 60)} h ago` : `${Math.floor(m / 1440)} d ago`; };
 const solscan = (kind, id) => `https://solscan.io/${kind}/${id}${cfg.network === 'mainnet' ? '' : '?cluster=devnet'}`;
 
 function burnTotals(st) {
@@ -440,10 +439,6 @@ function burnTotals(st) {
   else gsap.to(burn, { shown: amount, duration: 1.6, ease: 'power2.out', onUpdate: paint });
   $('burn-pct').textContent = pctText(st.pct);
   $('burn-left').textContent = num(SUPPLY - amount);
-  $('burn-lv').textContent = `Lv ${st.level} · ${st.name}`;
-  $('burn-to').textContent = `Next level at ${pctText(st.next)}`;
-  const span = Math.max(1e-9, st.next - st.prev);
-  $('burn-fill').style.width = `${(st.pct === 0 ? 0 : Math.min(1, Math.max(0, (st.pct - st.prev) / span)) * 100).toFixed(1)}%`;
   if (st.source === 'chain') burn.updated = Date.now();
   if (grew) burnFlash();
   if (!burn.started) startBurnLog(st);
@@ -464,7 +459,7 @@ function renderBurns(list, demo) {
     li.textContent = burn.st?.pct > 0 ? 'Burn history shows here once the burn log is connected.' : 'Waiting for the first burn.';
     ol.appendChild(li); return;
   }
-  for (const b of list) {
+  for (const b of list.slice(0, 3)) {
     const li = document.createElement('li');
     const amt = document.createElement('b'); amt.textContent = `${short(b.amount)} $7POD`;
     const when = document.createElement('span'); when.className = 'burn-when'; when.dataset.t = b.time; when.textContent = ago(b.time);
@@ -494,7 +489,7 @@ function startBurnLog(st) {
   if (st.source === 'preview') {
     // pratinjau: contoh burn tiap jam, jelas ditandain DEMO
     const total = (st.pct / 100) * SUPPLY, hour = 3600e3, top = Math.floor(Date.now() / hour) * hour;
-    renderBurns(total > 0 ? [0.034, 0.028, 0.031, 0.022, 0.026].map((f, i) => ({ amount: total * f, time: top - i * hour })) : [], true);
+    renderBurns(total > 0 ? [0.034, 0.028, 0.031].map((f, i) => ({ amount: total * f, time: top - i * hour })) : [], true);
     return;
   }
   if (st.source === 'prelaunch' || !cfg.burnsUrl || !cfg.mint) { renderBurns([], false); return; }
