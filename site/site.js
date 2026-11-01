@@ -198,6 +198,9 @@ function frame(now) {
     camera.position.set(view.cx * k + mouse.x * 0.12, view.cy + 0.25 + mouse.y * -0.08, view.cz * (nw ? 1.25 + 0.85 * mk : 1));
     camera.lookAt(view.lx * k, view.look + 0.7 * mk, 0);
     robot.update(dt, 0, t);
+    // kepala ikut nengok ke arah kursor
+    robot.head.rotation.y += mouse.x * 0.45;
+    robot.head.rotation.x += mouse.y * 0.18;
     dust.rotation.y = t * 0.02;
     dust.position.y = Math.sin(t * 0.3) * 0.1;
     if (wordMesh) {
@@ -322,6 +325,37 @@ function robotTimeline() {
   pose({ x: 0, y: 0, z: 0, ry: 0.1, s: 1, cz: 8.6, cy: 1.2, cx: 0, lx: 0, look: 1.6, on: 1, mob: 1 }, at('end'), 'top bottom', 'top 30%');
   ScrollTrigger.create({ trigger: at('end'), start: 'top 60%', onEnter() { robot.setState('wave'); robot.setExpression('happy', 6); }, onLeaveBack() { robot.setState('idle'); } });
   // hero: dadah sekali waktu loading selesai
+}
+
+// ---------- robot hero: gonta-ganti gerakan dan ekspresi biar keliatan hidup ----------
+function heroActs() {
+  if (reduced) return;
+  const acts = [
+    ['dance', 'happy', 3.4],
+    ['think', null, 2.8],
+    ['lookAround', 'surprised', 2.4],
+    ['wave', 'happy', 2.6],
+    ['idle', null, 2.2],
+    ['hop', 'happy', 1.8],
+    ['curious', 'surprised', 1.8],
+    ['idle', null, 2.0],
+  ];
+  let i = 0, timer = null;
+  const inHero = () => scrollY < innerHeight * 0.45;
+  const play = (a) => { robot.setState(a[0]); robot.setExpression(a[1] || 'neutral', a[1] ? a[2] : 0); };
+  const next = () => {
+    if (inHero() && !document.hidden) { const a = acts[i++ % acts.length]; play(a); timer = setTimeout(next, a[2] * 1000); }
+    else { if (i) { robot.setState('idle'); robot.setExpression('neutral', 0); i = 0; } timer = setTimeout(next, 800); }
+  };
+  // mulai setelah dadah pembuka selesai
+  setTimeout(next, 5200);
+  // klik di hero: robotnya loncat kegirangan
+  $('hero').addEventListener('click', (e) => {
+    if (e.target.closest('a,button') || !inHero()) return;
+    clearTimeout(timer);
+    robot.setState('hop'); robot.setExpression('happy', 1.6); robot.land();
+    timer = setTimeout(next, 1600);
+  });
 }
 
 // ---------- 02 story: frame sequence kota + 4 langkah teks + lampu ----------
@@ -640,7 +674,7 @@ async function main() {
   }
   splitTitles();
   fixedUI();
-  if (renderer) robotTimeline();
+  if (renderer) { robotTimeline(); heroActs(); }
   story(seqPromise);
   world();
   moods();

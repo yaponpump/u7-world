@@ -449,6 +449,40 @@ export function createRobot({ dormant = false } = {}) {
         legL.rotation.x = legR.rotation.x = -1.1 * Math.sin(a * Math.PI);
         armL.pivot.rotation.x = armR.pivot.rotation.x = -2.2 * Math.sin(a * Math.PI);
         if (a >= 1) api.setState('idle');
+      } else if (n === 'dance') {
+        // goyang kiri-kanan, tangan gantian ke atas
+        const b = time * 6;
+        body.position.y = Math.abs(Math.sin(b)) * 0.07;
+        body.rotation.z = Math.sin(b * 0.5) * 0.12;
+        head.rotation.z = -Math.sin(b * 0.5) * 0.18;
+        head.rotation.x = Math.sin(b) * 0.06;
+        armL.pivot.rotation.z = -0.4 - (Math.sin(b * 0.5) > 0 ? 1.9 : 0.3) * Math.abs(Math.sin(b * 0.5));
+        armR.pivot.rotation.z = 0.4 + (Math.sin(b * 0.5) < 0 ? 1.9 : 0.3) * Math.abs(Math.sin(b * 0.5));
+        legL.rotation.x = Math.max(0, Math.sin(b)) * -0.35;
+        legR.rotation.x = Math.max(0, -Math.sin(b)) * -0.35;
+      } else if (n === 'hop') {
+        // loncat kecil kegirangan
+        const h = Math.abs(Math.sin(t * 7));
+        body.position.y = h * 0.26;
+        legL.rotation.x = legR.rotation.x = -0.5 * h;
+        armL.pivot.rotation.z = -0.3 - 1.6 * h;
+        armR.pivot.rotation.z = 0.3 + 1.6 * h;
+        head.rotation.x = -0.12 * h;
+      } else if (n === 'think') {
+        // tangan ke dagu, kepala miring, nengok pelan
+        const k = Math.min(1, t / 0.5);
+        armR.pivot.rotation.x = -2.1 * k;
+        armR.pivot.rotation.z = -0.5 * k;
+        head.rotation.z = 0.22 * k;
+        head.rotation.y = -0.25 * k + Math.sin(time * 0.8) * 0.12;
+        head.rotation.x = -0.1 * k;
+        body.position.y = Math.sin(time * 2) * 0.015;
+      } else if (n === 'lookAround') {
+        // celingak-celinguk
+        head.rotation.y = Math.sin(t * 2.4) * 0.7;
+        head.rotation.x = -0.08 + Math.sin(t * 4.8) * 0.05;
+        body.rotation.y = Math.sin(t * 2.4) * 0.15;
+        body.position.y = Math.sin(time * 2) * 0.02;
       } else if (n === 'wave') {
         armR.pivot.rotation.z = 2.3 + Math.sin(time * 10) * 0.3;
         head.rotation.z = -0.15;
