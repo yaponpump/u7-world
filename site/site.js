@@ -250,6 +250,26 @@ function splitTitles() {
 
 // ---------- UI tetap: progress, tag seksi, nav aktif, cue ----------
 function fixedUI() {
+  // menu: huruf per huruf naik pas hover, pill ungu geser ke menu aktif / yang di-hover
+  const links = [...document.querySelectorAll('.menu a')];
+  const pill = $('menu-pill');
+  links.forEach((a) => {
+    const txt = a.textContent; a.setAttribute('aria-label', txt); a.textContent = '';
+    [...txt].forEach((c, i) => { const sp = document.createElement('span'); sp.className = 'ch'; sp.setAttribute('aria-hidden', 'true'); sp.textContent = c; sp.style.transitionDelay = `${i * 25}ms`; a.append(sp); });
+    a.addEventListener('pointerenter', () => { hovered = a; movePill(); });
+  });
+  let hovered = null;
+  document.querySelector('.menu').addEventListener('pointerleave', () => { hovered = null; movePill(); });
+  function movePill() {
+    const to = hovered;
+    const a = to || links.find((l) => l.classList.contains('active'));
+    pill.classList.toggle('hover', !!to && !to.classList.contains('active'));
+    if (!a) { pill.style.opacity = 0; return; }
+    pill.style.opacity = 1; pill.style.width = `${a.offsetWidth}px`; pill.style.transform = `translateX(${a.offsetLeft}px)`;
+  }
+  addEventListener('resize', () => movePill());
+  // pindah ukuran nav ganti lebar menu, jadi pill disusul setelah transisi
+  $('ui').addEventListener('transitionend', () => movePill());
   const sections = [...document.querySelectorAll('section.s')];
   sections.forEach((s) => {
     ScrollTrigger.create({
@@ -258,12 +278,13 @@ function fixedUI() {
         if (!self.isActive) return;
         document.body.dataset.section = s.id;
         document.querySelectorAll('.menu a').forEach((a) => a.classList.toggle('active', a.dataset.nav === s.id));
+        movePill();
       },
     });
   });
   ScrollTrigger.create({
     start: 0, end: () => ScrollTrigger.maxScroll(window),
-    onUpdate(self) { $('progress').style.transform = `scaleX(${self.progress})`; },
+    onUpdate(self) { $('progress').style.transform = `scaleX(${self.progress})`; $('ui').classList.toggle('small', self.scroll() > 80); },
   });
   // warna glow latar ikut seksi
   const glows = { hero: ['#e3f8ee', '#e9e0ff'] };
