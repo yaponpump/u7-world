@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { createRobot } from './robot.js';
 import { MIND_COUNT, mindsFor as awakeFor } from './evolution.js';
-import { addObstacle, BUILDINGS, SHOP } from './city.js';
+import { addObstacle, BUILDINGS, SHOP, ROOF } from './city.js';
 
 // Robot kurir yang jalan kaki keliling kota, plus saudara 7POD yang mati di pinggir tembok.
 // Rutenya di tengah jalan, jauh dari mobil parkir, barikade, dan gedung.
@@ -94,7 +94,8 @@ export function createNpcs(group) {
   addObstacle(boltLive.x, boltLive.z, 0.4, 0.4, 2);
 
   // Duduk nyender ke tembok gedung yang ngadep jalan
-  const sisters = [BUILDINGS.find((b) => b.z < 60 && b.x > 30), BUILDINGS.find((b) => b.z < 60 && b.x > 60)]
+  // gedung yang ada tangga besinya dilewatin, biar unitnya nggak duduk di bawah tangga
+  const sisters = [BUILDINGS.find((b) => b.z < 60 && b.x > 30 && b !== ROOF.b), BUILDINGS.find((b) => b.z < 60 && b.x > 60 && b !== ROOF.b)]
     .filter(Boolean)
     .map((b, i) => {
       const s = createRobot({ dormant: true });
@@ -188,8 +189,9 @@ export function createNpcs(group) {
   // Badan robot lain padat buat pemain: nggak bisa ditembus, tapi kalau udah nempel tetap bisa jalan menjauh
   const bodies = () => [...couriers.map((d) => d.robot.root.position), bolt.root.position, ...sisters.map((s) => s.root.position)];
   const api = {
-    blocksMove(px, pz, nx, nz) {
+    blocksMove(px, pz, nx, nz, py = 0) {
       for (const p of bodies()) {
+        if (Math.abs(py - p.y) > 1) continue; // beda lantai (misal pemain di tangga), nggak nabrak
         const dn = Math.hypot(nx - p.x, nz - p.z);
         if (dn < 0.6 && dn < Math.hypot(px - p.x, pz - p.z)) return true;
       }

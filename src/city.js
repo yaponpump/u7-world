@@ -109,7 +109,8 @@ export function obstacleSlip(x, z) {
 }
 // y = tinggi kaki: rintangan rendah nggak ngeblok kalau kakinya udah di atas puncaknya
 export function blockedByBuilding(x, z, y = 0) {
-  const inside = (b) => y < b.h - 0.2 && !(b === roofB && inStair(x, z)) && nearB(b, x, z);
+  // gedung bertangga: dari anak tangga paling atas boleh langsung melangkah ke atap
+  const inside = (b) => y < b.h - (b === roofB ? 0.7 : 0.2) && !(b === roofB && inStair(x, z)) && nearB(b, x, z);
   // Nggak bisa masuk ke tengah tangga dari bawah
   if (inStair(x, z) && y < stairY(x) - 0.8) return true;
   return BUILDINGS.some(inside) || SKYLINE.some((b) => nearB(b, x, z))

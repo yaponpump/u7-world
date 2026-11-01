@@ -941,7 +941,7 @@ function tick() {
       // Sungai dan pinggir danau dangkal, bisa diseberangi jalan kaki; tengah danau tetap dalam.
       const clubGate = onClubRoof(nx, nz, pos.y);
       if (clubGate) clubNotice(clubOpen());
-      const free = (x, z) => (!isWater(x, z) || wadeable(x, z)) && !blockedByBuilding(x, z, pos.y) && !(onClubRoof(x, z, pos.y) && !clubOpen()) && !blockedByRail(x, z) && !world.npcs?.blocksMove?.(pos.x, pos.z, x, z) && x > BOUNDS.min && x < BOUNDS.max && z > BOUNDS.min && z < BOUNDS.max;
+      const free = (x, z) => (!isWater(x, z) || wadeable(x, z)) && !blockedByBuilding(x, z, pos.y) && !(onClubRoof(x, z, pos.y) && !clubOpen()) && !blockedByRail(x, z) && !world.npcs?.blocksMove?.(pos.x, pos.z, x, z, pos.y) && x > BOUNDS.min && x < BOUNDS.max && z > BOUNDS.min && z < BOUNDS.max;
       if (free(nx, nz)) {
         pos.x = nx; pos.z = nz;
       } else if (free(nx, pos.z)) {
@@ -950,6 +950,16 @@ function tick() {
         pos.z = nz;
       } else {
         behavior.bump = (behavior.bump || 0) + dt;
+        // pengaman: kalau ke segala arah ketutup, robot kejebak beneran. Keluarin ke titik bebas terdekat.
+        if (behavior.bump > 1.2 && !behavior.sitting) {
+          const open = [0, 1, 2, 3, 4, 5, 6, 7].some((k) => free(pos.x + Math.cos(k * Math.PI / 4) * 0.4, pos.z + Math.sin(k * Math.PI / 4) * 0.4));
+          if (!open) {
+            [pos.x, pos.z] = nearestFree(pos.x, pos.z);
+            pos.y = Math.max(groundHeight(pos.x, pos.z), rooftopHeight(pos.x, pos.z, pos.y));
+            behavior.bump = 0;
+            say('Okay. Got myself out.', 1600);
+          }
+        }
         if (behavior.bump > 1.6) { behavior.bump = 0; express('angry', 2); say(['Who put a wall here.', 'Move. Please. I asked nicely.', 'Fine. Other way.'][Math.floor(Math.random() * 3)], 1600); }
       }
       behavior.wall = !behavior.grounded && touchingWall(nx, nz, pos.y);
