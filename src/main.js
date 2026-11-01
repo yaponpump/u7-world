@@ -224,6 +224,8 @@ refreshLamps();
 function renderEvolution(st) {
   evo.level = st.level; evo.name = st.name; evo.pct = st.pct;
   robot.setEvolution(st.level);
+  world.npcs.setEvolution(st.level);
+  const minds = `${world.npcs.awakeCount}/${world.npcs.total} minds awake`;
   cityLights = 3 + Math.min(2, Math.floor(st.level / 2));
   refreshLamps();
   setCityPower(Math.min(3, Math.ceil(st.level / 2)));
@@ -235,11 +237,12 @@ function renderEvolution(st) {
   const fmt = (v) => `${v < 1 ? v.toFixed(2) : v.toFixed(1)}%`;
   $('evo-text').textContent = st.source === 'prelaunch' ? 'Waiting for the first burn'
     : `${fmt(st.pct)} burned · next at ${fmt(st.next)}${st.source === 'preview' ? ' · preview' : ''}`;
+  $('evo-minds').textContent = minds;
   $('intro-evo').textContent = `Evolution · ${st.name}`;
   if (st.leveledUp && started) {
     const p = $('evo-panel'); p.classList.remove('up'); void p.offsetWidth; p.classList.add('up');
     audio.play('lamp'); express('surprised', 2); setTimeout(() => { express('happy', 4); robot.setState('wave'); }, 1200);
-    showToast(`7POD evolved · ${st.name}`, 4500);
+    showToast(`7POD evolved · ${st.name} · ${minds}`, 4500);
     say(`I feel... different. ${st.line}`, 4200);
   }
 }

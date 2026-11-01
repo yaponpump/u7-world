@@ -1197,7 +1197,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   WORLD.npcs = npcs.live;
   WORLD.interactables.push({ id: 'rooftop', name: 'Rooftop', x: ROOF.cx, z: ROOF.cz, line: 'You can see the whole city from up here. Every dark window is somebody who left.' });
   for (const s of npcs.sisters) {
-    WORLD.interactables.push({ id: 'unit', name: 'Dormant unit', x: s.root.position.x, z: s.root.position.z, line: 'Another unit like me. Still asleep. Maybe all five lights will wake it.' });
+    WORLD.interactables.push({ id: 'unit', name: 'Dormant unit', x: s.root.position.x, z: s.root.position.z, line: 'Another mind of the network. Still asleep. More burns will wake it.' });
   }
 
   const ecosystem = createEcosystem(group, {

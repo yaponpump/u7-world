@@ -3,15 +3,20 @@
 import { CONFIG } from './config.js';
 
 export const LEVELS = [
-  { name: 'Dormant', line: 'Visor dark. Waiting for the first burn.' },
-  { name: 'Awake', line: 'Eyes on. Someone started burning the supply.' },
-  { name: 'Aware', line: 'Antenna live. Picking up signals from holders.' },
-  { name: 'Learning', line: 'Circuit brain open. It has started to learn.' },
-  { name: 'Reasoning', line: 'Orbit rings out. Thinking several moves ahead.' },
-  { name: 'Superintelligence', line: 'Full golden halo. The final form of a fictional story.' },
+  { name: 'Dormant', line: 'Visor dark. The whole city sleeps, waiting for the first burn.' },
+  { name: 'Awake', line: 'Eyes on. The first robots in the city wake up.' },
+  { name: 'Aware', line: 'Antenna live. It starts linking the robots around it.' },
+  { name: 'Learning', line: 'Circuit brain open. The network has started to learn.' },
+  { name: 'Reasoning', line: 'Orbit rings out. Most of the city now thinks as one.' },
+  { name: 'Superintelligence', line: 'Every mind awake and linked. The final form of a fictional story.' },
 ];
 
 const evoCfg = () => CONFIG.evolution || {};
+
+// Jaringan: berapa robot di kota yang udah bangun per level (sisanya masih tidur)
+export const MIND_COUNT = 11;
+const AWAKE_BY_LEVEL = [0, 2, 4, 6, 9, 11];
+export const mindsFor = (lv) => AWAKE_BY_LEVEL[Math.min(AWAKE_BY_LEVEL.length - 1, Math.max(0, Math.floor(lv)))];
 // Ambang dalam persen supply ke-burn: [Awake, Aware, Learning, Reasoning, Superintelligence], lalu tiap `step` = Evolusi +1
 export function thresholds() {
   const c = evoCfg();

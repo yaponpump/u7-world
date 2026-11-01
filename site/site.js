@@ -11,7 +11,7 @@ import { SplitText } from 'gsap/SplitText';
 import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
 import Lenis from 'lenis';
 import { createRobot, EXPRESSIONS } from '../src/robot.js';
-import { watchEvolution, levelName } from '../src/evolution.js';
+import { watchEvolution, levelName, mindsFor, MIND_COUNT } from '../src/evolution.js';
 import { CONFIG } from '../src/config.js';
 let liveLevel = 0; // level evolusi asli dari chain (atau ?level= buat pratinjau)
 
@@ -408,6 +408,11 @@ function evolutionLive() {
     const prog = st.pct === 0 ? 0 : Math.min(1, Math.max(0, (st.pct - st.prev) / span));
     $('evo-ring').style.strokeDashoffset = `${(100 - prog * 100).toFixed(1)}`;
     $('evo-lvnum').textContent = st.level;
+    const awake = mindsFor(st.level);
+    $('mind-text').textContent = `${awake} of ${MIND_COUNT} minds awake`;
+    const dots = $('mind-dots');
+    if (dots.children.length !== MIND_COUNT) { dots.textContent = ''; for (let i = 0; i < MIND_COUNT; i++) dots.appendChild(document.createElement('i')); }
+    [...dots.children].forEach((d, i) => d.classList.toggle('on', i < awake));
     const el = $('holders');
     if (first || reduced) el.textContent = st.name; else gsap.to(el, { duration: 1.2, scrambleText: { text: st.name, chars: 'upperAndLowerCase', speed: 0.6 } });
     $('holders-note').textContent = st.source === 'prelaunch' ? 'Starts evolving with the first burn after launch.'
