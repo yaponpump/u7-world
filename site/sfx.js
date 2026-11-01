@@ -13,7 +13,7 @@ function ensure() {
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return null;
   ctx = new AC();
-  master = ctx.createGain(); master.gain.value = 0.22; master.connect(ctx.destination);
+  master = ctx.createGain(); master.gain.value = 0.14; master.connect(ctx.destination);
   return ctx;
 }
 
@@ -59,7 +59,7 @@ export const sfx = {
   },
   say(text) {
     if (!unlocked || !on || !voice.supported) return;
-    voice.speak('Pod', text, { volume: 0.9 });
+    voice.speak('7POD', text, { volume: 1, clear: true });
   },
 };
 

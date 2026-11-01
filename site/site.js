@@ -336,13 +336,13 @@ function heroActs() {
   if (reduced) return;
   // [gerakan, ekspresi, detik, bunyi, kalimat (kadang-kadang)]
   const acts = [
-    ['dance', 'happy', 3.4, 'dance', 'Feel the burn!'],
-    ['think', null, 2.8, 'think', 'Hmm. More burns, more minds.'],
-    ['lookAround', 'surprised', 2.4, 'look', 'Is the network waking up?'],
+    ['dance', 'happy', 3.4, 'dance', '7POD. Feel the burn!'],
+    ['think', null, 2.8, 'think', 'Every burn makes 7POD smarter.'],
+    ['lookAround', 'surprised', 2.4, 'look', 'The 7POD network is waking up.'],
     ['wave', 'happy', 2.6, 'hi', "Hi! I'm 7POD."],
     ['idle', null, 2.2, null, null],
     ['hop', 'happy', 1.8, 'hop', null],
-    ['curious', 'surprised', 1.8, 'surprised', 'Whoa.'],
+    ['curious', 'surprised', 1.8, 'surprised', 'Whoa! 7POD!'],
     ['idle', null, 2.0, null, null],
   ];
   let i = 0, timer = null;
@@ -352,7 +352,7 @@ function heroActs() {
     robot.setState(a[0]); robot.setExpression(a[1] || 'neutral', a[1] ? a[2] : 0);
     if (a[3]) sfx.play(a[3]);
     // ngomong tiap gerakan kedua biar nggak berisik
-    if (a[4] && talk++ % 2 === 0) setTimeout(() => sfx.say(a[4]), 350);
+    if (a[4] && talk++ % 2 === 0) setTimeout(() => sfx.say(a[4]), 750); // tunggu bunyi beep selesai biar omongannya jelas
   };
   const next = () => {
     if (inHero() && !document.hidden) { const a = acts[i++ % acts.length]; play(a); timer = setTimeout(next, a[2] * 1000); }
@@ -365,7 +365,7 @@ function heroActs() {
     if (e.target.closest('a,button') || !inHero()) return;
     clearTimeout(timer);
     robot.setState('hop'); robot.setExpression('happy', 1.6); robot.land();
-    setTimeout(() => { sfx.play('hop'); sfx.say(['Hey!', 'Hi there!', 'Wheee!', 'Burn it up!'][Math.floor(Math.random() * 4)]); }, 30);
+    setTimeout(() => { sfx.play('hop'); sfx.say(["Hey! I'm 7POD!", 'Hi there! 7POD here.', 'Wheee! 7POD!', 'Burn it up, 7POD!'][Math.floor(Math.random() * 4)]); }, 30);
     timer = setTimeout(next, 1600);
   });
 }
