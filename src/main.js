@@ -614,16 +614,23 @@ const INTRO_TIPS = [
   }, 4000);
 }
 
-// Intro
-$('start-btn').addEventListener('click', () => {
+// Intro: tanpa layar teks. Begitu dunia siap, layar loading memudar sendiri.
+// Suara baru boleh nyala setelah interaksi pertama (aturan browser), jadi dibuka di klik/tombol pertama.
+function startWorld() {
+  if (started) return;
   $('intro').classList.add('hidden');
   started = true;
-  audio.unlock();
-  audio.play('boot');
   robot.setState('yawn');
   behavior.lock = 1.8;
   setTimeout(() => say(evo.level ? `...oh. Hi. I'm at ${evo.name} now. Look at me.` : "...oh. Hi. Still dormant. Waiting for the first burn."), 1900);
-});
+}
+$('start-btn').addEventListener('click', startWorld);
+{
+  const unlock = () => { audio.unlock(); audio.play('boot'); removeEventListener('pointerdown', unlock); removeEventListener('keydown', unlock); };
+  addEventListener('pointerdown', unlock); addEventListener('keydown', unlock);
+}
+// dua frame setelah semua siap, biar gambar pertama udah kerender di balik layar loading
+requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(startWorld, 250)));
 let started = false;
 
 // ---------- Perilaku "manusia" ----------

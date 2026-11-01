@@ -301,6 +301,7 @@ function buildSignposts(group, woodMat, list) {
     const sign = new THREE.Group();
     const y0 = groundHeight(x, z);
     sign.position.set(x, y0, z);
+    addObstacle(x, z, 0.12, 0.12, 99);
     const post = new THREE.Mesh(postGeo, woodMat);
     post.position.y = 1.55;
     post.castShadow = true;
@@ -608,6 +609,8 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   const stoneMat = pbrMaterial(A.stone, texStone, { roughness: 0.85, repeat: 2 });
   const basin = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.5, 0.75, 48, 1, true), stoneMat);
   basin.position.set(WORLD.fountain.x, 0.37, WORLD.fountain.z);
+  // kolam air mancur: tepinya setinggi lutut, bisa dilompatin tapi nggak ditembus
+  addObstacle(WORLD.fountain.x, WORLD.fountain.z, 2.5, 2.5, 0.8);
   const basinRim = new THREE.Mesh(new THREE.TorusGeometry(3.3, 0.18, 12, 48), stoneMat);
   basinRim.rotation.x = Math.PI / 2;
   basinRim.position.set(WORLD.fountain.x, 0.75, WORLD.fountain.z);
@@ -657,6 +660,9 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     b.traverse((m) => { m.castShadow = true; m.receiveShadow = true; });
     group.add(b);
     WORLD.benches.push({ x, z, rotY, y });
+    // badan bangku padat; dudukannya rendah jadi masih bisa dilompatin dan diinjek
+    const along = Math.abs(Math.cos(rotY)) > 0.7;
+    addObstacle(x, z, along ? 1.1 : 0.35, along ? 0.35 : 1.1, 0.62);
   }
   bench(20, 9, Math.PI);
   bench(20, -9, 0);
@@ -731,6 +737,8 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     if (Math.hypot(x - 44, z + 40) < 4) continue;
     treePositions.push([x, z, 0.8 + rnd() * 0.9]);
   }
+  // batang pohon padat
+  for (const [x, z, s] of treePositions) addObstacle(x, z, 0.26 * s, 0.26 * s, 99);
   const treeModels = assets.trees || [];
   let leafMat = null;
   const treeSets = [];
@@ -818,6 +826,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     const light = new THREE.PointLight(0xffb347, 0, 16, 2);
     light.position.set(x, y + 4.0, z);
     group.add(post, cap, head, light);
+    addObstacle(x, z, 0.14, 0.14, 99);
     WORLD.lamps.push({ head, headMat, light, on: i < 3 });
   });
 

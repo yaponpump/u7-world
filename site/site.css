@@ -355,3 +355,6 @@ footer:has(nav:empty) { display: none; }
   .story-pin, .moods-pin { position: relative; height: auto; }
   .card img { transform: none; }
 }
+
+.page-veil { position: fixed; inset: 0; z-index: 1000; background: #f3eeff; opacity: 0; transition: opacity 0.45s ease; pointer-events: none; }
+.page-veil.on { opacity: 1; }

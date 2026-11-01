@@ -433,6 +433,11 @@ export function buildCity(group, { hi, A = {}, props = {}, fallback }) {
     const long = isCar ? 2.15 : 1.05, wide = isCar ? 0.95 : 0.3;
     OBSTACLES.push({ x: o.x, z: o.z, hx: alongX ? long : wide, hz: alongX ? wide : long, top: isCar ? 1.45 : 0.9 });
   }
+  // Perabot jalan juga padat: tiang lampu, kotak listrik, gardu, hydrant
+  for (const l of shown) OBSTACLES.push({ x: l.x, z: l.z, hx: 0.16, hz: 0.16, top: 99 });
+  for (const b of boxes) OBSTACLES.push({ x: b.x, z: b.z, hx: 0.45, hz: 0.3, top: 1.4 });
+  for (const p of power) OBSTACLES.push({ x: p.x, z: p.z, hx: 0.5, hz: 0.35, top: 1.5 });
+  for (const h of hydrants) OBSTACLES.push({ x: h.x, z: h.z, hx: 0.2, hz: 0.2, top: 0.8 });
   placeModel(group, props.car, shownCars, 4.3);
   placeModel(group, props.lamp, shown, 7, true);
   placeModel(group, props.barrier, barriers, 2);

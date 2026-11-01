@@ -86,15 +86,9 @@
   <div id="joystick" class="joystick"><div class="knob"></div></div>
 
   <div id="intro">
-    <div class="intro-card">
-      <div class="eyebrow">7POD · $7POD</div>
-      <h1>A small robot, evolving one burn at a time.</h1>
-      <p>Every hour, creator fees buy back $7POD and burn it. The more supply burns, the further 7POD evolves, all the way to a fictional superintelligence. No quests. Just walk its world and watch it grow.</p>
-      <div class="intro-evo" id="intro-evo">Evolution · Dormant</div>
-      <button class="btn primary big" id="start-btn">Enter 7POD's world</button>
-      <div class="small muted" id="load-status">Preparing the world...</div>
-      <div class="small tip" id="intro-tip">Tip: press G to change 7POD's face.</div>
-    </div>
+    <!-- Layar masuk minimal: cuma garis loading tipis, lalu dunia muncul pelan-pelan sendiri -->
+    <div class="intro-min" aria-label="Loading the world"><div class="intro-bar"><i></i></div></div>
+    <div hidden><div id="intro-evo"></div><button id="start-btn">Enter</button><div id="load-status"></div><div id="intro-tip"></div></div>
   </div>
 
   <script type="module" src="/src/main.js"></script>

@@ -524,6 +524,16 @@ function startBurnLog(st) {
 // ---------- data token: cuma tampil kalau udah diisi di config.js ----------
 function tokenData() {
   document.querySelectorAll('[data-play]').forEach((a) => { if (cfg.playUrl) a.href = cfg.playUrl; });
+  // Masuk ke dunia: layar memudar ke warna latar dulu, baru pindah halaman, biar nyambung halus
+  document.querySelectorAll('[data-play]').forEach((a) => a.addEventListener('click', (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || reduced) return;
+    e.preventDefault();
+    const veil = document.createElement('div');
+    veil.className = 'page-veil';
+    document.body.appendChild(veil);
+    requestAnimationFrame(() => veil.classList.add('on'));
+    setTimeout(() => { location.href = a.href; }, 450);
+  }));
   const mainnet = cfg.network === 'mainnet';
   if (cfg.mint) {
     $('status').textContent = mainnet ? 'Live on Solana' : 'Solana devnet test, not real money';
