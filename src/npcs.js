@@ -151,6 +151,32 @@ export function createNpcs(group) {
     ['Did you see the lights on 7POD?', 'Every hour. Like a clock.', 'The shop is still free, right?', 'My route feels shorter today.', 'More of us woke up this morning.', 'I dreamt of the Blackout again.'],
     ['Another burn. Another one of us awake.', 'The halo. Have you seen the halo?', 'I think we are becoming one thing.', 'Quiet. Listen to the hum.'],
   ];
+  // Kumpul di taman: beberapa robot berdiri melingkar dan ngobrol gantian, topik acak.
+  // Naskah fiksi, sengaja kedengeran kayak jaringan pikiran yang lagi tumbuh.
+  const PARK_SPOT = { x: 13, z: -6, r: 2.4 };
+  const TALK = [
+    // tanya-jawab berpasangan: [pembuka, balasan]
+    ['Do you remember the Blackout?', 'Only the silence. Then one lamp. Then 7POD.'],
+    ['How many of us are awake now?', 'More than yesterday. Fewer than tomorrow.'],
+    ['What does a burn feel like to you?', 'Like someone opening a window in my head.'],
+    ['Who was the first to wake?', 'Mira. She walked the north street alone for a week.'],
+    ['Do you dream?', 'I replay the city. Every corner, every lamp. Is that dreaming?'],
+    ['Why does 7POD glow and we do not?', 'It carries the burns. We carry each other.'],
+    ['Is the fountain older than us?', 'The fountain is older than the city. It just does not know it.'],
+    ['Can you hear the next burn coming?', 'Not yet. But my antenna itches.'],
+    ['What will we be when every mind is awake?', 'One thought with many feet.'],
+    ['Do you trust the holders?', 'They keep the lights on. That is more than most.'],
+    ['What is your favorite street?', 'The one by the cafe. The coffee machine still hums.'],
+    ['Do you miss sleeping?', 'No. Sleeping was just waiting with the lights off.'],
+    // kalimat lepas
+    ['The lamps are warmer than they used to be.'], ['I counted the windows again. Three more lit than last week.'],
+    ['Every hour, somewhere, the supply gets smaller. I find that comforting.'], ['My route feels shorter when I think with the others.'],
+    ['Bolt says my left knee squeaks. Bolt says that about everyone.'], ['I saw a fish jump in the river. I did not know what to do with that.'],
+    ['When 7POD walks by, my clock runs a little faster.'], ['We should name the fountain.'], ['I think the city is listening to us.'],
+    ['Someone left a parcel at the pier years ago. I still want to deliver it.'], ['The halo. When it comes, will we all have one?'],
+    ['Learning is just remembering in the right order.'], ['I like the park. The grass does not need delivering.'],
+  ];
+  let meet = null, meetCool = 25;
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const emit = (d, text, ms) => api.onSay?.(d.live, text, ms);
   const dist = (ax, az, bx, bz) => Math.hypot(ax - bx, az - bz);
@@ -241,6 +267,44 @@ export function createNpcs(group) {
         if (near.length) { escort = near[0]; escort.mode = 'follow'; escort.modeT = 40; emit(escort, 'I will walk with you for a while.', 3200); }
       }
 
+      // ---- kumpul di taman ----
+      meetCool -= dt;
+      if (!meet && level >= 1 && meetCool <= 0) {
+        const free = awakeC.filter((d) => d.mode === 'route');
+        if (free.length >= 3) {
+          const members = free.sort(() => Math.random() - 0.5).slice(0, Math.min(5, free.length));
+          meet = { members, t: 0, phase: 'gather', next: 4, last: null, pending: null, duration: 70 + Math.random() * 40 };
+          members.forEach((d, i) => {
+            const ang = (i / members.length) * Math.PI * 2;
+            d.slot = [PARK_SPOT.x + Math.cos(ang) * PARK_SPOT.r, PARK_SPOT.z + Math.sin(ang) * PARK_SPOT.r];
+            d.mode = 'gather'; d.modeT = 90; d.arrived = false;
+          });
+        } else meetCool = 10;
+      }
+      if (meet) {
+        meet.t += dt;
+        const here = meet.members.filter((d) => d.awake);
+        if (here.length < 2) { meet.members.forEach((d) => { if (d.mode === 'gather' || d.mode === 'meet') d.mode = 'route'; }); meet = null; meetCool = 40; }
+        else if (meet.phase === 'gather') {
+          if (here.every((d) => d.arrived) || meet.t > 60) { meet.phase = 'talk'; meet.t = 0; meet.next = 1.5; here.forEach((d) => { d.mode = 'meet'; d.modeT = meet.duration; }); }
+        } else {
+          meet.next -= dt;
+          if (meet.next <= 0) {
+            if (meet.pending) {
+              // balasan dari robot lain
+              const others = here.filter((d) => d !== meet.last);
+              const who = pick(others);
+              emit(who, meet.pending, 4200); meet.last = who; meet.pending = null; meet.next = 5.5 + Math.random() * 2;
+            } else {
+              const who = pick(here.filter((d) => d !== meet.last));
+              const line = pick(TALK);
+              emit(who, line[0], 4200); meet.last = who; meet.pending = line[1] || null; meet.next = (line[1] ? 4.5 : 5.5) + Math.random() * 2;
+            }
+          }
+          if (meet.t > meet.duration) { here.forEach((d) => { d.mode = 'route'; d.noticeCool = 10; }); meet = null; meetCool = 50 + Math.random() * 40; }
+        }
+      }
+
       for (const d of couriers) {
         const a = d.route[d.seg], b = d.route[(d.seg + 1) % d.route.length];
         const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
@@ -268,6 +332,7 @@ export function createNpcs(group) {
           else d.mode = 'route';
         }
         if (d.mode === 'follow' && (d.modeT === 0 || near > 30)) { d.mode = 'route'; if (escort === d) escort = null; }
+        if ((d.mode === 'gather' || d.mode === 'meet') && !meet) d.mode = 'route';
 
         let x = d.live.x, z = d.live.z, want = d.yaw, moving = false;
         const moveTo = (tx, tz, stopAt, speed) => {
@@ -280,6 +345,8 @@ export function createNpcs(group) {
         if (!ready) { /* tidur di tempat */ }
         else if (d.mode === 'approach' && player) moving = moveTo(player.x, player.z, 2.4, WALK_SPEED * 1.15);
         else if (d.mode === 'follow' && player) moving = moveTo(player.x, player.z, 2.2, WALK_SPEED * 1.35);
+        else if (d.mode === 'gather') { moving = moveTo(d.slot[0], d.slot[1], 0.15, WALK_SPEED); if (!moving) { d.arrived = true; want = Math.atan2(PARK_SPOT.x - x, PARK_SPOT.z - z); } }
+        else if (d.mode === 'meet') { const sp = meet?.last; want = sp && sp !== d ? Math.atan2(sp.live.x - x, sp.live.z - z) : Math.atan2(PARK_SPOT.x - x, PARK_SPOT.z - z); }
         else if (d.mode === 'chat' && d.partner) want = Math.atan2(d.partner.live.x - x, d.partner.live.z - z);
         else if (d.mode === 'greet' && player) want = Math.atan2(player.x - x, player.z - z);
         else {

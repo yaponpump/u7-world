@@ -12,6 +12,7 @@ import { createControls } from './controls.js';
 import { loadAssets } from './assets.js';
 import { loadSave, saveScore, writeSave } from './save.js';
 import { watchEvolution } from './evolution.js';
+import { voice } from './voice.js';
 import { pollHolders } from './holders.js';
 import { windowFor } from './holderWindow.js';
 
@@ -255,6 +256,7 @@ function refreshMuteBtn() { $('mute-btn').textContent = audio.muted ? 'M · Soun
 function toggleMute() {
   audio.unlock();
   const m = audio.toggleMute();
+  if (m) voice.stop();
   refreshMuteBtn();
   showToast(m ? 'Sound off' : 'Sound on', 1400);
 }
@@ -274,6 +276,7 @@ const npcBubble = $('npc-bubble');
 let npcBubbleTimer = null, npcSpeaker = null;
 function npcSay(npc, text, ms = 4800) {
   npcSpeaker = npc;
+  if (!audio.muted) voice.speak(npc.name, text, { volume: 1 });
   npcBubble.innerHTML = `<b>${npc.name}</b>${text}`;
   npcBubble.hidden = false;
   clearTimeout(npcBubbleTimer);
@@ -290,6 +293,11 @@ function ambientSay(npc, text, ms = 3200) {
   el.innerHTML = `<b>${npc.name}</b>${text}`;
   npcBubble.parentElement.appendChild(el);
   ambientBubbles.push({ el, npc, until: performance.now() + ms });
+  // suara: tiap robot nadanya beda, volume ngikut jarak ke 7POD, diem kalau sound off
+  if (!audio.muted) {
+    const dd = Math.hypot(npc.x - robot.root.position.x, npc.z - robot.root.position.z);
+    voice.speak(npc.name, text, { volume: Math.max(0, 1 - dd / 30) });
+  }
 }
 world.npcs.onSay = ambientSay;
 function placeBubbleAt(el, sp) {
