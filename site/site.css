@@ -160,7 +160,7 @@ body.gl .hero-word { visibility: hidden; }
 .lamps i { width: 6px; height: 6px; border-radius: 50%; background: #3a3230; box-shadow: none; transition: background 0.5s, box-shadow 0.5s; }
 .lamps i.on { background: #ffd58a; box-shadow: 0 0 18px 6px rgba(255, 196, 110, 0.55); }
 .story-steps { position: relative; z-index: 2; grid-column: 1; padding: 0 var(--gutter); display: grid; }
-.story-steps article { grid-area: 1 / 1; display: grid; gap: 14px; max-width: 30em; opacity: 0; transform: translateY(24px); }
+.story-steps article { grid-area: 1 / 1; display: grid; gap: 14px; max-width: 30em; opacity: 0; transform: translateY(14px); }
 .story-steps article p { color: var(--soft); font-size: clamp(17px, 1.4vw, 20px); }
 
 /* 03 live */

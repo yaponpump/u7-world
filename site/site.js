@@ -48,11 +48,11 @@ async function loadSequence(name, count) {
   if (!first) return null;
   const frames = new Array(count).fill(null);
   frames[0] = first;
-  // 12 frame pertama ikut preloader, sisanya ngalir di belakang
+  // 8 frame pertama ikut preloader, sisanya ngalir di belakang (semua frame kebuka, nggak ada yang bolong)
   const eager = [];
-  for (let i = 2; i <= Math.min(4, count); i++) eager.push(loadImage(`${ASSETS}frames/${name}/${pad(i)}.webp`).then((im) => { frames[i - 1] = im; }));
+  for (let i = 2; i <= Math.min(8, count); i++) eager.push(loadImage(`${ASSETS}frames/${name}/${pad(i)}.webp`).then((im) => { frames[i - 1] = im; }));
   await Promise.all(eager);
-  (async () => { for (let i = 13; i <= count; i++) frames[i - 1] = await loadImage(`${ASSETS}frames/${name}/${pad(i)}.webp`); })();
+  (async () => { for (let i = 9; i <= count; i++) frames[i - 1] = await loadImage(`${ASSETS}frames/${name}/${pad(i)}.webp`); })();
   return frames;
 }
 
@@ -339,15 +339,25 @@ async function story(seqPromise) {
     let cur = -1;
     const fit = () => { const r = Math.min(devicePixelRatio, 2); seqCanvas.width = seqCanvas.clientWidth * r; seqCanvas.height = seqCanvas.clientHeight * r; cur = -1; };
     fit(); addEventListener('resize', fit);
-    draw = (k) => {
-      let i = Math.round(k * (seq.length - 1));
-      while (i > 0 && !seq[i]) i--; // frame belum kebuka, pakai yang sebelumnya
-      if (i === cur || !seq[i]) return;
-      cur = i;
-      const im = seq[i], cw = seqCanvas.width, ch = seqCanvas.height;
+    // gambar 2 frame tetangga dan dicampur, jadi gerak kotanya halus walau framenya terbatas
+    const cover = (im, a) => {
+      const cw = seqCanvas.width, ch = seqCanvas.height;
       const s = Math.max(cw / im.width, ch / im.height);
       const w = im.width * s, h = im.height * s;
+      ctx.globalAlpha = a;
       ctx.drawImage(im, (cw - w) / 2, (ch - h) / 2, w, h);
+    };
+    draw = (k) => {
+      const f = Math.max(0, Math.min(1, k)) * (seq.length - 1);
+      let i = Math.floor(f), t = f - i;
+      while (i > 0 && !seq[i]) { i--; t = 0; } // frame belum kebuka, pakai yang sebelumnya
+      if (!seq[i]) return;
+      const key = Math.round(f * 40);
+      if (key === cur) return;
+      cur = key;
+      cover(seq[i], 1);
+      if (t > 0.01 && seq[i + 1]) cover(seq[i + 1], t);
+      ctx.globalAlpha = 1;
     };
     draw(0);
   }
@@ -356,16 +366,23 @@ async function story(seqPromise) {
     lamps.forEach((l, i) => l.classList.toggle('on', k >= (i + 0.5) / lamps.length));
   };
   if (reduced) { paint(1); return; }
+  const fadeEls = [$('story-stage'), $('lamps')].filter((el, i, a) => el && !(i && a[0].contains(el)));
   ScrollTrigger.create({
     trigger: $('story'), start: 'top top', end: 'bottom bottom', scrub: 0.6,
-    onUpdate(self) { paint(self.progress); },
+    onUpdate(self) {
+      paint(Math.min(1, self.progress / 0.86));
+      // 14% terakhir: kota pelan-pelan larut ke warna latar, jadi masuk ke section berikutnya nggak kepotong
+      const out = Math.max(0, (self.progress - 0.86) / 0.14);
+      fadeEls.forEach((el) => { el.style.opacity = String(1 - out * out * (3 - 2 * out)); });
+    },
   });
-  // teks: tiap langkah dapet jatah 1/4 scroll
-  const tl = gsap.timeline({ scrollTrigger: { trigger: $('story'), start: 'top top', end: 'bottom bottom', scrub: 0.6 } });
+  // teks: tiap langkah dapet jatah scroll yang sama, keluar-masuknya saling nyambung
+  const tl = gsap.timeline({ scrollTrigger: { trigger: $('story'), start: 'top top', end: 'bottom bottom', scrub: 0.8 } });
   steps.forEach((s, i) => {
-    tl.to(s, { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }, i * 2.4 + 0.2);
-    if (i < steps.length - 1) tl.to(s, { opacity: 0, y: -24, duration: 0.5, ease: 'power2.in' }, i * 2.4 + 2.0);
+    tl.to(s, { opacity: 1, y: 0, duration: 0.9, ease: 'sine.out' }, i * 2.4);
+    if (i < steps.length - 1) tl.to(s, { opacity: 0, y: -14, duration: 0.9, ease: 'sine.in' }, i * 2.4 + 1.7);
   });
+  tl.to({}, { duration: 1.4 }); // ruang kosong di akhir buat fade kota
 }
 
 // ---------- 04 world: kartu parallax + ganti ke stills render ----------
@@ -584,7 +601,7 @@ function tokenData() {
 
 // ---------- mulai ----------
 async function main() {
-  const seqPromise = track(loadSequence('city', 90));
+  const seqPromise = track(loadSequence('city', 64));
   const jobs = [
     track(document.fonts.ready),
     seqPromise,
