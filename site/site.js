@@ -1,5 +1,6 @@
 // Website 7POD: satu canvas Three.js tetap di belakang, seksi DOM di depan,
 // scroll halus (Lenis) yang nyetir kamera, pose robot, frame sequence, dan teks (GSAP).
+import { sfx } from './sfx.js';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
@@ -329,20 +330,30 @@ function robotTimeline() {
 
 // ---------- robot hero: gonta-ganti gerakan dan ekspresi biar keliatan hidup ----------
 function heroActs() {
+  const btn = $('sound-btn');
+  sfx.onChange((on) => { btn.classList.toggle('on', on); btn.classList.toggle('off', !on); btn.setAttribute('aria-pressed', String(on)); btn.setAttribute('aria-label', on ? 'Turn sound off' : 'Turn sound on'); });
+  btn.addEventListener('click', () => { sfx.set(!sfx.on); if (sfx.on) setTimeout(() => sfx.play('happy'), 40); });
   if (reduced) return;
+  // [gerakan, ekspresi, detik, bunyi, kalimat (kadang-kadang)]
   const acts = [
-    ['dance', 'happy', 3.4],
-    ['think', null, 2.8],
-    ['lookAround', 'surprised', 2.4],
-    ['wave', 'happy', 2.6],
-    ['idle', null, 2.2],
-    ['hop', 'happy', 1.8],
-    ['curious', 'surprised', 1.8],
-    ['idle', null, 2.0],
+    ['dance', 'happy', 3.4, 'dance', 'Feel the burn!'],
+    ['think', null, 2.8, 'think', 'Hmm. More burns, more minds.'],
+    ['lookAround', 'surprised', 2.4, 'look', 'Is the network waking up?'],
+    ['wave', 'happy', 2.6, 'hi', "Hi! I'm 7POD."],
+    ['idle', null, 2.2, null, null],
+    ['hop', 'happy', 1.8, 'hop', null],
+    ['curious', 'surprised', 1.8, 'surprised', 'Whoa.'],
+    ['idle', null, 2.0, null, null],
   ];
   let i = 0, timer = null;
   const inHero = () => scrollY < innerHeight * 0.45;
-  const play = (a) => { robot.setState(a[0]); robot.setExpression(a[1] || 'neutral', a[1] ? a[2] : 0); };
+  let talk = 0;
+  const play = (a) => {
+    robot.setState(a[0]); robot.setExpression(a[1] || 'neutral', a[1] ? a[2] : 0);
+    if (a[3]) sfx.play(a[3]);
+    // ngomong tiap gerakan kedua biar nggak berisik
+    if (a[4] && talk++ % 2 === 0) setTimeout(() => sfx.say(a[4]), 350);
+  };
   const next = () => {
     if (inHero() && !document.hidden) { const a = acts[i++ % acts.length]; play(a); timer = setTimeout(next, a[2] * 1000); }
     else { if (i) { robot.setState('idle'); robot.setExpression('neutral', 0); i = 0; } timer = setTimeout(next, 800); }
@@ -354,6 +365,7 @@ function heroActs() {
     if (e.target.closest('a,button') || !inHero()) return;
     clearTimeout(timer);
     robot.setState('hop'); robot.setExpression('happy', 1.6); robot.land();
+    setTimeout(() => { sfx.play('hop'); sfx.say(['Hey!', 'Hi there!', 'Wheee!', 'Burn it up!'][Math.floor(Math.random() * 4)]); }, 30);
     timer = setTimeout(next, 1600);
   });
 }

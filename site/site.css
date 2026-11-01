@@ -309,6 +309,7 @@ footer:has(nav:empty) { display: none; }
 /* ---- responsif ---- */
 @media (max-width: 900px) {
   .menu { display: none; }
+  .sound-btn { margin-left: auto; }
   .ui .btn.small { margin-left: auto; }
   .features, .tiles, .steps { grid-template-columns: 1fr 1fr; }
   .burn-board { grid-template-columns: minmax(0, 1fr); }
@@ -358,3 +359,14 @@ footer:has(nav:empty) { display: none; }
 
 .page-veil { position: fixed; inset: 0; z-index: 1000; background: #f3eeff; opacity: 0; transition: opacity 0.45s ease; pointer-events: none; }
 .page-veil.on { opacity: 1; }
+
+/* tombol suara di nav */
+.sound-btn { display: grid; place-items: center; width: 42px; height: 42px; margin: 0 8px 0 4px; border: 0; border-radius: 50%; background: rgba(122, 77, 255, 0.1); color: #5a44a8; cursor: pointer; transition: background 0.25s, transform 0.25s cubic-bezier(.3, 1.8, .5, 1); }
+.sound-btn:hover { background: rgba(122, 77, 255, 0.2); transform: scale(1.08); }
+.sound-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.sound-btn .spk { fill: currentColor; }
+.sound-btn .mute { display: none; }
+.sound-btn.off .wave { display: none; }
+.sound-btn.off .mute { display: inline; }
+.sound-btn.on .wave { animation: soundPulse 1.6s ease-in-out infinite; }
+@keyframes soundPulse { 50% { opacity: 0.35; } }
