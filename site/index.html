@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>7POD</title>
-  <meta name="description" content="7POD is a browser open world on Solana. A city went dark, one small robot stayed, and every new holder turns a light back on." />
+  <meta name="description" content="7POD is a small robot on Solana that evolves as 7POD burns. Every hour, creator fees buy back and burn the token, and the robot moves one step closer to a fictional superintelligence." />
   <meta property="og:title" content="7POD" />
-  <meta property="og:description" content="A city went dark. One small robot stayed." />
+  <meta property="og:description" content="A small robot, evolving one burn at a time." />
   <meta property="og:image" content="img/hero-day.jpg" />
   <meta name="theme-color" content="#f3eeff" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -35,16 +35,19 @@
 
   <!-- UI tetap -->
   <header class="ui" id="ui">
-    <a class="wordmark" href="#top" aria-label="7POD, back to top"><span class="logo" aria-hidden="true"><b>7</b><b>P</b><b>O</b><b>D</b></span></a>
+    <a class="wordmark" href="#top" aria-label="7POD, back to top"><span class="logo" aria-hidden="true"><b><svg viewBox="55 -10 718 1100"><path d="M762 242Q604 424 521 615Q438 806 409 1050L205 1050Q227 816 313 628Q387 467 548 261L65 261L65 92L762 92L762 242Z"/></svg></b><b><svg viewBox="-10 -10 791 1100"><path d="M208 689L208 1050L0 1050L0 37L450 37Q593 37 682 131Q771 224 771 368Q771 506 687 598Q604 689 466 689L208 689M421 213L208 213L208 506L410 506Q480 506 525 471Q571 435 571 367Q571 303 527 258Q484 213 421 213Z"/></svg></b><b><svg viewBox="-10 -10 1014 1100"><path d="M497 1079Q272 1079 133 923Q0 773 0 545Q0 317 131 167Q270 10 497 10Q721 10 860 167Q994 317 994 545Q994 773 862 923Q723 1079 497 1079M497 896Q631 896 710 784Q780 685 780 544Q780 403 710 305Q631 193 497 193Q361 193 283 303Q213 403 213 544Q213 685 282 784Q361 896 497 896Z"/></svg></b><b><svg viewBox="-10 -10 884 1100"><path d="M400 37Q608 37 736 176Q864 315 864 527Q864 757 717 904Q570 1050 340 1050L0 1050L0 37L400 37M398 213L206 213L206 868L372 868Q507 868 584 774Q657 685 657 546Q657 418 594 323Q522 213 398 213Z"/></svg></b></span></a>
     <nav class="menu" aria-label="Main">
       <span class="menu-pill" id="menu-pill" aria-hidden="true"></span>
-      <a href="#story" data-nav="story">Story</a>
+      <a href="#story" data-nav="story">How</a>
+      <a href="#token" data-nav="token">7POD</a>
       <a href="#world" data-nav="world">World</a>
-      <a href="#moods" data-nav="moods">Moods</a>
-      <a href="#token" data-nav="token">Token</a>
+      <a href="#moods" data-nav="moods">Evolution</a>
       <a href="#buy" data-nav="buy">Buy</a>
     </nav>
-    <a class="btn small" data-play href="../">Play</a>
+    <button class="sound-btn" id="sound-btn" type="button" aria-label="Turn sound off" aria-pressed="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path class="spk" d="M4 9h4l5-4v14l-5-4H4z"/><path class="wave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="mute" d="M16 9l6 6M22 9l-6 6"/></svg>
+    </button>
+    <a class="btn small" data-play href="../">Enter world</a>
   </header>
   <div class="progress" aria-hidden="true"><i id="progress"></i></div>
 
@@ -56,7 +59,7 @@
     </section>
 
     <!-- 02 Story: pinned, scrub -->
-    <section class="s s-story" id="story" data-tag="02 — The Blackout" aria-label="The story of the city">
+    <section class="s s-story" id="story" data-tag="02 — How it evolves" aria-label="How 7POD evolves">
       <div class="story-pin" id="story-pin">
         <div class="story-stage" id="story-stage">
           <img src="img/city-dark.jpg" alt="" width="1600" height="900" />
@@ -65,117 +68,113 @@
           <div class="lamps" id="lamps" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
         </div>
         <div class="story-steps" id="story-steps">
-          <article><em>01</em><h2>The Blackout</h2><p>One night every lamp in the city went out. People left. The units that kept the place running shut down one by one.</p></article>
-          <article><em>02</em><h2>7POD stayed</h2><p>The smallest unit kept walking the same streets, waiting for anyone to answer.</p></article>
-          <article><em>03</em><h2>A signal came back</h2><p>Each signal found turns on another light. Windows follow, then whole streets.</p></article>
-          <article><em>04</em><h2>That signal is you</h2><p>Holders are the signals. The more people show up, the more of the city comes back.</p></article>
+          <article><em>01</em><h2>Trade</h2><p>Every trade on 7POD pays a small creator fee. Nothing extra for you to do.</p></article>
+          <article><em>02</em><h2>Burn</h2><p>Every hour, the fees buy back 7POD and burn it for good. Each burn has a public transaction link.</p></article>
+          <article><em>03</em><h2>Evolve</h2><p>The robot follows the total burned, not the price. Burns only add up, so 7POD only moves forward.</p></article>
+          <article><em>04</em><h2>All the way up</h2><p>Each level wakes more robots in its city and links them to 7POD, until the whole network becomes a fictional superintelligence. It is a story, not real AI.</p></article>
         </div>
       </div>
     </section>
 
-    <!-- 03 Live -->
-    <section class="s s-live" id="live" data-tag="03 — City lights" aria-labelledby="live-title">
-      <div class="wrap center">
-        <h2 id="live-title" class="split">City lights</h2>
-        <p class="count scramble" id="holders">Live count starts at launch</p>
-        <p class="sub reveal" id="holders-note">This number will come straight from the chain. We will not show a made-up figure before then.</p>
+    <!-- 03 7POD: evolusi, burn, token, cara beli -->
+    <section class="s s-burns" id="token" data-tag="03 — 7POD" aria-labelledby="burns-title">
+      <div class="wrap">
+        <h2 id="burns-title" class="reveal burn-title">Right now, 7POD is</h2>
+        <div class="burn-board reveal" id="burn-board" data-state="prelaunch">
+          <div class="evo-side">
+            <div class="evo-ring" aria-hidden="true">
+              <svg viewBox="0 0 120 120"><defs><linearGradient id="ring-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7a4dff"/><stop offset="1" stop-color="#5fd39a"/></linearGradient></defs>
+                <circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fg" id="evo-ring" cx="60" cy="60" r="52" pathLength="100"/></svg>
+              <span class="ring-lv"><small>Lv</small><b id="evo-lvnum">0</b></span>
+            </div>
+            <p class="evo-name scramble" id="holders">Dormant</p>
+            <p class="evo-next" id="holders-note">Starts evolving with the first burn after launch.</p>
+            <div class="evo-minds" aria-label="Minds awake"><span class="mind-dots" id="mind-dots"></span><span id="mind-text">0 of 11 minds awake</span></div>
+          </div>
+          <div class="burn-side">
+            <span class="burn-label">Total burned</span>
+            <p class="burn-big"><b id="burn-amount">0</b> <small>7POD</small></p>
+            <dl class="burn-stats">
+              <div><dt>Of supply</dt><dd id="burn-pct">0%</dd></div>
+              <div><dt>Supply left</dt><dd id="burn-left">1,000,000,000</dd></div>
+              <div><dt>Next burn</dt><dd id="burn-next">At launch</dd></div>
+            </dl>
+            <div class="burn-feed-head"><span class="burn-label">Latest burns</span><span class="burn-updated" id="burn-updated"></span></div>
+            <ol class="burn-list" id="burn-list" aria-live="polite"><li class="burn-empty">Waiting for the first burn.</li></ol>
+            <a class="burn-all" id="burn-all" target="_blank" rel="noopener" hidden>See every burn on Solscan</a>
+          </div>
+          <div class="board-row token-row" id="buy">
+            <div class="token-info">
+              <div class="token-head"><span class="token-tick">7POD</span><p class="status" id="status">Solana · not launched yet</p></div>
+              <div class="ca-box" id="ca-box"><span class="burn-label">Contract</span><p class="ca-line"><code id="ca-value">Published at launch</code><button type="button" id="ca-copy" hidden>Copy</button></p></div>
+              <ul class="token-facts">
+                <li><span>Chain</span><b>Solana</b></li>
+                <li><span>Supply</span><b>Published before launch</b></li>
+                <li><span>Burn</span><b>Hourly, from creator fees</b></li>
+              </ul>
+              <div class="tier-chips"><span class="burn-label">Holder skins in the world</span>
+                <ul><li><b>Signal</b> any wallet</li><li><b>Spark</b> 1K</li><li><b>Beacon</b> 100K</li><li><b>Core</b> 1M</li></ul>
+                <small>Cosmetic only. Holding pays nothing.</small></div>
+            </div>
+            <div class="buy-box">
+              <span class="burn-label">How to buy</span>
+              <ol class="buy-steps">
+                <li><em>1</em><div><b>Get a Solana wallet</b><p>Phantom, Solflare or Backpack. Never share your seed phrase.</p></div></li>
+                <li><em>2</em><div><b>Add some SOL</b><p>Buy it on an exchange and send it to your wallet.</p></div></li>
+                <li><em>3</em><div><b>Swap for 7POD</b><p>Check the contract above first. Fake tokens with the same name are common.</p></div></li>
+              </ol>
+              <a class="btn buy-btn" id="buy-link" aria-disabled="true">Buy opens at launch</a>
+            </div>
+          </div>
+        </div>
+        <p class="burn-foot reveal">Creator fees buy 7POD and burn it every hour. Every number here is read from Solana.</p>
       </div>
     </section>
 
     <!-- 04 World -->
     <section class="s s-world" id="world" data-tag="04 — The world" aria-labelledby="world-title">
       <div class="wrap">
-        <h2 id="world-title" class="split">Walk it yourself</h2>
+        <h2 id="world-title" class="split">Its world, in your browser</h2>
         <ul class="features">
           <li class="card" data-depth="0.08"><figure><img src="img/park-day.jpg" data-still="park-day" alt="7POD in a grassy park with a fountain and a hill" width="1200" height="675" loading="lazy" /></figure><h3>No download</h3><p>It runs in the browser.</p></li>
           <li class="card" data-depth="0.16"><figure><img src="img/hero-day.jpg" data-still="lake-sunset" alt="7POD smiling in the park on a clear morning" width="1000" height="556" loading="lazy" /></figure><h3>A real day</h3><p>Morning, noon, sunset and night pass while you play.</p></li>
           <li class="card" data-depth="0.1"><figure><img src="img/city-lit.jpg" data-still="rooftop-view" alt="City blocks at night with every window lit" width="1600" height="900" loading="lazy" /></figure><h3>Weather from the market</h3><p>Pumps bring golden light, dumps bring storms.</p></li>
-          <li class="card" data-depth="0.2"><figure><img src="img/shop.jpg" data-still="shop-interior" alt="7POD inside the mini mart beside shelves full of goods" width="900" height="563" loading="lazy" /></figure><h3>Things to do</h3><p>Find lost signals, walk into the cafe, climb to the rooftop, talk to the robots.</p></li>
+          <li class="card" data-depth="0.2"><figure><img src="img/shop.jpg" data-still="shop-interior" alt="7POD inside the mini mart beside shelves full of goods" width="900" height="563" loading="lazy" /></figure><h3>No quests</h3><p>Walk into the cafe, climb to the rooftop, talk to the robots. Its level follows you everywhere.</p></li>
         </ul>
       </div>
     </section>
 
-    <!-- 05 Moods: pinned, 7POD 3D ganti ekspresi -->
-    <section class="s s-moods" id="moods" data-tag="05 — Moods" aria-labelledby="moods-title">
+    <!-- 05 Evolution path: pinned, robot 3D ganti level sambil scroll -->
+    <section class="s s-moods" id="moods" data-tag="05 — Evolution path" aria-labelledby="moods-title">
       <div class="moods-pin">
         <div class="wrap">
-          <h2 id="moods-title" class="split">7POD has moods</h2>
-          <ul class="faces" id="faces">
-            <li data-face="happy"><img src="img/face-happy.jpg" alt="7POD looking happy" width="420" height="326" loading="lazy" /><span>Happy</span></li>
-            <li data-face="sad"><img src="img/face-sad.jpg" alt="7POD looking sad" width="420" height="326" loading="lazy" /><span>Sad</span></li>
-            <li data-face="angry"><img src="img/face-angry.jpg" alt="7POD looking angry" width="420" height="326" loading="lazy" /><span>Angry</span></li>
-            <li data-face="surprised"><img src="img/face-surprised.jpg" alt="7POD looking surprised" width="420" height="326" loading="lazy" /><span>Surprised</span></li>
-            <li data-face="disgust"><img src="img/face-disgust.jpg" alt="7POD looking disgusted" width="420" height="326" loading="lazy" /><span>Disgust</span></li>
+          <h2 id="moods-title" class="reveal">Evolution path</h2>
+          <ul class="faces levels" id="faces">
+            <li data-level="0"><b>0</b><span>Dormant</span><small>0 of 11 minds</small></li>
+            <li data-level="1"><b>1</b><span>Awake</span><small>2 minds wake</small></li>
+            <li data-level="2"><b>2</b><span>Aware</span><small>4 minds · antenna</small></li>
+            <li data-level="3"><b>3</b><span>Learning</span><small>6 minds · circuit brain</small></li>
+            <li data-level="4"><b>4</b><span>Reasoning</span><small>9 minds · orbit rings</small></li>
+            <li data-level="5"><b>5</b><span>Superintelligence</span><small>All 11 · golden halo</small></li>
           </ul>
-          <p class="sub mood-hint">Scroll or tap a mood. The same faces are in the game.</p>
+          <p class="sub mood-hint">Tap a level to preview it. After level 5, every extra burn adds a star to the halo.</p>
         </div>
       </div>
     </section>
 
-    <!-- 06 Token -->
-    <section class="s s-token" id="token" data-tag="06 — $7POD" aria-labelledby="token-title">
-      <div class="wrap">
-        <h2 id="token-title" class="split">$7POD</h2>
-        <p class="status" id="status">Solana · token not launched yet</p>
-        <p class="ca" id="ca" hidden><span>Contract</span> <code id="ca-value"></code> <button type="button" id="ca-copy">Copy</button></p>
-        <dl id="tokenomics" class="tiles">
-          <div class="reveal"><dt>Chain</dt><dd>Solana</dd></div>
-          <div class="reveal"><dt>Supply</dt><dd>Published before launch</dd></div>
-          <div class="reveal"><dt>Allocation</dt><dd>Published before launch</dd></div>
-          <div class="reveal"><dt>Contract</dt><dd>Published at launch</dd></div>
-        </dl>
-        <h3 class="reveal">What holding unlocks</h3>
-        <table class="reveal">
-          <thead><tr><th scope="col">Tier</th><th scope="col">Minimum balance</th><th scope="col">In the game</th></tr></thead>
-          <tbody>
-            <tr><td>Signal</td><td>Connect a wallet</td><td>Glacier and Midnight skins</td></tr>
-            <tr><td>Spark</td><td class="num">1,000</td><td>Acid and Rose Gold skins</td></tr>
-            <tr><td>Beacon</td><td class="num">100,000</td><td>Beacon skin</td></tr>
-            <tr><td>Core</td><td class="num">1,000,000</td><td>Core skin</td></tr>
-          </tbody>
-        </table>
-        <p class="sub reveal">Tiers are cosmetic. They do not pay anything.</p>
-      </div>
-    </section>
-
-    <!-- 07 Buy -->
-    <section class="s s-buy" id="buy" data-tag="07 — How to buy" aria-labelledby="buy-title">
-      <div class="wrap">
-        <h2 id="buy-title" class="split">How to buy</h2>
-        <ol class="steps">
-          <li class="reveal"><em>01</em><h3>Get a Solana wallet</h3><p>Phantom, Solflare or Backpack all work. Never share your seed phrase, with anyone, ever.</p></li>
-          <li class="reveal"><em>02</em><h3>Add some SOL</h3><p>Buy it on an exchange and send it to your wallet.</p></li>
-          <li class="reveal"><em>03</em><h3>Swap for $7POD</h3><p>Check the contract address on this page first. Fake tokens with the same name are common.</p></li>
-        </ol>
-        <a class="btn reveal" id="buy-link" aria-disabled="true">Buy opens at launch</a>
-      </div>
-    </section>
-
-    <!-- 08 Plan -->
-    <section class="s s-plan" id="plan" data-tag="08 — What comes next" aria-labelledby="plan-title">
-      <div class="wrap">
-        <h2 id="plan-title" class="split">What comes next</h2>
-        <ol class="plan">
-          <li class="reveal"><b>Now</b> Playable world on devnet, with wallet connect, skins and daily supply runs</li>
-          <li class="reveal"><b>Mainnet</b> Token launch, live holder count lights the city</li>
-        </ol>
-      </div>
-    </section>
-
-    <!-- 09 End -->
-    <section class="s s-end" id="end" data-tag="09 — Wake up">
+    <!-- 06 End -->
+    <section class="s s-end" id="end" data-tag="06 — Wake up">
       <div class="wrap center">
-        <h2 class="split">The lights are not going to turn themselves on.</h2>
-        <a class="btn reveal" data-play href="../">Wake up 7POD</a>
+        <h2 class="split">Every burn moves 7POD forward.</h2>
+        <a class="btn reveal" data-play href="../">Enter 7POD's world</a>
       </div>
     </section>
   </main>
 
   <footer>
     <nav aria-label="Community" id="links"></nav>
-    <p>$7POD is a community token with no promise of value or return. Nothing here is financial advice. Crypto can lose all of its value. Do your own research.</p>
-    <p>World textures and models from Poly Haven, CC0.</p>
   </footer>
+  <script src="../launch.js"></script>
   <script src="config.js"></script>
   <script type="module" src="./site.js"></script>
 </body>

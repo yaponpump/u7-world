@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-  <title>VUZZ World</title>
+  <title>7POD World</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Figtree:wght@400;600&display=swap" />
   <link rel="stylesheet" href="/src/style.css" />
 </head>
@@ -13,11 +13,14 @@
   <div id="hud">
     <div class="hud-top">
       <div class="hud-left">
-        <div class="panel lights" id="lights-panel">
-          <div class="label">City lights</div>
-          <div class="lamps" id="lamps"></div>
-          <div class="small" id="lamps-text">3/5 · 1,000 signals</div>
+        <div class="panel evo" id="evo-panel">
+          <div class="label">Evolution · <span id="evo-lv">Lv 0</span></div>
+          <div class="evo-name" id="evo-name">Dormant</div>
+          <div class="evo-bar"><i id="evo-fill"></i></div>
+          <div class="small" id="evo-text">Waiting for the first burn</div>
+          <div class="small evo-minds" id="evo-minds">0/11 minds awake</div>
         </div>
+        <div hidden><div class="lamps" id="lamps"></div><div id="lamps-text"></div></div>
         <div class="panel market" id="market-panel">
           <div class="label">Market · weather</div>
           <div class="small" id="market-text">Connecting to market...</div>
@@ -31,7 +34,7 @@
           <button class="btn action" id="face-btn">G · Normal</button>
           <button class="btn action" id="skin-btn">Skins</button>
         </div>
-        <div class="panel quest">
+        <div class="panel quest" hidden>
           <div class="label">Quest</div>
           <div class="small" id="quest-text">Find the 5 lost signals · <b id="quest-count">0</b>/5</div>
           <div class="small muted" id="bolts-text">0 bolts</div>
@@ -83,16 +86,12 @@
   <div id="joystick" class="joystick"><div class="knob"></div></div>
 
   <div id="intro">
-    <div class="intro-card">
-      <div class="eyebrow">VUZZ · $VUZZ</div>
-      <h1>VUZZ is still waiting for this city to light up again.</h1>
-      <p>Since The Blackout, VUZZ is the only unit left. Every new signal lights one more city lamp. Walk around, sit, grab a coffee, or leave it alone until it falls asleep.</p>
-      <button class="btn primary big" id="start-btn">Wake up VUZZ</button>
-      <div class="small muted" id="load-status">Preparing the world...</div>
-      <div class="small tip" id="intro-tip">Tip: follow the green arrow to the nearest lost signal.</div>
-    </div>
+    <!-- Layar masuk minimal: cuma garis loading tipis, lalu dunia muncul pelan-pelan sendiri -->
+    <div class="intro-min" aria-label="Loading the world"><div class="intro-bar"><i></i></div></div>
+    <div hidden><div id="intro-evo"></div><button id="start-btn">Enter</button><div id="load-status"></div><div id="intro-tip"></div></div>
   </div>
 
+  <script src="launch.js"></script>
   <script type="module" src="/src/main.js"></script>
   <script type="module" src="/src/hud.js"></script>
 </body>

@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="referrer" content="no-referrer" />
+<title>7POD Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;800&family=Space+Mono:wght@400;700&display=swap" />
+<style>
+  :root {
+    --bg:#f3eeff; --bg2:#e3f8ee; --ink:#2a1f5e; --soft:#5a4f86; --dim:#8a80b0;
+    --brand:#5a44a8; --violet:#6d3df5; --lime:#b8ff3c; --card:rgba(255,255,255,.72);
+    --line:rgba(90,68,168,.16); --ok:#16a36a; --bad:#d6334a; --warn:#b26a00;
+    --mono:'Space Mono', ui-monospace, Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body { margin:0; color:var(--ink); font:400 15px/1.55 Outfit, system-ui, sans-serif; -webkit-font-smoothing:antialiased;
+    background: radial-gradient(1200px 700px at 0% 0%, #e9e0ff 0%, transparent 60%), radial-gradient(900px 600px at 100% 100%, var(--bg2) 0%, transparent 60%), var(--bg); background-attachment: fixed; }
+  .app { display:grid; grid-template-columns: 380px 1fr; min-height:100vh; }
+
+  /* sidebar */
+  aside { position:sticky; top:0; height:100vh; overflow:auto; padding:28px; display:flex; flex-direction:column; gap:18px;
+    background:linear-gradient(160deg, #5a44a8, #3d2c86); color:#f3eeff; }
+  .brand { display:flex; align-items:center; gap:12px; }
+  .brand .logo { font:800 30px/1 Outfit, sans-serif; letter-spacing:-.02em; }
+  .brand .tag { font:700 11px/1 var(--mono); letter-spacing:.14em; text-transform:uppercase; padding:6px 9px; border-radius:999px; background:rgba(184,255,60,.18); color:var(--lime); }
+  aside p.lead { margin:0; color:#d9cffc; font-size:14px; }
+  .panel { background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14); border-radius:18px; padding:18px; }
+  .panel h3 { margin:0 0 12px; font:700 11px/1 var(--mono); letter-spacing:.14em; text-transform:uppercase; color:#bfb2f5; }
+  .kv { display:grid; gap:10px; }
+  .kv div { display:flex; justify-content:space-between; gap:10px; font-size:14px; }
+  .kv span { color:#bfb2f5; } .kv b { font-weight:600; text-align:right; word-break:break-all; }
+  .pill { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; font:700 11px/1.4 var(--mono); letter-spacing:.06em; }
+  .pill::before { content:''; width:7px; height:7px; border-radius:50%; background:currentColor; }
+  .pill.on { background:rgba(184,255,60,.18); color:var(--lime); } .pill.off { background:rgba(255,255,255,.12); color:#d9cffc; } .pill.lock { background:rgba(255,190,90,.2); color:#ffd08a; }
+  #now { font:400 12px/1.6 var(--mono); color:#d9cffc; white-space:pre-wrap; word-break:break-all; }
+  /* preview mirip header website */
+  .preview { background:#f3eeff; color:var(--ink); border-radius:14px; padding:14px; display:grid; gap:10px; }
+  .preview .st { font:700 11px/1 var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--soft); }
+  .preview .st.live { color:var(--ok); }
+  .preview .ca { display:flex; align-items:center; justify-content:space-between; gap:8px; background:#fff; border:1px solid var(--line); border-radius:10px; padding:9px 11px; font:400 12px/1 var(--mono); }
+  .preview .ca em { font-style:normal; color:var(--dim); }
+  .preview .buy { text-align:center; padding:11px; border-radius:999px; font-weight:600; background:linear-gradient(135deg,#7a4dff,#5a44a8); color:#fff; }
+  .preview .buy.dis { background:#d9d2f0; color:#8a80b0; }
+  aside .foot { margin-top:auto; font-size:12px; color:#bfb2f5; }
+
+  /* main */
+  main { padding:32px clamp(16px, 3vw, 44px) 120px; min-width:0; }
+  header.top { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:22px; flex-wrap:wrap; }
+  header.top h1 { margin:0; font-weight:800; font-size:clamp(28px, 3vw, 40px); letter-spacing:-.02em; line-height:1.05; }
+  header.top p { margin:6px 0 0; color:var(--soft); }
+  .grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:18px; }
+  .grid .wide { grid-column: 1 / -1; }
+  section.card { background:var(--card); backdrop-filter: blur(10px); border:1px solid var(--line); border-radius:20px; padding:22px; box-shadow: 0 18px 40px -28px rgba(90,68,168,.45); }
+  section.card h2 { display:flex; align-items:center; gap:10px; margin:0 0 4px; font-size:18px; font-weight:600; }
+  section.card h2 i { font:700 11px/1 var(--mono); font-style:normal; color:#fff; background:var(--brand); border-radius:999px; padding:5px 8px; }
+  section.card > p.d { margin:0 0 8px; color:var(--soft); font-size:13px; }
+  label { display:block; font-size:13px; font-weight:500; color:var(--soft); margin:14px 0 6px; }
+  input, select { width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--line); background:#fff; color:var(--ink); font:inherit; transition:border-color .2s, box-shadow .2s; }
+  input:focus, select:focus { outline:none; border-color:var(--violet); box-shadow:0 0 0 4px rgba(109,61,245,.14); }
+  input[readonly], select:disabled { background:#efeaf9; color:var(--soft); }
+  input.mono { font:400 13px/1.3 var(--mono); }
+  input, select { height:46px; }
+  .check input { height:18px; }
+  .row { display:flex; gap:10px; } .row > * { flex:1; min-width:0; } .row > button { flex:0 0 auto; }
+  button { padding:12px 16px; border-radius:12px; border:1px solid var(--line); background:#fff; color:var(--brand); font:600 14px/1 Outfit, sans-serif; cursor:pointer; transition:transform .15s, background .2s; }
+  button:hover:not(:disabled) { background:#f1ebff; transform:translateY(-1px); }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  .hint { font-size:12px; color:var(--dim); margin-top:6px; }
+  .err { color:var(--bad) !important; } .ok { color:var(--ok) !important; }
+  .check { display:flex; gap:10px; align-items:flex-start; margin-top:14px; font-size:14px; font-weight:400; color:var(--ink); }
+  .check input { width:18px; height:18px; margin:1px 0 0; accent-color:var(--violet); flex:0 0 auto; }
+  .warn { border-color:rgba(178,106,0,.35) !important; background:#fff7ea !important; }
+  .warn b { color:var(--warn); }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  /* save bar */
+  .bar { position:fixed; left:380px; right:0; bottom:0; z-index:5; display:flex; align-items:center; gap:16px; padding:14px clamp(16px, 3vw, 44px);
+    background:rgba(243,238,255,.86); backdrop-filter:blur(14px); border-top:1px solid var(--line); }
+  #log { flex:1; font-size:14px; color:var(--soft); white-space:pre-wrap; min-width:0; }
+  #save { flex:0 0 auto; padding:14px 28px; border:0; border-radius:999px; color:#fff; font-weight:800; font-size:15px; background:linear-gradient(135deg,#7a4dff,#5a44a8); box-shadow:0 10px 22px -10px rgba(90,68,168,.9); }
+  #save:hover:not(:disabled) { background:linear-gradient(135deg,#8a62ff,#6a52bd); }
+
+  @media (max-width: 1100px) { .grid { grid-template-columns:1fr; } }
+  @media (max-width: 860px) {
+    .app { grid-template-columns:1fr; }
+    aside { position:static; height:auto; padding:22px 16px; }
+    main { padding:24px 16px 140px; }
+    .bar { left:0; flex-direction:column; align-items:stretch; gap:10px; padding:12px 16px; }
+    #save { width:100%; }
+    .two { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand"><span class="logo">7POD</span><span class="tag">Admin</span></div>
+    <p class="lead">Satu tempat buat ganti CA dan link. Website sama game langsung ikut.</p>
+
+    <div class="panel">
+      <h3>Status</h3>
+      <div class="kv">
+        <div><span>Network</span><b id="pv-net"><span class="pill off">devnet</span></b></div>
+        <div><span>CA</span><b id="pv-ca-state"><span class="pill off">belum diisi</span></b></div>
+        <div><span>Tombol Buy</span><b id="pv-buy-state"><span class="pill off">nonaktif</span></b></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Preview di website</h3>
+      <div class="preview">
+        <div class="st" id="pv-status">Solana · not launched yet</div>
+        <div class="ca"><em>CA</em><span id="pv-ca">-</span></div>
+        <div class="buy dis" id="pv-buy">Buy 7POD</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Sekarang tersimpan</h3>
+      <div id="now">Lagi dibaca...</div>
+    </div>
+
+    <div class="foot">Habis disimpan, website update sendiri sekitar 1 sampai 2 menit. Semua perubahan kecatet di riwayat commit.</div>
+  </aside>
+
+  <main>
+    <header class="top">
+      <div><h1>Launch settings</h1><p>Isi pas token udah launch. Field yang kosong dibiarkan pakai setelan default.</p></div>
+    </header>
+
+    <div class="grid">
+      <section class="card wide">
+        <h2><i>01</i> Akses GitHub</h2>
+        <p class="d">Panel nyimpen langsung ke repo pakai token GitHub lu. Nggak perlu server.</p>
+        <div class="two">
+          <div>
+            <label for="token">GitHub token (fine-grained, repo ini aja, Contents: Read and write)</label>
+            <input id="token" type="password" class="mono" autocomplete="off" spellcheck="false" placeholder="github_pat_..." />
+            <div class="hint">Cuma disimpen di tab ini dan cuma dikirim ke api.github.com. Jangan pernah kirim token ke chat.</div>
+          </div>
+          <div class="row">
+            <div><label for="repo">Repo</label><input id="repo" class="mono" value="yaponpump/u7-world" /></div>
+            <div style="max-width:140px"><label for="branch">Branch</label><input id="branch" class="mono" value="main" /></div>
+          </div>
+        </div>
+        <div class="row" style="align-items:center;margin-top:6px">
+          <label class="check" style="margin:8px 0 0"><input type="checkbox" id="remember" /> Ingat selama tab ini kebuka</label>
+          <button id="load" style="margin-top:8px">Muat dari GitHub</button>
+        </div>
+      </section>
+
+      <section class="card wide">
+        <h2><i>02</i> Token 7POD</h2>
+        <p class="d">CA ini yang muncul di website, dipakai game buat cek saldo, dan buat link beli.</p>
+        <label for="mint">CA / mint address</label>
+        <div class="row">
+          <input id="mint" class="mono" spellcheck="false" placeholder="Kosong = belum launch" />
+          <button id="paste" type="button">Paste</button>
+        </div>
+        <div class="hint" id="mint-hint">Alamat Solana, 32 sampai 44 karakter base58.</div>
+        <div class="two">
+          <div>
+            <label for="network">Network</label>
+            <select id="network"><option value="devnet">devnet (test)</option><option value="mainnet">mainnet (asli)</option></select>
+          </div>
+          <div>
+            <label for="burnWallet">Burn wallet (alamat publik)</label>
+            <input id="burnWallet" class="mono" spellcheck="false" />
+          </div>
+        </div>
+        <label for="buyUrl">Link beli</label>
+        <div class="row">
+          <input id="buyUrl" class="mono" placeholder="https://jup.ag/swap/SOL-..." />
+          <button id="autobuy" type="button">Isi Jupiter</button>
+        </div>
+        <div class="hint">Tombol Buy di website cuma aktif kalau network mainnet dan CA keisi.</div>
+      </section>
+
+      <section class="card">
+        <h2><i>03</i> Server</h2>
+        <p class="d">Diisi setelah burn bot dan API jalan.</p>
+        <label for="holdersUrl">Holders API</label>
+        <input id="holdersUrl" class="mono" placeholder="https://.../holders" />
+        <label for="burnsUrl">Burns API</label>
+        <input id="burnsUrl" class="mono" placeholder="https://.../burns" />
+      </section>
+
+      <section class="card">
+        <h2><i>04</i> Sosial</h2>
+        <p class="d">Muncul sebagai link di website.</p>
+        <label for="x">X</label>
+        <input id="x" class="mono" placeholder="https://x.com/..." />
+        <label for="telegram">Telegram</label>
+        <input id="telegram" class="mono" placeholder="https://t.me/..." />
+      </section>
+
+      <section class="card wide warn" id="lock-box" hidden>
+        <h2><i>!</i> CA dikunci</h2>
+        <p class="d">Token udah live di mainnet. Kalau beneran harus ganti, ketik <b>GANTI CA</b>.</p>
+        <input id="unlock" class="mono" autocomplete="off" placeholder="GANTI CA" />
+      </section>
+
+      <section class="card wide warn" id="confirm-box" hidden>
+        <label class="check" style="margin:0"><input type="checkbox" id="confirm-main" /> Aku udah cek CA ini 2 kali dan ini token mainnet yang asli.</label>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="bar">
+  <div id="log">Isi token, klik Muat dari GitHub, ubah yang perlu, terus Simpan.</div>
+  <button id="save" disabled>Simpan ke GitHub</button>
+</div>
+
+<script>
+// Preview + status di sidebar, ikut isi form.
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const B58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+  const pill = (cls, t) => '<span class="pill ' + cls + '">' + t + '</span>';
+  function pv() {
+    const m = $('mint').value.trim(), net = $('network').value, ok = B58.test(m), main = net === 'mainnet';
+    const locked = $('mint').readOnly;
+    $('pv-net').innerHTML = main ? pill('on', 'mainnet') : pill('off', 'devnet');
+    $('pv-ca-state').innerHTML = locked ? pill('lock', 'dikunci') : ok ? pill('on', 'terisi') : m ? pill('lock', 'format salah') : pill('off', 'belum diisi');
+    const buy = ok && main && $('buyUrl').value.trim();
+    $('pv-buy-state').innerHTML = buy ? pill('on', 'aktif') : pill('off', 'nonaktif');
+    $('pv-status').textContent = !ok ? 'Solana · not launched yet' : main ? 'Live on Solana' : 'Solana devnet test, not real money';
+    $('pv-status').classList.toggle('live', ok && main);
+    $('pv-ca').textContent = ok ? m.slice(0, 6) + '...' + m.slice(-6) : '-';
+    $('pv-buy').classList.toggle('dis', !buy);
+  }
+  document.addEventListener('input', () => setTimeout(pv));
+  document.addEventListener('change', () => setTimeout(pv));
+  document.addEventListener('click', () => setTimeout(pv));
+  window.__pv = pv; setInterval(pv, 1000); pv();
+})();
+</script>
+<script>
+(() => {
+  const PATH = 'public/launch.js';
+  const FIELDS = ['mint', 'network', 'buyUrl', 'holdersUrl', 'burnsUrl', 'burnWallet', 'x', 'telegram'];
+  const B58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+  const $ = (id) => document.getElementById(id);
+  let sha = null, loaded = null;
+
+  const log = (msg, cls = '') => { $('log').className = cls; $('log').textContent = msg; };
+  const enc = (s) => btoa(unescape(encodeURIComponent(s)));
+  const dec = (b) => decodeURIComponent(escape(atob(b.replace(/\n/g, ''))));
+  const parse = (txt) => JSON.parse(txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1));
+  const build = (o) => '// Diisi dari panel admin. Satu sumber CA buat website + game. Jangan taruh key/secret di sini.\nwindow.POD_LAUNCH = ' + JSON.stringify(o, null, 2) + ';\n';
+
+  function fill(o) { for (const k of FIELDS) $(k).value = o[k] || (k === 'network' ? 'devnet' : ''); validate(); }
+  function read() { const o = {}; for (const k of FIELDS) o[k] = $(k).value.trim(); return o; }
+  function showNow(o, where) {
+    $('now').textContent = where + '\nCA: ' + (o.mint || '(kosong, belum launch)') + '\nNetwork: ' + (o.network || 'devnet') + '\nBuy: ' + (o.buyUrl || '-');
+  }
+
+  function validate() {
+    const o = read();
+    let ok = true, hint = 'Alamat Solana, 32 sampai 44 karakter base58.';
+    $('mint-hint').className = 'hint';
+    if (o.mint && !B58.test(o.mint)) { ok = false; hint = 'Format CA salah. Cek lagi, jangan ada spasi atau huruf 0 O I l.'; $('mint-hint').className = 'hint err'; }
+    else if (o.mint) { hint = 'Format OK. ' + o.mint.length + ' karakter.'; $('mint-hint').className = 'hint ok'; }
+    $('mint-hint').textContent = hint;
+    if (o.burnWallet && !B58.test(o.burnWallet)) ok = false;
+    for (const k of ['buyUrl', 'holdersUrl', 'burnsUrl', 'x', 'telegram']) if (o[k] && !/^https:\/\//.test(o[k])) ok = false;
+    const locked = !!(loaded && loaded.network === 'mainnet' && loaded.mint) && $('unlock').value.trim() !== 'GANTI CA';
+    $('lock-box').hidden = !(loaded && loaded.network === 'mainnet' && loaded.mint);
+    $('mint').readOnly = locked; $('network').disabled = locked; $('paste').disabled = locked;
+    if (locked && (o.mint !== loaded.mint || o.network !== 'mainnet')) ok = false;
+    const needConfirm = o.network === 'mainnet' && o.mint && (!loaded || loaded.mint !== o.mint || loaded.network !== 'mainnet');
+    $('confirm-box').hidden = !needConfirm;
+    if (needConfirm && !$('confirm-main').checked) ok = false;
+    $('save').disabled = !ok || !sha || !$('token').value.trim();
+    return ok;
+  }
+
+  async function gh(method, body) {
+    const repo = $('repo').value.trim(), branch = $('branch').value.trim();
+    const url = 'https://api.github.com/repos/' + repo + '/contents/' + PATH + (method === 'GET' ? '?ref=' + encodeURIComponent(branch) : '');
+    const r = await fetch(url, {
+      method, cache: 'no-store',
+      headers: { Authorization: 'Bearer ' + $('token').value.trim(), Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
+      body: body ? JSON.stringify({ ...body, branch }) : undefined,
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error((r.status === 401 ? 'Token salah atau kadaluarsa. ' : r.status === 403 ? 'Token nggak punya izin tulis ke repo ini. ' : r.status === 404 ? 'Repo, branch, atau file nggak ketemu (atau token nggak dikasih akses repo ini). ' : r.status === 409 ? 'File keburu berubah, klik Muat lagi. ' : '') + (j.message || r.status));
+    return j;
+  }
+
+  async function load() {
+    if (!$('token').value.trim()) return log('Isi token dulu.', 'err');
+    log('Memuat...');
+    try {
+      const j = await gh('GET');
+      sha = j.sha; loaded = parse(dec(j.content)); fill(loaded);
+      showNow(loaded, 'Di GitHub (' + $('branch').value.trim() + ')');
+      log('Kemuat. Ubah yang perlu, terus Simpan.', 'ok');
+    } catch (e) { sha = null; log(e.message, 'err'); }
+    validate();
+  }
+
+  async function save() {
+    if (!validate()) return;
+    const o = read(); if (!o.network) o.network = 'devnet';
+    const changed = FIELDS.filter((k) => (loaded?.[k] || '') !== o[k]);
+    if (!changed.length) return log('Nggak ada yang berubah.');
+    $('save').disabled = true; log('Menyimpan...');
+    try {
+      const j = await gh('PUT', { message: 'Admin: update ' + changed.join(', ') + (o.mint ? ' (CA ' + o.mint.slice(0, 4) + '...' + o.mint.slice(-4) + ')' : ''), content: enc(build(o)), sha });
+      sha = j.content.sha; loaded = o; $('confirm-main').checked = false; $('unlock').value = '';
+      showNow(o, 'Di GitHub (' + $('branch').value.trim() + '), baru disimpan');
+      log('Tersimpan. Commit ' + j.commit.sha.slice(0, 7) + '. Website update sekitar 1 sampai 2 menit lagi.', 'ok');
+    } catch (e) { log(e.message, 'err'); }
+    validate();
+  }
+
+  try { const t = sessionStorage.getItem('7pod-admin-token'); if (t) { $('token').value = t; $('remember').checked = true; } } catch {}
+  $('token').addEventListener('input', () => { try { if ($('remember').checked) sessionStorage.setItem('7pod-admin-token', $('token').value.trim()); } catch {} validate(); });
+  $('remember').addEventListener('change', () => { try { if ($('remember').checked) sessionStorage.setItem('7pod-admin-token', $('token').value.trim()); else sessionStorage.removeItem('7pod-admin-token'); } catch {} });
+  $('load').addEventListener('click', load);
+  $('save').addEventListener('click', save);
+  for (const k of FIELDS) $(k).addEventListener('input', validate);
+  $('mint').addEventListener('blur', () => { $('mint').value = $('mint').value.replace(/\s+/g, ''); validate(); });
+  $('confirm-main').addEventListener('change', validate);
+  $('unlock').addEventListener('input', validate);
+  $('paste').addEventListener('click', async () => { try { $('mint').value = (await navigator.clipboard.readText()).replace(/\s+/g, ''); validate(); } catch { log('Browser nolak akses clipboard, paste manual aja.', 'err'); } });
+  $('autobuy').addEventListener('click', () => { const m = $('mint').value.trim(); if (!B58.test(m)) return log('Isi CA yang bener dulu.', 'err'); $('buyUrl').value = 'https://jup.ag/swap/SOL-' + m; validate(); });
+
+  // Nilai yang lagi live di situs ini (tanpa token)
+  fetch('../../launch.js', { cache: 'no-store' }).then((r) => r.text()).then((t) => { const o = parse(t); showNow(o, 'Di situs ini'); if (!loaded) fill(o); }).catch(() => { $('now').textContent = 'Belum ada launch.js di situs ini.'; });
+})();
+</script>
+</body>
+</html>

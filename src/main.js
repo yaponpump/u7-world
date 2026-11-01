@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { buildWorld, WORLD, groundHeight, isWater, setCityLights, applyNight, distToRiver, onBridge, onPier, deckHeight, blockedByRail } from './world.js';
-import { BUILDINGS, setCityHolders, blockedByBuilding, cameraBlocked, inCity, onClubRoof, nearestFree, obstacleSlip, obstacleTop, rooftopHeight, touchingWall } from './city.js';
+import { BUILDINGS, ROOF, setCityHolders, setCityPower, blockedByBuilding, cameraBlocked, inCity, onClubRoof, nearestFree, obstacleSlip, obstacleTop, rooftopHeight, touchingWall } from './city.js';
 import { createRobot, STATES } from './robot.js';
 import { createAudio } from './audio.js';
 import { createWallet } from './wallet.js';
@@ -11,8 +11,8 @@ import { createMinimap } from './minimap.js';
 import { createControls } from './controls.js';
 import { loadAssets } from './assets.js';
 import { loadSave, saveScore, writeSave } from './save.js';
-import { createDaily, defaultSpots, dayKey } from './daily.js';
-import { createChain } from './quests.js';
+import { watchEvolution } from './evolution.js';
+import { voice } from './voice.js';
 import { pollHolders } from './holders.js';
 import { windowFor } from './holderWindow.js';
 
@@ -111,6 +111,8 @@ if (assets.hdri) {
 if (assets.hdri) { hdriRT = pmrem.fromEquirectangular(assets.hdri); }
 const robot = createRobot();
 scene.add(robot.root);
+// state evolusi (diisi watchEvolution di bawah)
+const evo = { level: 0, name: 'Dormant', pct: 0 };
 // Suara: tiap ganti state robot, audio ikut (servo, gulp, nguap, dengung tidur, dst)
 const audio = createAudio();
 {
@@ -218,19 +220,43 @@ function refreshLamps() {
   setCityLights(cityLights);
 }
 refreshLamps();
-// terapin progres tersimpan (sinyal yang udah ketemu, lampu, posisi)
-if (Array.isArray(save.signals)) {
-  for (const i of save.signals) { const sg = WORLD.signals[i]; if (sg) { sg.taken = true; sg.mesh.visible = false; if (sg.light) sg.light.intensity = 0; } }
-  signalsFound = WORLD.signals.filter((sg) => sg.taken).length;
-  $('quest-count').textContent = signalsFound;
+
+// ---------- Evolusi: level robot dari total burn ----------
+function renderEvolution(st) {
+  evo.level = st.level; evo.name = st.name; evo.pct = st.pct;
+  robot.setEvolution(st.level);
+  world.npcs.setEvolution(st.level);
+  const minds = `${world.npcs.awakeCount}/${world.npcs.total} minds awake`;
+  cityLights = 3 + Math.min(2, Math.floor(st.level / 2));
+  refreshLamps();
+  setCityPower(Math.min(3, Math.ceil(st.level / 2)));
+  const span = Math.max(1e-9, st.next - st.prev);
+  const prog = Math.min(1, Math.max(0, (st.pct - st.prev) / span));
+  $('evo-lv').textContent = `Lv ${st.level}`;
+  $('evo-name').textContent = st.name;
+  $('evo-fill').style.width = `${(st.level === 0 && st.pct === 0 ? 0 : prog * 100).toFixed(1)}%`;
+  const fmt = (v) => `${v < 1 ? v.toFixed(2) : v.toFixed(1)}%`;
+  $('evo-text').textContent = st.source === 'prelaunch' ? 'Waiting for the first burn'
+    : `${fmt(st.pct)} burned · next at ${fmt(st.next)}${st.source === 'preview' ? ' · preview' : ''}`;
+  $('evo-minds').textContent = minds;
+  $('intro-evo').textContent = `Evolution · ${st.name}`;
+  if (st.leveledUp && started) {
+    const p = $('evo-panel'); p.classList.remove('up'); void p.offsetWidth; p.classList.add('up');
+    audio.play('lamp'); express('surprised', 2); setTimeout(() => { express('happy', 4); robot.setState('wave'); }, 1200);
+    showToast(`7POD evolved · ${st.name} · ${minds}`, 4500);
+    say(`I feel... different. ${st.line}`, 4200);
+  }
 }
-if (typeof save.lights === 'number') { cityLights = Math.max(3, Math.min(5, save.lights)); refreshLamps(); }
+watchEvolution(renderEvolution);
+// Tanpa quest: sinyal di dunia disembunyiin, lampu kota ikut level evolusi
+for (const sg of WORLD.signals) { sg.taken = true; sg.mesh.visible = false; if (sg.light) sg.light.intensity = 0; }
 if (Array.isArray(save.pos) && save.pos.length === 2 && Number.isFinite(save.pos[0])) robot.root.position.set(save.pos[0], 0, save.pos[1]);
 
 function refreshMuteBtn() { $('mute-btn').textContent = audio.muted ? 'M · Sound off' : 'M · Sound on'; }
 function toggleMute() {
   audio.unlock();
   const m = audio.toggleMute();
+  if (m) voice.stop();
   refreshMuteBtn();
   showToast(m ? 'Sound off' : 'Sound on', 1400);
 }
@@ -250,10 +276,36 @@ const npcBubble = $('npc-bubble');
 let npcBubbleTimer = null, npcSpeaker = null;
 function npcSay(npc, text, ms = 4800) {
   npcSpeaker = npc;
+  if (!audio.muted) voice.speak(npc.name, text, { volume: 1 });
   npcBubble.innerHTML = `<b>${npc.name}</b>${text}`;
   npcBubble.hidden = false;
   clearTimeout(npcBubbleTimer);
   npcBubbleTimer = setTimeout(() => { npcBubble.hidden = true; npcSpeaker = null; }, ms);
+}
+// Bubble ambient: robot kota nyapa atau ngobrol satu sama lain, bisa beberapa sekaligus
+const ambientBubbles = [];
+function ambientSay(npc, text, ms = 3200) {
+  if (!started) return;
+  const old = ambientBubbles.find((b) => b.npc.id === npc.id);
+  if (old) { old.el.remove(); ambientBubbles.splice(ambientBubbles.indexOf(old), 1); }
+  const el = document.createElement('div');
+  el.className = 'bubble npc ambient';
+  el.innerHTML = `<b>${npc.name}</b>${text}`;
+  npcBubble.parentElement.appendChild(el);
+  ambientBubbles.push({ el, npc, until: performance.now() + ms });
+  // suara: tiap robot nadanya beda, volume ngikut jarak ke 7POD, diem kalau sound off
+  if (!audio.muted) {
+    const dd = Math.hypot(npc.x - robot.root.position.x, npc.z - robot.root.position.z);
+    voice.speak(npc.name, text, { volume: Math.max(0, 1 - dd / 30) });
+  }
+}
+world.npcs.onSay = ambientSay;
+function placeBubbleAt(el, sp) {
+  const v = new THREE.Vector3(sp.x, (sp.y ?? groundHeight(sp.x, sp.z)) + (sp.kind === 'robot' ? 2.6 : 2.2), sp.z).project(camera);
+  const onScreen = v.z < 1 && Math.abs(v.x) < 1.2 && Math.abs(v.y) < 1.2;
+  el.style.opacity = onScreen ? 1 : 0;
+  el.style.left = `${(v.x * 0.5 + 0.5) * window.innerWidth}px`;
+  el.style.top = `${(-v.y * 0.5 + 0.5) * window.innerHeight}px`;
 }
 function say(text, ms = 3200) {
   bubble.textContent = text;
@@ -330,7 +382,7 @@ function pickSkin(skin, { silent = false } = {}) {
   currentSkin = skin;
   applySkin(robot, skin);
   document.documentElement.style.setProperty('--violet', skin.primary);
-  try { localStorage.setItem('vuzz-skin', skin.id); } catch {}
+  try { localStorage.setItem('7pod-skin', skin.id); } catch {}
   renderSkins();
   if (!silent) showToast(`Skin ${skin.name}`, 1400);
 }
@@ -366,7 +418,7 @@ $('face-btn').addEventListener('click', nextFace);
 renderSkins();
 {
   let saved = null;
-  try { saved = localStorage.getItem('vuzz-skin'); } catch {}
+  try { saved = localStorage.getItem('7pod-skin'); } catch {}
   const s = SKINS.find((k) => k.id === saved);
   if (s && isUnlocked(s, walletState, CONFIG.tiers)) pickSkin(s, { silent: true });
 }
@@ -379,18 +431,19 @@ const market = createMarket({
     const prevMood = marketState?.mood;
     marketState = s;
     const chg = s.change24 == null ? '' : `${s.change24 >= 0 ? '+' : ''}${s.change24.toFixed(1)}% 24h`;
-    const price = s.price == null ? (s.source === 'demo' ? 'Demo · token not launched yet' : '') : `$${s.price < 1 ? s.price.toPrecision(3) : s.price.toFixed(2)}`;
+    const price = s.price == null ? (s.source === 'demo' ? 'Demo · token not launched yet' : '') : `${s.price < 1 ? s.price.toPrecision(3) : s.price.toFixed(2)} USD`;
     const livePrice = CONFIG.token.network === 'mainnet' && s.price != null;
     world.setBillboard(livePrice ? { tag: 'LIVE', price, note: chg || 'Market price' } : { tag: 'DEMO', price: 'No live price', note: 'Testnet · token not launched yet' });
     $('market-text').innerHTML = `<span>${MOOD_LABEL[s.mood]}</span><span class="chg ${s.change24 >= 0 ? 'up' : 'down'}">${[price, chg].filter(Boolean).join(' · ')}</span>`;
-    world.setWeather?.({ kind: s.mood, intensity: s.intensity });
+    // Tanpa hujan: market merah cuma bikin langit mendung, nggak pernah turun hujan atau badai
+    world.setWeather?.({ kind: s.mood === 'storm' || s.mood === 'rain' ? 'cloudy' : s.mood, intensity: s.intensity });
     if (!first && prevMood !== s.mood && started) {
       const lines = {
-        storm: "Storm. My sensors say the market is dumping. I'll wait under a roof.",
-        rain: "Rain. Market's red. It's fine, the lamps are still on.",
+        storm: "Grey sky. My sensors say the market is dumping. The burns still count, though.",
+        rain: "Clouds rolling in. Market's red. The burns still count, though.",
         cloudy: 'Overcast. Flat market. Just another day in this city.',
         clear: "Clear sky. Market's green. Good day for a walk.",
-        golden: 'Look at that sky. The market is pumping. Every signal is lit.',
+        golden: 'Look at that sky. Busy market, bigger burns.',
       };
       say(lines[s.mood], 4200);
       if (s.mood === 'storm' || s.mood === 'rain') express('sad', 4); else if (s.mood === 'golden') express('happy', 4);
@@ -411,13 +464,7 @@ function refreshQuestText() {
     $('quest-text').innerHTML = `Find the 5 lost signals · <b id="quest-count">${signalsFound}</b>/5`;
   }
 }
-function setupDaily() {
-  const key = dayKey();
-  const taken = save.daily && save.daily.key === key ? save.daily.taken : [];
-  daily?.dispose();
-  daily = createDaily(scene, { spots: WORLD.dailySpots?.length ? WORLD.dailySpots : defaultSpots(WORLD), key, taken, groundHeight });
-  refreshQuestText();
-}
+function setupDaily() {}
 // ---------- Lounge holder di atap ----------
 // Sebelum mainnet cukup connect wallet (demo). Di mainnet butuh tier Spark ke atas.
 function clubOpen() {
@@ -435,9 +482,9 @@ function clubNotice(open) {
 
 // ---------- Baut & minimarket ----------
 const SHOP_ITEMS = [
-  { id: 'light', name: 'Headlamp', cost: 3, desc: 'Lights your way at night.' },
-  { id: 'battery', name: 'Battery pack', cost: 5, desc: '+15% run speed, forever.' },
-  { id: 'hat', name: 'Party hat', cost: 4, desc: 'Looks great. Does nothing.' },
+  { id: 'light', name: 'Headlamp', cost: 0, desc: 'Lights your way at night.' },
+  { id: 'battery', name: 'Battery pack', cost: 0, desc: '+15% run speed, forever.' },
+  { id: 'hat', name: 'Party hat', cost: 0, desc: 'Looks great. Does nothing.' },
 ];
 function refreshBolts() {
   const el = $('bolts-text');
@@ -460,11 +507,11 @@ function renderShop() {
     const row = document.createElement('div');
     row.className = 'shop-item' + (gear[it.id] ? ' owned' : '');
     const can = !gear[it.id] && bolts >= it.cost;
-    row.innerHTML = `<div><b>${it.name}</b><div class="muted">${it.desc}</div></div><button class="btn action" ${can ? '' : 'disabled'}>${gear[it.id] ? 'Owned' : `${it.cost} bolts`}</button>`;
+    row.innerHTML = `<div><b>${it.name}</b><div class="muted">${it.desc}</div></div><button class="btn action" ${can ? '' : 'disabled'}>${gear[it.id] ? 'Owned' : 'Take it'}</button>`;
     row.querySelector('button').addEventListener('click', () => buyItem(it));
     list.appendChild(row);
   }
-  $('shop-bolts').textContent = `You have ${bolts} bolt${bolts === 1 ? '' : 's'}.`;
+  $('shop-bolts').textContent = 'Everything here is free.';
 }
 function buyItem(it) {
   if (gear[it.id] || bolts < it.cost) return;
@@ -508,8 +555,10 @@ function onChain(event, value) {
   refreshQuestText();
   persist();
 }
-chain = createChain(world, WORLD, save.quest, onChain);
-if (finaleDone) { chain.start(); setupDaily(); }
+// Quest dimatiin: chain cuma stub biar loop utama tetap jalan
+chain = { text: '', data: null, targets: [], label: '', start() {}, hint() { return null; }, note() { return null; }, use() { return false; }, update() {} };
+void onChain;
+world.setParcel?.(false);
 
 // ---------- Ending: semua sinyal ketemu ----------
 let finale = null; // { t, dur }
@@ -544,15 +593,15 @@ if (CONFIG.token.network !== 'mainnet') $('net-chip').hidden = false;
 
 // Tips di layar awal, ganti tiap 4 detik sampai mulai
 const INTRO_TIPS = [
-  'Follow the green arrow to the nearest lost signal.',
+  'Every burn makes 7POD evolve. Watch the panel top left.',
   'Hold Shift to run. Space jumps high enough to clear a car.',
-  'Press B for a backflip. Press G to change VUZZ\'s face.',
+  'Press B for a backflip. Press G to change 7POD\'s face.',
   'The river is shallow. Wade across, or use a bridge or the stepping stones.',
   'Talk to the city robots (E). They know what the market is doing.',
   'Press T to skip three hours. Nights pass faster than days.',
-  'Press Q for a photo with the $VUZZ mark. Share it with #VUZZWorld.',
-  'Leave VUZZ alone for a while. It gets bored, then sleepy.',
-  'Find all five signals and watch the city wake up.',
+  'Press Q for a photo with the 7POD mark. Share it on X.',
+  'Leave 7POD alone for a while. It gets bored, then sleepy.',
+  'At Superintelligence, 7POD wears a golden halo.',
 ];
 {
   let ti = Math.floor(Math.random() * INTRO_TIPS.length);
@@ -565,16 +614,23 @@ const INTRO_TIPS = [
   }, 4000);
 }
 
-// Intro
-$('start-btn').addEventListener('click', () => {
+// Intro: tanpa layar teks. Begitu dunia siap, layar loading memudar sendiri.
+// Suara baru boleh nyala setelah interaksi pertama (aturan browser), jadi dibuka di klik/tombol pertama.
+function startWorld() {
+  if (started) return;
   $('intro').classList.add('hidden');
   started = true;
-  audio.unlock();
-  audio.play('boot');
   robot.setState('yawn');
   behavior.lock = 1.8;
-  setTimeout(() => say("...oh. A new signal. You actually came?"), 1900);
-});
+  setTimeout(() => say(evo.level ? `...oh. Hi. I'm at ${evo.name} now. Look at me.` : "...oh. Hi. Still dormant. Waiting for the first burn."), 1900);
+}
+$('start-btn').addEventListener('click', startWorld);
+{
+  const unlock = () => { audio.unlock(); audio.play('boot'); removeEventListener('pointerdown', unlock); removeEventListener('keydown', unlock); };
+  addEventListener('pointerdown', unlock); addEventListener('keydown', unlock);
+}
+// dua frame setelah semua siap, biar gambar pertama udah kerender di balik layar loading
+requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(startWorld, 250)));
 let started = false;
 
 // ---------- Perilaku "manusia" ----------
@@ -603,9 +659,19 @@ const idleLines = [
   'This city used to be so loud.',
   "I'm still waiting for the other six units.",
   "This coffee does nothing for my systems. It's just nice.",
-  'When does the fourth lamp come on...',
+  'One more burn and I might learn something new...',
   'The sunset from that hill. You have to see it.',
 ];
+// Berdiri dari bangku: maju ke depan dudukan biar nggak nyangkut di badan bangku yang padat
+function standUp() {
+  const b = behavior.sitting;
+  behavior.sitting = null;
+  if (!b) return;
+  const pos = robot.root.position;
+  pos.x = b.x + Math.sin(b.rotY) * 0.95;
+  pos.z = b.z + Math.cos(b.rotY) * 0.95;
+  pos.y = groundHeight(pos.x, pos.z);
+}
 const sitLines = ['This bench is my favorite spot.', "Sitting for a bit. My systems need it... no they don't. I just want to.", 'You can see the lake and the pier from here.'];
 
 // batu lemparan
@@ -617,7 +683,7 @@ const splashes = [];
 function express(name, seconds = 2.5) { robot.setExpression?.(name, seconds); }
 const faceLines = {
   happy: ['Best day. No contest.', 'Look at me go.'],
-  sad: ["Nobody's answering the signals.", 'The city used to be brighter.'],
+  sad: ['Slow hour. Small burn.', 'The city used to be brighter.'],
   angry: ['Who turned the lights off. WHO.', 'My patience module is at 3%.'],
   surprised: ['Wait. What was that.', 'Did the ground just move?'],
   disgust: ['Ugh. Wet socks. I have no socks.', 'That smell is not in my database.'],
@@ -628,8 +694,8 @@ const faceLines = {
 function npcLine(npc) {
   const h = gameClock.hour, mood = marketState?.mood || 'cloudy';
   const pool = [];
-  if (mood === 'storm') pool.push("Storm's bad for deliveries. Market's worse. Hold on to your bolts.", 'Everyone is selling. I just deliver. Rain in my gears.');
-  if (mood === 'rain') pool.push("Red candles, wet streets. Same thing, really.", "Market's down. The lamps still burn, though. That's what matters.");
+  if (mood === 'storm') pool.push("Rough market today. Hold on tight.", 'Everyone is selling. I just deliver.');
+  if (mood === 'rain') pool.push("Red candles, grey sky. Same thing, really.", "Market's down. The lamps still burn, though. That's what matters.");
   if (mood === 'cloudy') pool.push('Flat market, flat sky. Quiet route today.', "Nothing's moving. Not the charts, not the clouds.");
   if (mood === 'clear') pool.push("Green day. Even my battery feels fuller.", "Market's up. Someone bought a lamp for the north street.");
   if (mood === 'golden') pool.push("Look at that sky! Charts look the same. Everything's up!", "Golden hour and a golden chart. I'm flying extra routes today.");
@@ -637,10 +703,8 @@ function npcLine(npc) {
   else if (h < 11) pool.push("Morning. Coffee machine at the cafe still works. Nobody to drink it.", 'Early route. The park is full of butterflies right now.');
   else if (h < 17) pool.push("Midday. Hill lookout has the best view if you're not busy.", "Deliveries to the east end today. Watch the cars, they don't move but you might.");
   else pool.push('Sunset. Best time for a photo. Press Q, I will not look.', 'Evening. The lamps come on one by one. Count them with me.');
-  if (cityLights < 5) pool.push(`${5 - cityLights} lamps still dark. Signals are out there, follow the arrow.`);
-  else pool.push('All five lamps. I never thought I would see that. Thank you, VUZZ.');
-  if (daily && !daily.done) pool.push(`Supply crates dropped today. One is ${daily.items.find((i) => !i.taken)?.label || 'nearby'}.`);
-  if (daily?.done) pool.push('Crates all collected. The city eats tonight. Tomorrow, new drops.');
+  pool.push(evo.level >= 5 ? 'That halo on 7POD. Every burn made it brighter.' : `7POD is at ${evo.name}. Every hour another burn. You can feel it changing.`);
+  if (evo.level >= 3) pool.push('Did you see the lights on its head? That is a brain now.');
   pool.push(`I'm ${npc.name}. I keep the city moving when nobody else does.`);
   if (npc.lines?.length) return npc.lines[Math.floor(Math.random() * npc.lines.length)];
   return pool[Math.floor(Math.random() * pool.length)];
@@ -670,7 +734,7 @@ function splash(x, z) {
 // ---------- Siklus hari sendiri ----------
 // Dunia punya jamnya sendiri: mulai pagi, satu hari penuh = 12 menit nyata (siang agak lebih
 // lama, malam lebih cepat). ?hour=12 ngunci jam (buat tes), ?realtime=1 ngikut jam komputer.
-// Tombol T lompat 3 jam. Pas VUZZ tidur, waktunya jalan 6x lebih cepat.
+// Tombol T lompat 3 jam. Pas 7POD tidur, waktunya jalan 6x lebih cepat.
 const urlParams = new URLSearchParams(location.search);
 const hourParam = urlParams.get('hour');
 const realtime = urlParams.get('realtime') === '1';
@@ -797,7 +861,7 @@ function tick() {
     const chainHint = chain.hint?.(pos); // ada yang bisa dipakai pakai E
     const chainNote = chain.note?.(pos) ?? chainHint; // cuma petunjuk
     $('act-sit').hidden = !chainHint && !behavior.nearBench && !behavior.sitting && !behavior.nearThing && !behavior.nearNpc;
-    $('act-sit').textContent = behavior.sitting ? 'E · Stand up' : chainHint ? 'E · Use' : behavior.nearBench ? 'E · Sit' : 'E · Inspect';
+    $('act-sit').textContent = behavior.sitting ? 'E · Stand up' : chainHint ? 'E · Use' : behavior.nearBench ? 'E · Sit' : behavior.nearNpc ? 'E · Talk' : 'E · Inspect';
     $('act-drink').hidden = !behavior.nearDrink || !!behavior.sitting;
     $('act-drink').textContent = behavior.nearCafe ? 'F · Coffee' : 'F · Drink';
     $('act-throw').hidden = !behavior.nearPier || !!behavior.sitting;
@@ -805,7 +869,7 @@ function tick() {
     // --- aksi ---
     if (controls.consume('e')) {
       if (behavior.sitting) {
-        behavior.sitting = null;
+        standUp();
         robot.setState('idle');
       } else if (chain.use(pos)) {
         behavior.idleTime = 0;
@@ -848,7 +912,7 @@ function tick() {
     if (controls.consume('g')) nextFace();
 
     // kejepit di dalam gedung atau mobil (misal dari save lama): keluarin ke titik bebas terdekat
-    if (behavior.grounded && blockedByBuilding(pos.x, pos.z, pos.y)) {
+    if (behavior.grounded && !behavior.sitting && blockedByBuilding(pos.x, pos.z, pos.y)) {
       [pos.x, pos.z] = nearestFree(pos.x, pos.z);
       pos.y = groundHeight(pos.x, pos.z);
     }
@@ -864,7 +928,7 @@ function tick() {
     const targetSpeed = moving && behavior.lock <= 0 ? (inp.run ? SPEED_RUN : SPEED_WALK) * speedMul * (behavior.wading ? 0.55 : 1) : 0;
     behavior.speed += (targetSpeed - behavior.speed) * Math.min(1, dt * (targetSpeed > behavior.speed ? 6 : 10));
     if (moving && behavior.lock <= 0) {
-      if (behavior.sitting) { behavior.sitting = null; }
+      if (behavior.sitting) standUp();
       const speed = behavior.speed;
       // arah relatif kamera: kamera ada di pos + (sin yaw, cos yaw), jadi "maju" (W) = (-sin yaw, -cos yaw)
       const yaw = inp.camYaw;
@@ -877,7 +941,7 @@ function tick() {
       // Sungai dan pinggir danau dangkal, bisa diseberangi jalan kaki; tengah danau tetap dalam.
       const clubGate = onClubRoof(nx, nz, pos.y);
       if (clubGate) clubNotice(clubOpen());
-      const free = (x, z) => (!isWater(x, z) || wadeable(x, z)) && !blockedByBuilding(x, z, pos.y) && !(onClubRoof(x, z, pos.y) && !clubOpen()) && !blockedByRail(x, z) && x > BOUNDS.min && x < BOUNDS.max && z > BOUNDS.min && z < BOUNDS.max;
+      const free = (x, z) => (!isWater(x, z) || wadeable(x, z)) && !blockedByBuilding(x, z, pos.y) && !(onClubRoof(x, z, pos.y) && !clubOpen()) && !blockedByRail(x, z) && !world.npcs?.blocksMove?.(pos.x, pos.z, x, z, pos.y) && x > BOUNDS.min && x < BOUNDS.max && z > BOUNDS.min && z < BOUNDS.max;
       if (free(nx, nz)) {
         pos.x = nx; pos.z = nz;
       } else if (free(nx, pos.z)) {
@@ -886,6 +950,16 @@ function tick() {
         pos.z = nz;
       } else {
         behavior.bump = (behavior.bump || 0) + dt;
+        // pengaman: kalau ke segala arah ketutup, robot kejebak beneran. Keluarin ke titik bebas terdekat.
+        if (behavior.bump > 1.2 && !behavior.sitting) {
+          const open = [0, 1, 2, 3, 4, 5, 6, 7].some((k) => free(pos.x + Math.cos(k * Math.PI / 4) * 0.4, pos.z + Math.sin(k * Math.PI / 4) * 0.4));
+          if (!open) {
+            [pos.x, pos.z] = nearestFree(pos.x, pos.z);
+            pos.y = Math.max(groundHeight(pos.x, pos.z), rooftopHeight(pos.x, pos.z, pos.y));
+            behavior.bump = 0;
+            say('Okay. Got myself out.', 1600);
+          }
+        }
         if (behavior.bump > 1.6) { behavior.bump = 0; express('angry', 2); say(['Who put a wall here.', 'Move. Please. I asked nicely.', 'Fine. Other way.'][Math.floor(Math.random() * 3)], 1600); }
       }
       behavior.wall = !behavior.grounded && touchingWall(nx, nz, pos.y);
@@ -917,7 +991,7 @@ function tick() {
     // --- loncat (Space), ala Roblox ---
     const wantJump = controls.consume(' ') || inp.jumpHeld;
     if (wantJump && behavior.grounded && !behavior.sitting && behavior.lock <= 0) {
-      if (behavior.sitting) behavior.sitting = null;
+      if (behavior.sitting) standUp();
       behavior.grounded = false;
       behavior.vy = behavior.onRoof ? ROOF_JUMP : JUMP_SPEED;
       audio.play('jump');
@@ -997,41 +1071,6 @@ function tick() {
       say(idleLines[Math.floor(Math.random() * idleLines.length)]);
     }
 
-    // --- quest: sinyal hilang ---
-    for (const s of WORLD.signals) {
-      if (s.taken) continue;
-      if (Math.hypot(pos.x - s.x, pos.z - s.z) < 1.6) {
-        s.taken = true;
-        s.mesh.visible = false;
-        signalsFound++;
-        refreshQuestText();
-        showToast(`Signal found (${signalsFound}/5)`);
-        audio.play('chime');
-        express('happy', 3);
-        robot.setState('wave');
-        behavior.lock = 1.2;
-        if (signalsFound === 3 && cityLights < 4) { cityLights = 4; refreshLamps(); setTimeout(() => audio.play('lamp'), 500); say('The fourth lamp! The city is getting brighter.'); }
-        if (signalsFound === 5) startFinale();
-        persist();
-      }
-    }
-
-    // --- misi harian: peti suplai ---
-    if (daily && !daily.done) {
-      daily.update(elapsed);
-      const got = daily.collectNear(pos.x, pos.z);
-      if (got) {
-        audio.play('chime');
-        express('happy', 3);
-        robot.setState('wave');
-        behavior.lock = 1.0;
-        refreshQuestText();
-        earnBolts(1, 'supply crate');
-        if (daily.done) { showToast('Daily complete · 3/3 crates. New ones tomorrow.', 4500); say("Three for three. The city eats tonight.", 3500); }
-        else { showToast(`Supply crate ${daily.found}/3 · ${got.label}`, 3000); say(['Got one.', 'Heavy. Worth it.', 'One more for the pile.'][daily.found % 3], 1800); }
-        persist();
-      }
-    }
     chain.update(pos);
     if (holderSpot && !holderSpot.seen && Math.hypot(pos.x - holderSpot.x, pos.z - holderSpot.z) < 9) {
       holderSpot.seen = true;
@@ -1049,7 +1088,7 @@ function tick() {
     else if (chainNote) setHint(chainNote);
     else if (behavior.nearBench) setHint('A bench. Press E to sit.');
     else if (behavior.nearNpc) setHint(`${behavior.nearNpc.name}. Press E to talk.`);
-    else if (behavior.nearThing?.id === 'shopCounter') setHint(`Minimarket. Press E to shop. You have ${bolts} bolt${bolts === 1 ? '' : 's'}.`);
+    else if (behavior.nearThing?.id === 'shopCounter') setHint('Minimarket. Press E to look around.');
     else if (behavior.nearThing) setHint(`${behavior.nearThing.name}. Press E to inspect.`);
     else if (behavior.nearCafe) setHint('Cafe counter. Press F for a coffee: +25% speed for a minute.');
     else if (behavior.nearDrink) setHint('Press F to "drink". Does nothing for its systems, but it likes it.');
@@ -1137,7 +1176,7 @@ function tick() {
   const camGround = groundHeight(camPos.x, camPos.z) + 0.6;
   if (camPos.y < camGround) camPos.y = camGround;
   if (finale) {
-    // sinematik ending: kamera naik pelan di belakang VUZZ, pandangan geser dari dia ke kota
+    // sinematik ending: kamera naik pelan di belakang 7POD, pandangan geser dari dia ke kota
     finale.t += dt;
     const p = Math.min(1, finale.t / finale.dur);
     const ease = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
@@ -1151,17 +1190,18 @@ function tick() {
   camera.lookAt(camTarget);
   const windowGoal = holderSpot && !holderSpot.seen ? [holderSpot] : [];
   const chainGoals = windowGoal.length ? windowGoal : chain.targets;
-  minimap.update({ pos, rotY: robot.root.rotation.y, camYaw: yaw, camera, signals: chainGoals.length ? chainGoals : daily && !daily.done ? daily.items : (daily ? [] : WORLD.signals), objectiveLabel: windowGoal.length ? 'window' : chainGoals.length ? chain.label : daily ? 'crate' : 'signal', started: started && !finale });
+  minimap.update({ pos, rotY: robot.root.rotation.y, camYaw: yaw, camera, signals: chainGoals, objectiveLabel: 'window', started: started && !finale });
   sun.target.position.copy(pos);
 
   // posisi bubble NPC di atas kepala NPC yang lagi ngomong
   if (!npcBubble.hidden && npcSpeaker) {
-    const sp = (WORLD.npcs || []).find((n) => n.id === npcSpeaker.id) || npcSpeaker;
-    const v = new THREE.Vector3(sp.x, (sp.y ?? groundHeight(sp.x, sp.z)) + (sp.kind === 'robot' ? 2.6 : 2.2), sp.z).project(camera);
-    const onScreen = v.z < 1 && Math.abs(v.x) < 1.2 && Math.abs(v.y) < 1.2;
-    npcBubble.style.opacity = onScreen ? 1 : 0;
-    npcBubble.style.left = `${(v.x * 0.5 + 0.5) * window.innerWidth}px`;
-    npcBubble.style.top = `${(-v.y * 0.5 + 0.5) * window.innerHeight}px`;
+    placeBubbleAt(npcBubble, (WORLD.npcs || []).find((n) => n.id === npcSpeaker.id) || npcSpeaker);
+  }
+  const nowMs = performance.now();
+  for (let i = ambientBubbles.length - 1; i >= 0; i--) {
+    const b = ambientBubbles[i];
+    if (nowMs > b.until || (npcSpeaker && npcSpeaker.id === b.npc.id)) { b.el.remove(); ambientBubbles.splice(i, 1); continue; }
+    placeBubbleAt(b.el, b.npc);
   }
   // posisi bubble di atas kepala
   if (!bubble.hidden) {
@@ -1206,7 +1246,7 @@ function takePhoto() {
   requestAnimationFrame(() => {
     composer.render();
     try {
-      // tempel watermark $VUZZ + jam dunia di pojok, lalu simpan
+      // tempel watermark 7POD + jam dunia di pojok, lalu simpan
       const src = renderer.domElement;
       const c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
       const g = c.getContext('2d');
@@ -1218,12 +1258,12 @@ function takePhoto() {
       g.shadowColor = 'rgba(0,0,0,0.8)'; g.shadowBlur = 10 * k;
       g.fillStyle = '#b8ff3c'; g.fillText(CONFIG.ticker, 28 * k, c.height - 26 * k);
       g.font = `500 ${Math.round(16 * k)}px Chakra Petch, sans-serif`; g.fillStyle = 'rgba(255,255,255,0.85)';
-      g.fillText(`VUZZ World · ${clock} · ${cityLights}/5 lamps`, 30 * k, c.height - 64 * k);
+      g.fillText(`7POD World · ${clock} · ${evo.name}`, 30 * k, c.height - 64 * k);
       const a = document.createElement('a');
       a.href = c.toDataURL('image/png');
-      a.download = `vuzz-world-${Date.now()}.png`;
+      a.download = `7pod-world-${Date.now()}.png`;
       a.click();
-      showToast('Photo saved with the $VUZZ mark. Share it on X with #VUZZWorld');
+      showToast('Photo saved with the 7POD mark. Share it on X');
     } catch (e) {
       showToast('Could not save the photo in this browser.');
     }
@@ -1238,7 +1278,7 @@ window.addEventListener('resize', () => {
   composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-window.__u7 = { get chain() { return chain; }, shop: { buy: buyItem, open: openShop, add: earnBolts, get bolts() { return bolts; }, gear, items: SHOP_ITEMS }, gameClock, BUILDINGS, rooftopHeight, obstacleTop, WORLD, world, get daily() { return daily; }, signals: WORLD.signals, robot, behavior, controls, audio, scene, camera, renderer, blockedByBuilding, isWater, wadeable, onBridge, groundHeight };
+window.__u7 = { ROOF, get chain() { return chain; }, shop: { buy: buyItem, open: openShop, add: earnBolts, get bolts() { return bolts; }, gear, items: SHOP_ITEMS }, gameClock, BUILDINGS, rooftopHeight, obstacleTop, WORLD, world, get daily() { return daily; }, signals: WORLD.signals, robot, behavior, controls, audio, scene, camera, renderer, blockedByBuilding, isWater, wadeable, onBridge, groundHeight };
 
 // kamera awal: dari depan robot
 controls.setYaw(Math.PI);

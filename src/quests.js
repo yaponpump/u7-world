@@ -1,4 +1,4 @@
-// Quest berantai setelah ending: nyalain 3 generator, antar paket ke robot kurir, cari bagian tubuh VUZZ.
+// Quest berantai setelah ending: nyalain 3 generator, antar paket ke robot kurir, cari bagian tubuh 7POD.
 // Progres disimpen sebagai data polos, event (on) dipakai main.js buat suara dan dialog.
 export function createChain(world, WORLD, saved, on) {
   const data = { stage: 'locked', gens: [], parts: [], ...saved };
@@ -24,7 +24,7 @@ export function createChain(world, WORLD, saved, on) {
       if (data.stage === 'power') return `Restart the generators · <b id="quest-count">${data.gens.length}</b>/3`;
       if (data.stage === 'parcel') return 'Pick up the parcel outside the cafe';
       if (data.stage === 'deliver') return `Deliver the parcel to ${recipient.name} the mechanic, outside the shop`;
-      if (data.stage === 'parts') return `Find VUZZ's lost parts · <b id="quest-count">${data.parts.length}</b>/3`;
+      if (data.stage === 'parts') return `Find 7POD's lost parts · <b id="quest-count">${data.parts.length}</b>/3`;
       return null;
     },
     get targets() {

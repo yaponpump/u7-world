@@ -9,7 +9,7 @@ import { Scatter, partsOf } from './scatter.js';
 import { createWeather } from './weather.js';
 import { createNpcs } from './npcs.js';
 import { createEcosystem } from './ecosystem.js';
-import { addObstacle, CAFE, CLUB, DOOR_H, ROOM_H, setInsideRoom, blockedByBuilding, buildCity, cityFlat, ROOF, SHOP, setCityFinale, setCityPower, CITY_SIGNALS, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
+import { addObstacle, addRoundObstacle, CAFE, CLUB, DOOR_H, ROOM_H, setInsideRoom, blockedByBuilding, buildCity, cityFlat, ROOF, SHOP, setCityFinale, setCityPower, CITY_SIGNALS, inCity, onSidewalk, setCityLit, setCityNight } from './city.js';
 
 export const WORLD = {
   size: 140,
@@ -127,8 +127,8 @@ WORLD.routes = [
 ];
 // Tempat yang bisa ditekan E: { id, name, x, z, line }
 WORLD.interactables = [
-  { id: 'tower', name: 'Signal Tower', x: 26, z: 6, line: 'One ring for every city light. Find signals and they come back on.' },
-  { id: 'notice', name: 'Notice board', x: 24, z: -17, line: 'Five signals got lost in The Blackout. The board says bring them home.' },
+  { id: 'tower', name: 'Signal Tower', x: 26, z: 6, line: 'It hums a little louder after every burn. 7POD listens to it.' },
+  { id: 'notice', name: 'Notice board', x: 24, z: -17, line: 'The board tracks 7POD. Every burn moves it one step closer to the next level.' },
   { id: 'hill', name: 'Hill lookout', x: 39.5, z: -35.5, line: 'You can see the whole city from up here. Most of it is still dark.' },
   { id: 'pier', name: 'Pier', x: -19, z: 22, line: 'End of the line. Press R and skip a rock.' },
   { id: 'cafeCounter', name: 'Cafe counter', x: CAFE.x, z: CAFE.z - 1.5, line: 'Nobody has run this counter since The Blackout. The coffee machine still hums.' },
@@ -137,7 +137,7 @@ WORLD.interactables = [
 WORLD.cafe.counter = { x: CAFE.x, z: CAFE.z - 1.5 };
 WORLD.shop = { x: SHOP.x, z: SHOP.z, counter: { x: SHOP.x + 2.4, z: SHOP.z + 0.9 } };
 WORLD.interactables.push({ id: 'shopCounter', name: 'Shop counter', ...WORLD.shop.counter, line: 'The till still has power. The shelves are full and nobody came back to buy anything.' });
-// Quest berantai setelah ending: nyalain generator, antar paket, cari bagian tubuh VUZZ
+// Quest berantai setelah ending: nyalain generator, antar paket, cari bagian tubuh 7POD
 WORLD.generators = [
   { id: 'tower', x: 30.5, z: 9.5, label: 'behind the Signal Tower' },
   { id: 'cafe', x: 51, z: 28, label: 'east of the cafe' },
@@ -263,7 +263,7 @@ function noticeTexture() {
   ctx.font = 'bold 62px "Chakra Petch", sans-serif';
   ctx.fillText('CITY NOTICE', 390, 92);
   ctx.font = '38px "Figtree", sans-serif';
-  ['Five signals were lost in The Blackout.', 'Every signal found brings a light back.', 'Follow the green arrow.'].forEach((t, i) => ctx.fillText(t, 390, 180 + i * 66));
+  ['Creator fees buy back 7POD every hour.', 'Every burn helps 7POD evolve.', 'Next stop: superintelligence (fiction).'].forEach((t, i) => ctx.fillText(t, 390, 180 + i * 66));
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
@@ -301,6 +301,7 @@ function buildSignposts(group, woodMat, list) {
     const sign = new THREE.Group();
     const y0 = groundHeight(x, z);
     sign.position.set(x, y0, z);
+    addObstacle(x, z, 0.12, 0.12, 99);
     const post = new THREE.Mesh(postGeo, woodMat);
     post.position.y = 1.55;
     post.castShadow = true;
@@ -325,6 +326,11 @@ function buildSignposts(group, woodMat, list) {
       back.rotation.y = Math.PI;
       arm.add(board, tip, strip, front, back);
       sign.add(arm);
+      // papan yang setinggi badan robot ikut padat
+      if (arm.position.y < 1.9) {
+        const a = Math.atan2(lm.z - z, lm.x - x);
+        for (const d of [0.45, 0.95, 1.45, 1.8]) addRoundObstacle(x + Math.cos(a) * d, z + Math.sin(a) * d, 0.16);
+      }
     });
     group.add(sign);
   }
@@ -524,7 +530,11 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
       .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb *= mix(0.32, 0.85, vH);');
   };
   bladeMat.userData.wind = { value: 0 };
-  const blades = new THREE.InstancedMesh(bladeGeo, bladeMat, bladeCount);
+  // Rumput dipecah per kotak 12 m: kotak di luar layar atau jauh dari kamera nggak digambar sama sekali.
+  // Dulu 200 ribu rumpun (4 juta segitiga) digambar tiap frame, ini sumber lag terbesar.
+  const GRASS_CELL = 12, GRASS_FAR = 40;
+  const cells = new Map();
+  const cellOf = (x, z) => { const k = `${Math.floor(x / GRASS_CELL)},${Math.floor(z / GRASS_CELL)}`; let c = cells.get(k); if (!c) cells.set(k, c = { m: [], c: [] }); return c; };
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v3 = new THREE.Vector3(), s3 = new THREE.Vector3();
   const colorTmp = new THREE.Color();
   let seed = 3;
@@ -545,17 +555,31 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     const sc = 0.55 + grnd() * 0.5 + Math.max(0, patch) * 0.45;
     s3.set(1, sc, 1);
     m4.compose(v3, q, s3);
-    blades.setMatrixAt(placed, m4);
+    const cell = cellOf(x, z);
+    cell.m.push(m4.clone());
     {
       const u = grnd(), dry = Math.max(0, -patch) * 0.65 * grnd();
       colorTmp.setRGB(0.07 + u * 0.09 + dry * 0.2, 0.13 + u * 0.09 + dry * 0.1, 0.03 + u * 0.03 + dry * 0.04);
     }
-    blades.setColorAt(placed, colorTmp);
+    cell.c.push(colorTmp.clone());
     placed++;
   }
-  blades.instanceMatrix.needsUpdate = true;
-  blades.castShadow = false;
-  blades.receiveShadow = true;
+  const blades = new THREE.Group();
+  const grassCells = [];
+  for (const cell of cells.values()) {
+    const mesh = new THREE.InstancedMesh(bladeGeo, bladeMat, cell.m.length);
+    cell.m.forEach((mm, i) => mesh.setMatrixAt(i, mm));
+    cell.c.forEach((cc, i) => mesh.setColorAt(i, cc));
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.computeBoundingSphere();
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+    blades.add(mesh);
+    grassCells.push({ mesh, x: mesh.boundingSphere.center.x, z: mesh.boundingSphere.center.z });
+  }
+  const updateGrass = (camera) => {
+    for (const g of grassCells) g.mesh.visible = Math.hypot(g.x - camera.position.x, g.z - camera.position.z) < GRASS_FAR + GRASS_CELL;
+  };
   group.add(blades);
 
   // ---------- Air (reflektif) ----------
@@ -574,8 +598,11 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     w.material.uniforms.size.value = 3.5;
     // Pantulan air nggak perlu rumput: ini yang paling makan GPU
     const reflect = w.onBeforeRender;
+    let wf = 0;
     w.onBeforeRender = (renderer, scene, camera) => {
       if (Math.hypot(camera.position.x - WORLD.lake.x, camera.position.z - WORLD.lake.z) > WORLD.lake.r + 55) return;
+      // pantulan cukup diperbarui tiap 2 frame, matanya nggak bakal ngeh tapi GPU-nya lega
+      if (wf++ % 2) return;
       blades.visible = false;
       reflect.call(w, renderer, scene, camera);
       blades.visible = true;
@@ -608,6 +635,8 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   const stoneMat = pbrMaterial(A.stone, texStone, { roughness: 0.85, repeat: 2 });
   const basin = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.5, 0.75, 48, 1, true), stoneMat);
   basin.position.set(WORLD.fountain.x, 0.37, WORLD.fountain.z);
+  // kolam air mancur: tepinya setinggi lutut, bisa dilompatin tapi nggak ditembus
+  addRoundObstacle(WORLD.fountain.x, WORLD.fountain.z, 3.45, 0.8);
   const basinRim = new THREE.Mesh(new THREE.TorusGeometry(3.3, 0.18, 12, 48), stoneMat);
   basinRim.rotation.x = Math.PI / 2;
   basinRim.position.set(WORLD.fountain.x, 0.75, WORLD.fountain.z);
@@ -657,6 +686,9 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     b.traverse((m) => { m.castShadow = true; m.receiveShadow = true; });
     group.add(b);
     WORLD.benches.push({ x, z, rotY, y });
+    // badan bangku padat; dudukannya rendah jadi masih bisa dilompatin dan diinjek
+    const along = Math.abs(Math.cos(rotY)) > 0.7;
+    addObstacle(x, z, along ? 1.1 : 0.35, along ? 0.35 : 1.1, 0.62);
   }
   bench(20, 9, Math.PI);
   bench(20, -9, 0);
@@ -731,6 +763,8 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     if (Math.hypot(x - 44, z + 40) < 4) continue;
     treePositions.push([x, z, 0.8 + rnd() * 0.9]);
   }
+  // batang pohon padat
+  for (const [x, z, s] of treePositions) addObstacle(x, z, 0.26 * s, 0.26 * s, 99);
   const treeModels = assets.trees || [];
   let leafMat = null;
   const treeSets = [];
@@ -818,6 +852,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     const light = new THREE.PointLight(0xffb347, 0, 16, 2);
     light.position.set(x, y + 4.0, z);
     group.add(post, cap, head, light);
+    addObstacle(x, z, 0.14, 0.14, 99);
     WORLD.lamps.push({ head, headMat, light, on: i < 3 });
   });
 
@@ -875,6 +910,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.6, 8), ironMat);
     leg.position.set(x, 0.3, z);
     cafe.add(seat, leg);
+    addRoundObstacle(CAFE.x + x, CAFE.z + z, 0.24, 0.66);
   };
   for (const sx of [-1.4, 0, 1.4]) stool(sx, -1.8);
   for (const [tx, tz] of [[-3.3, 0.2], [3.3, 0.2], [-3.3, 2.4], [3.3, 2.4]]) {
@@ -1060,7 +1096,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   holderWindow.visible = false;
   group.add(holderWindow);
 
-  // ---------- Paket kiriman + bagian tubuh VUZZ ----------
+  // ---------- Paket kiriman + bagian tubuh 7POD ----------
   const glowOrange = new THREE.MeshStandardMaterial({ color: 0x5a1a08, emissive: 0xff5a1f, emissiveIntensity: 2.4, toneMapped: false });
   const parcelMesh = new THREE.Group();
   const parcelBox = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.42, 0.5), new THREE.MeshStandardMaterial({ color: 0xa97a4a, roughness: 0.9 }));
@@ -1093,12 +1129,14 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   }
   board.add(bb, paper);
   board.position.set(WORLD.park.x + 4, 0, WORLD.park.z - 17);
+  addObstacle(board.position.x, board.position.z, 1.5, 0.12, 99);
   board.traverse((m) => { m.castShadow = true; });
   group.add(board);
 
   // ---------- Menara lampu komunitas ----------
   const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.5, 7.5, 16), ironMat);
   tower.position.set(WORLD.park.x + 6, 3.75, WORLD.park.z + 6);
+  addRoundObstacle(tower.position.x, tower.position.z, 0.5);
   tower.castShadow = true;
   group.add(tower);
   const towerLights = [];
@@ -1150,6 +1188,8 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
     r.scale.set(1, 0.6 + rnd() * 0.4, 1);
     r.castShadow = r.receiveShadow = true;
     group.add(r);
+    // batu padat, yang pendek bisa dilompatin dan diinjek
+    addRoundObstacle(x, z, rockSize * 0.85, r.position.y + rockSize * r.scale.y);
   }
 
   // ---------- Burung ----------
@@ -1197,7 +1237,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
   WORLD.npcs = npcs.live;
   WORLD.interactables.push({ id: 'rooftop', name: 'Rooftop', x: ROOF.cx, z: ROOF.cz, line: 'You can see the whole city from up here. Every dark window is somebody who left.' });
   for (const s of npcs.sisters) {
-    WORLD.interactables.push({ id: 'unit', name: 'Dormant unit', x: s.root.position.x, z: s.root.position.z, line: 'Another unit like me. Still asleep. Maybe all five lights will wake it.' });
+    WORLD.interactables.push({ id: 'unit', name: 'Dormant unit', x: s.root.position.x, z: s.root.position.z, line: 'Another mind of the network. Still asleep. More burns will wake it.' });
   }
 
   const ecosystem = createEcosystem(group, {
@@ -1241,7 +1281,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
       c.fillStyle = '#0d1016'; c.fillRect(0, 0, 1024, 512);
       c.textBaseline = 'middle';
       c.fillStyle = '#b8ff3c'; c.font = '700 96px sans-serif'; c.textAlign = 'left';
-      c.fillText('$VUZZ', 56, 96);
+      c.fillText('7POD', 56, 96);
       c.fillStyle = tag === 'LIVE' ? '#b8ff3c' : '#ffb347'; c.font = '700 64px sans-serif'; c.textAlign = 'right';
       c.fillText(tag, 968, 96);
       c.fillStyle = '#ece6d6'; c.font = '700 120px sans-serif'; c.textAlign = 'left';
@@ -1255,7 +1295,7 @@ export function buildWorld(scene, renderer, { quality = 'high', assets = { textu
       if (p) p.mesh.visible = visible;
     },
     get weather() { return weather.state; },
-    updateTrees(camera) { for (const t of treeSets) t.update(camera); },
+    updateTrees(camera) { for (const t of treeSets) t.update(camera); updateGrass(camera); },
     // Pemain di dalam ruangan: kamera boleh di luar, tembok yang ngalangin ilang
     updateRooms(camera) {
       if (!player) return;

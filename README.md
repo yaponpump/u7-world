@@ -1,6 +1,6 @@
-# VUZZ World
+# 7POD World
 
-A small browser open world for the **VUZZ ($VUZZ)** project. You control **VUZZ**, a tiny mecha and the last guardian of a city that went dark in *The Blackout*. Every new signal (holder) turns on one city light.
+A small browser open world for the **7POD** project. You control **7POD**, a tiny robot in a city that wakes up as 7POD gets burned.
 
 Built with [Three.js](https://threejs.org) and [Vite](https://vitejs.dev). Status: **prototype** with realistic rendering (physical sky, reflective water, grass, PBR). The robot is built directly in code (worn metal paint, pistons, joints).
 
@@ -32,7 +32,7 @@ Open `http://localhost:5173`.
 | Q | Photo |
 | M | Sound on/off |
 
-Leave VUZZ idle for about 15 seconds and it yawns. After 30 seconds it falls asleep.
+Leave 7POD idle for about 15 seconds and it yawns. After 30 seconds it falls asleep.
 
 ## Sound
 
@@ -75,7 +75,7 @@ Automatic: `high` on desktop, `low` on mobile. Force it with `?q=low` or `?q=hig
 - `src/city.js`: buildings, roads, street props, collisions
 - `src/weather.js`: clouds, rain, wind, storm flashes, golden light
 - `src/npcs.js`: drones and dormant units
-- `src/robot.js`: VUZZ (procedural mesh and animation per state)
+- `src/robot.js`: 7POD (procedural mesh and animation per state)
 - `src/controls.js`: keyboard, mouse, touch joystick
 - `src/minimap.js`: minimap, place labels, objective arrow
 - `src/audio.js`: all sound (procedural Web Audio)
@@ -89,6 +89,6 @@ Pushing to `main` deploys to GitHub Pages through `.github/workflows/pages.yml`.
 ## Roadmap
 
 1. Prototype (this)
-2. Real VUZZ 3D model (GLB, rig, animation)
+2. Real 7POD 3D model (GLB, rig, animation)
 3. Living world: other players
 4. Wallet-driven "sync" events
