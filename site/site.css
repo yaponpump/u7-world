@@ -68,10 +68,16 @@ body.loading .ui { animation-play-state: paused; }
 .wordmark { text-decoration: none; display: block; line-height: 1; padding: 6px 2px 10px; }
 .logo { display: flex; font: 800 30px/1 Outfit, sans-serif; letter-spacing: -0.02em; transition: font-size 0.35s ease; }
 .ui.small .logo { font-size: 26px; }
-.logo b { display: inline-block; color: #7a4dff; transform-origin: 50% 90%; --r: 0deg;
-  text-shadow: 0 1px 0 #6b3ff2, 0 2px 0 #5a44a8, 0 3px 0 #4d3896, 0 4px 0 #402d80, 0 9px 12px rgba(64, 45, 128, 0.35);
+/* huruf logo = glyph helvetiker bold yang sama dengan tulisan 3D di tengah, dalam bentuk SVG */
+.logo { align-items: flex-end; }
+.logo b { display: block; color: #9466ff; transform-origin: 50% 90%; --r: 0deg;
+  filter: drop-shadow(0 1px 0 #5a44a8) drop-shadow(0 1px 0 #4d3896) drop-shadow(0 1px 0 #402d80) drop-shadow(0 5px 6px rgba(64, 45, 128, 0.35));
   animation: bob 2.8s ease-in-out infinite; }
-.logo b:nth-child(1) { color: #2fbf7c; text-shadow: 0 1px 0 #28a86c, 0 2px 0 #20925d, 0 3px 0 #1a7c4f, 0 4px 0 #156842, 0 9px 12px rgba(21, 104, 66, 0.35); --r: -8deg; margin-right: 1px; }
+.logo b + b { margin-left: -0.05em; }
+.logo svg { display: block; height: 0.86em; width: auto; fill: currentColor; overflow: visible; }
+.logo b:nth-child(1) svg { height: 1em; }
+.logo b:nth-child(3) svg { height: 0.9em; }
+.logo b:nth-child(1) { color: #5fd39a; filter: drop-shadow(0 1px 0 #2fa86c) drop-shadow(0 1px 0 #20925d) drop-shadow(0 1px 0 #156842) drop-shadow(0 5px 6px rgba(21, 104, 66, 0.35)); --r: -8deg; }
 .logo b:nth-child(2) { --r: 5deg; animation-delay: -0.35s; }
 .logo b:nth-child(3) { --r: -4deg; animation-delay: -0.7s; }
 .logo b:nth-child(4) { --r: 6deg; animation-delay: -1.05s; }
