@@ -173,6 +173,7 @@ const mouse = { x: 0, y: 0 };
 addEventListener('pointermove', (e) => { mouse.x = (e.clientX / innerWidth) * 2 - 1; mouse.y = (e.clientY / innerHeight) * 2 - 1; }, { passive: true });
 
 let last = performance.now();
+let firstFrameDone = null; // resolve setelah frame pertama ke-render (shader compile berat)
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   if (!document.hidden && renderer) {
@@ -208,6 +209,7 @@ function frame(now) {
       wordMesh.userData.letters.forEach((l, i) => { const b = l.userData.base; l.position.y = b.y + Math.sin(t * 1.1 + i * 1.3) * 0.04; l.rotation.z = b.rz + Math.sin(t * 0.8 + i) * 0.02; });
     }
     renderer.render(scene, camera);
+    if (firstFrameDone) { firstFrameDone(); firstFrameDone = null; }
   }
   requestAnimationFrame(frame);
 }
@@ -255,14 +257,13 @@ function fixedUI() {
       onToggle(self) {
         if (!self.isActive) return;
         document.body.dataset.section = s.id;
-        $('section-tag').textContent = s.dataset.tag || '';
         document.querySelectorAll('.menu a').forEach((a) => a.classList.toggle('active', a.dataset.nav === s.id));
       },
     });
   });
   ScrollTrigger.create({
     start: 0, end: () => ScrollTrigger.maxScroll(window),
-    onUpdate(self) { $('progress').style.transform = `scaleX(${self.progress})`; $('scroll-cue').classList.toggle('off', self.scroll() > 80); },
+    onUpdate(self) { $('progress').style.transform = `scaleX(${self.progress})`; },
   });
   // warna glow latar ikut seksi
   const glows = { hero: ['#5a35d8', '#24136a'], story: ['#2a1a6a', '#120c30'], live: ['#3b5a12', '#17200a'], world: ['#3a2290', '#1a1040'], moods: ['#5a35d8', '#24136a'], token: ['#2f4a10', '#141a0a'], buy: ['#3a2290', '#1a1040'], plan: ['#2a1a6a', '#120c30'], end: ['#6a3fff', '#2a1670'] };
@@ -382,6 +383,7 @@ function tokenData() {
   const mainnet = cfg.network === 'mainnet';
   if (cfg.mint) {
     $('status').textContent = mainnet ? 'Live on Solana' : 'Solana devnet test, not real money';
+    $('status').hidden = false;
     $('ca').hidden = false;
     $('ca-value').textContent = `${cfg.mint.slice(0, 6)}...${cfg.mint.slice(-6)}`;
     $('ca-copy').addEventListener('click', async () => {
@@ -439,13 +441,18 @@ async function main() {
   tokenData();
   // jangan nahan layar lebih dari 4 detik, sisanya ngalir di belakang
   await Promise.race([Promise.all(jobs), new Promise((ok) => setTimeout(ok, 4000))]);
+  if (renderer) {
+    // frame pertama paling berat (compile shader + upload geometri): jalanin selagi loader masih nutup layar
+    const first = new Promise((ok) => { firstFrameDone = ok; });
+    requestAnimationFrame(frame);
+    await Promise.race([first, new Promise((ok) => setTimeout(ok, 8000))]);
+  }
   // selesai: tutup loader, mulai render, dan robot dadah sekali
   load.closed = true;
   await new Promise((ok) => gsap.to(load.pct, { v: 100, duration: 0.4, overwrite: true, onUpdate() { $('loader-pct').textContent = Math.round(load.pct.v); $('loader-fill').style.width = `${load.pct.v}%`; }, onComplete: ok }));
   gsap.to($('loader'), { yPercent: -100, duration: 0.9, ease: 'power4.inOut', onComplete() { $('loader').remove(); } });
   document.body.classList.remove('loading');
   if (renderer) {
-    requestAnimationFrame(frame);
     document.body.classList.add('gl');
     // huruf jatuh satu-satu dengan mantul, lalu robot nongol dari balik huruf dan dadah
     const L = wordMesh.userData.letters;
